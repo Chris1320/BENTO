@@ -23,6 +23,38 @@ from centralserver.internals.models.reports.daily_financial_report import (
     DailyFinancialReportEntry,
 )
 from centralserver.internals.models.reports.monthly_report import MonthlyReport
+from centralserver.internals.models.reports.lr_operating_expenses import (
+    LiquidationReportOperatingExpenses,
+    OperatingExpenseEntry,
+)
+from centralserver.internals.models.reports.lr_administrative_expenses import (
+    LiquidationReportAdministrativeExpenses,
+    AdministrativeExpenseEntry,
+)
+from centralserver.internals.models.reports.lr_supplementary_feeding_fund import (
+    LiquidationReportSupplementaryFeedingFund,
+    SupplementaryFeedingFundEntry,
+)
+from centralserver.internals.models.reports.lr_clinic_fund import (
+    LiquidationReportClinicFund,
+    LiquidationReportClinicFundEntry,
+)
+from centralserver.internals.models.reports.lr_faculty_stud_dev_fund import (
+    LiquidationReportFacultyAndStudentDevFund,
+    FacultyAndStudentDevFundEntry,
+)
+from centralserver.internals.models.reports.lr_he_fund import (
+    LiquidationReportHEFund,
+    LiquidationReportHEFundEntry,
+)
+from centralserver.internals.models.reports.lr_school_operation_fund import (
+    LiquidationReportSchoolOperationFund,
+    SchoolOperationFundEntry,
+)
+from centralserver.internals.models.reports.lr_revolving_fund import (
+    LiquidationReportRevolvingFund,
+    RevolvingFundEntry,
+)
 from centralserver.internals.models.school import School
 from centralserver.internals.models.token import DecodedJWTToken
 from centralserver.internals.models.user import User
@@ -97,6 +129,11 @@ async def get_financial_data(
         total_purchases = sum(entry.purchases for entry in daily_entries)
         net_income = total_sales - total_purchases
 
+        # Get liquidation report expenses for this month
+        liquidation_expenses = await get_liquidation_expenses(
+            session, monthly_report_id
+        )
+
         # Get previous month for comparison
         prev_month = month - 1 if month > 1 else 12
         prev_year = year if month > 1 else year - 1
@@ -114,6 +151,11 @@ async def get_financial_data(
         prev_total_purchases = sum(entry.purchases for entry in prev_daily_entries)
         prev_net_income = prev_total_sales - prev_total_purchases
 
+        # Get previous month liquidation expenses
+        prev_liquidation_expenses = await get_liquidation_expenses(
+            session, prev_monthly_report_id
+        )
+
         return {
             "current_month": {
                 "sales": total_sales,
@@ -123,17 +165,21 @@ async def get_financial_data(
                 "report_status": (
                     monthly_report.reportStatus.value if monthly_report else "not_found"
                 ),
+                "liquidation_expenses": liquidation_expenses,
             },
             "previous_month": {
                 "sales": prev_total_sales,
                 "purchases": prev_total_purchases,
                 "net_income": prev_net_income,
                 "entries_count": len(prev_daily_entries),
+                "liquidation_expenses": prev_liquidation_expenses,
             },
             "trends": {
                 "sales_change": total_sales - prev_total_sales,
                 "purchases_change": total_purchases - prev_total_purchases,
                 "net_income_change": net_income - prev_net_income,
+                "liquidation_expenses_change": liquidation_expenses["total"]
+                - prev_liquidation_expenses["total"],
             },
         }
     except Exception as e:
@@ -146,17 +192,20 @@ async def get_financial_data(
                 "net_income": 0,
                 "entries_count": 0,
                 "report_status": "error",
+                "liquidation_expenses": {"total": 0, "by_category": {}},
             },
             "previous_month": {
                 "sales": 0,
                 "purchases": 0,
                 "net_income": 0,
                 "entries_count": 0,
+                "liquidation_expenses": {"total": 0, "by_category": {}},
             },
             "trends": {
                 "sales_change": 0,
                 "purchases_change": 0,
                 "net_income_change": 0,
+                "liquidation_expenses_change": 0,
             },
         }
 
@@ -264,20 +313,38 @@ async def generate_financial_insights(
     month_name = datetime.date(year, month, 1).strftime("%B")
     period = f"{month_name} {year}"
 
+    # Get user information for context
+    user_context = f"User: {user.nameFirst or 'N/A'} - {user.position or 'N/A'} (System Role: {user.role.description if user.role else 'Unknown'})"
+
     prompt = f"""
     Generate financial insights for {school.name} for {period}.
+    
+    Current user context: {user_context}
     
     Current month financial data:
     - Sales: ₱{financial_data['current_month']['sales']:,.2f}
     - Purchases: ₱{financial_data['current_month']['purchases']:,.2f}
     - Net Income: ₱{financial_data['current_month']['net_income']:,.2f}
-    - Number of entries: {financial_data['current_month']['entries_count']}
+    - Daily Sales & Purchases Entries: {financial_data['current_month']['entries_count']}
     - Report Status: {financial_data['current_month']['report_status']}
+    
+    Current month liquidation expenses:
+    - Total Liquidation Expenses: ₱{financial_data['current_month']['liquidation_expenses']['total']:,.2f}
+    - Operating Expenses: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('operating_expenses', 0):,.2f}
+    - Administrative Expenses: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('administrative_expenses', 0):,.2f}
+    - Supplementary Feeding Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('supplementary_feeding_fund', 0):,.2f}
+    - Clinic Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('clinic_fund', 0):,.2f}
+    - Faculty & Student Development Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('faculty_stud_dev_fund', 0):,.2f}
+    - HE Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('he_fund', 0):,.2f}
+    - School Operations Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('school_operations_fund', 0):,.2f}
+    - Revolving Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('revolving_fund', 0):,.2f}
     
     Previous month comparison:
     - Sales Change: ₱{financial_data['trends']['sales_change']:,.2f}
     - Purchases Change: ₱{financial_data['trends']['purchases_change']:,.2f}
     - Net Income Change: ₱{financial_data['trends']['net_income_change']:,.2f}
+    - Liquidation Expenses Change: ₱{financial_data['trends']['liquidation_expenses_change']:,.2f}
+    - Previous Month Total Liquidation Expenses: ₱{financial_data['previous_month']['liquidation_expenses']['total']:,.2f}
     
     Provide a concise financial insight in exactly 50 words or less. Focus on:
     1. Performance trends
@@ -285,6 +352,7 @@ async def generate_financial_insights(
     3. Brief recommendations
     
     Be specific about the school's financial performance and actionable insights.
+    Do not use markdown syntax, only plaintext output is supported by the display.
     """
 
     try:
@@ -375,20 +443,36 @@ async def chat_with_ai(
     # Get LLM model
     model = await get_llm_model()
 
-    # Create system prompt with school context
+    # Create system prompt with school context and user information
+    user_context = f"User: {user.nameFirst or 'N/A'} - {user.position or 'N/A'} (System Role: {user.role.description if user.role else 'Unknown'})"
+
     system_prompt = f"""
     You are a financial assistant for {school.name}. You can only provide information about this school's financial data.
+    
+    Current user context: {user_context}
     
     Current financial summary:
     - Current Month Sales: ₱{financial_data['current_month']['sales']:,.2f}
     - Current Month Purchases: ₱{financial_data['current_month']['purchases']:,.2f}
     - Current Month Net Income: ₱{financial_data['current_month']['net_income']:,.2f}
-    - Active Entries: {financial_data['current_month']['entries_count']}
+    - Daily Sales & Purchases Entries: {financial_data['current_month']['entries_count']}
+    
+    Current month liquidation expenses:
+    - Total Liquidation Expenses: ₱{financial_data['current_month']['liquidation_expenses']['total']:,.2f}
+    - Operating Expenses: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('operating_expenses', 0):,.2f}
+    - Administrative Expenses: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('administrative_expenses', 0):,.2f}
+    - Supplementary Feeding Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('supplementary_feeding_fund', 0):,.2f}
+    - Clinic Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('clinic_fund', 0):,.2f}
+    - Faculty & Student Development Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('faculty_stud_dev_fund', 0):,.2f}
+    - HE Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('he_fund', 0):,.2f}
+    - School Operations Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('school_operations_fund', 0):,.2f}
+    - Revolving Fund: ₱{financial_data['current_month']['liquidation_expenses']['by_category'].get('revolving_fund', 0):,.2f}
     
     Recent trends:
     - Sales Change: ₱{financial_data['trends']['sales_change']:,.2f}
     - Purchases Change: ₱{financial_data['trends']['purchases_change']:,.2f}
     - Net Income Change: ₱{financial_data['trends']['net_income_change']:,.2f}
+    - Liquidation Expenses Change: ₱{financial_data['trends']['liquidation_expenses_change']:,.2f}
     
     Recent reports count: {len(recent_reports)}
     
@@ -398,6 +482,8 @@ async def chat_with_ai(
     3. If asked about other schools, politely decline
     4. Use Philippine peso (₱) for currency
     5. Keep responses concise and professional
+
+    Do not use markdown syntax, only plaintext output is supported by the display.
     """
 
     # Build conversation history
@@ -468,4 +554,169 @@ async def get_ai_status(
             "status": "error",
             "message": f"AI service error: {str(e)}",
             "features": {"insights": False, "chat": False},
+        }
+
+
+async def get_liquidation_expenses(
+    session: Session, monthly_report_id: str
+) -> Dict[str, Any]:
+    """Get liquidation expenses for a specific monthly report."""
+
+    try:
+        # Convert monthly_report_id string to date
+        report_date = datetime.datetime.strptime(monthly_report_id, "%Y-%m-%d").date()
+
+        expenses_by_category = {}
+        total_expenses = 0.0
+
+        # Operating Expenses
+        operating_report = session.exec(
+            select(LiquidationReportOperatingExpenses).where(
+                LiquidationReportOperatingExpenses.parent == report_date
+            )
+        ).first()
+        if operating_report:
+            operating_entries = session.exec(
+                select(OperatingExpenseEntry).where(
+                    OperatingExpenseEntry.parent == report_date
+                )
+            ).all()
+            operating_total = sum(
+                (entry.quantity or 1) * entry.unit_price for entry in operating_entries
+            )
+            expenses_by_category["operating_expenses"] = operating_total
+            total_expenses += operating_total
+
+        # Administrative Expenses
+        admin_report = session.exec(
+            select(LiquidationReportAdministrativeExpenses).where(
+                LiquidationReportAdministrativeExpenses.parent == report_date
+            )
+        ).first()
+        if admin_report:
+            admin_entries = session.exec(
+                select(AdministrativeExpenseEntry).where(
+                    AdministrativeExpenseEntry.parent == report_date
+                )
+            ).all()
+            admin_total = sum(
+                (entry.quantity or 1) * entry.unit_price for entry in admin_entries
+            )
+            expenses_by_category["administrative_expenses"] = admin_total
+            total_expenses += admin_total
+
+        # Supplementary Feeding Fund
+        feeding_report = session.exec(
+            select(LiquidationReportSupplementaryFeedingFund).where(
+                LiquidationReportSupplementaryFeedingFund.parent == report_date
+            )
+        ).first()
+        if feeding_report:
+            feeding_entries = session.exec(
+                select(SupplementaryFeedingFundEntry).where(
+                    SupplementaryFeedingFundEntry.parent == report_date
+                )
+            ).all()
+            feeding_total = sum(entry.amount for entry in feeding_entries)
+            expenses_by_category["supplementary_feeding_fund"] = feeding_total
+            total_expenses += feeding_total
+
+        # Clinic Fund
+        clinic_report = session.exec(
+            select(LiquidationReportClinicFund).where(
+                LiquidationReportClinicFund.parent == report_date
+            )
+        ).first()
+        if clinic_report:
+            clinic_entries = session.exec(
+                select(LiquidationReportClinicFundEntry).where(
+                    LiquidationReportClinicFundEntry.parent == report_date
+                )
+            ).all()
+            clinic_total = sum(entry.amount for entry in clinic_entries)
+            expenses_by_category["clinic_fund"] = clinic_total
+            total_expenses += clinic_total
+
+        # Faculty and Student Development Fund
+        faculty_report = session.exec(
+            select(LiquidationReportFacultyAndStudentDevFund).where(
+                LiquidationReportFacultyAndStudentDevFund.parent == report_date
+            )
+        ).first()
+        if faculty_report:
+            faculty_entries = session.exec(
+                select(FacultyAndStudentDevFundEntry).where(
+                    FacultyAndStudentDevFundEntry.parent == report_date
+                )
+            ).all()
+            faculty_total = sum(
+                (entry.quantity or 1) * entry.unitPrice for entry in faculty_entries
+            )
+            expenses_by_category["faculty_stud_dev_fund"] = faculty_total
+            total_expenses += faculty_total
+
+        # HE Fund
+        he_report = session.exec(
+            select(LiquidationReportHEFund).where(
+                LiquidationReportHEFund.parent == report_date
+            )
+        ).first()
+        if he_report:
+            he_entries = session.exec(
+                select(LiquidationReportHEFundEntry).where(
+                    LiquidationReportHEFundEntry.parent == report_date
+                )
+            ).all()
+            he_total = sum(
+                (entry.quantity or 1) * entry.unit_price for entry in he_entries
+            )
+            expenses_by_category["he_fund"] = he_total
+            total_expenses += he_total
+
+        # School Operation Fund
+        school_report = session.exec(
+            select(LiquidationReportSchoolOperationFund).where(
+                LiquidationReportSchoolOperationFund.parent == report_date
+            )
+        ).first()
+        if school_report:
+            school_entries = session.exec(
+                select(SchoolOperationFundEntry).where(
+                    SchoolOperationFundEntry.parent == report_date
+                )
+            ).all()
+            school_total = sum(
+                (entry.quantity or 1) * entry.unitPrice for entry in school_entries
+            )
+            expenses_by_category["school_operations_fund"] = school_total
+            total_expenses += school_total
+
+        # Revolving Fund
+        revolving_report = session.exec(
+            select(LiquidationReportRevolvingFund).where(
+                LiquidationReportRevolvingFund.parent == report_date
+            )
+        ).first()
+        if revolving_report:
+            revolving_entries = session.exec(
+                select(RevolvingFundEntry).where(
+                    RevolvingFundEntry.parent == report_date
+                )
+            ).all()
+            revolving_total = sum(
+                (entry.quantity or 1) * entry.unitPrice for entry in revolving_entries
+            )
+            expenses_by_category["revolving_fund"] = revolving_total
+            total_expenses += revolving_total
+
+        return {
+            "total": total_expenses,
+            "by_category": expenses_by_category,
+        }
+
+    except Exception as e:
+        logger.error("Error getting liquidation expenses: %s", e)
+        return {
+            "total": 0.0,
+            "by_category": {},
         }

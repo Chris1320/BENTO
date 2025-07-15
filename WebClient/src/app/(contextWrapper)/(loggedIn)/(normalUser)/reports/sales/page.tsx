@@ -145,24 +145,43 @@ function SalesandPurchasesContent() {
                     // Set the report status
                     setReportStatus(report.reportStatus || null);
 
-                    // Set the prepared by from the report (only if it's the current user)
-                    if (report.preparedBy === userCtx.userInfo?.id) {
-                        const currentUserName = `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim();
-                        setPreparedBy(currentUserName);
-                        setPreparedByPosition(userCtx.userInfo.position || null);
-                        // Load current user's signature for preparedBy
-                        if (userCtx.userInfo.signatureUrn) {
-                            try {
-                                const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
-                                    query: { fn: userCtx.userInfo.signatureUrn },
-                                });
-                                if (response.data) {
-                                    const signatureUrl = URL.createObjectURL(response.data as Blob);
-                                    setPreparedBySignatureUrl(signatureUrl);
+                    // Set the prepared by from the report (load the actual user who prepared it)
+                    if (report.preparedBy) {
+                        console.log("Loading preparedBy user for ID:", report.preparedBy);
+                        try {
+                            // Get the user details for the preparedBy user using simple endpoint
+                            const userResponse = await csclient.getUsersSimpleEndpointV1UsersSimpleGet();
+
+                            if (userResponse.data) {
+                                // Find the user with the matching ID
+                                const preparedByUser = userResponse.data.find((user) => user.id === report.preparedBy);
+
+                                if (preparedByUser) {
+                                    const userName = `${preparedByUser.nameFirst} ${preparedByUser.nameLast}`.trim();
+                                    console.log("Setting preparedBy to:", userName);
+                                    setPreparedBy(userName);
+                                    setPreparedByPosition(preparedByUser.position || null);
+
+                                    // Load user's signature for preparedBy (load the actual preparedBy user's signature)
+                                    if (preparedByUser.signatureUrn) {
+                                        try {
+                                            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet(
+                                                {
+                                                    query: { fn: preparedByUser.signatureUrn },
+                                                }
+                                            );
+                                            if (response.data) {
+                                                const signatureUrl = URL.createObjectURL(response.data as Blob);
+                                                setPreparedBySignatureUrl(signatureUrl);
+                                            }
+                                        } catch (error) {
+                                            customLogger.error("Failed to load preparedBy user signature:", error);
+                                        }
+                                    }
                                 }
-                            } catch (error) {
-                                customLogger.error("Failed to load current user signature for preparedBy:", error);
                             }
+                        } catch (error) {
+                            customLogger.error("Failed to load preparedBy user details:", error);
                         }
                     } // Set the noted by from the report (for any user)
                     if (report.notedBy) {
@@ -242,7 +261,8 @@ function SalesandPurchasesContent() {
             if (!userCtx.userInfo) return;
 
             // Only set prepared by to current user if it hasn't been set yet (i.e., for new reports)
-            if (!preparedBy && !preparedBySignatureUrl) {
+            // This should only run if there's no existing report with preparedBy data
+            if (!preparedBy && !preparedBySignatureUrl && reportStatus === null) {
                 const currentUserName = `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim();
                 setPreparedBy(currentUserName);
                 setPreparedByPosition(userCtx.userInfo.position || null);
@@ -267,7 +287,7 @@ function SalesandPurchasesContent() {
         };
 
         initializePreparedBy();
-    }, [userCtx.userInfo, preparedBy, preparedBySignatureUrl]);
+    }, [userCtx.userInfo, preparedBy, preparedBySignatureUrl, reportStatus]);
 
     useEffect(() => {
         const loadSchoolData = async () => {
@@ -856,21 +876,16 @@ function SalesandPurchasesContent() {
 
                         <div style={{ width: "80px", height: "80px" }}>
                             {/* DepEd Logo */}
-                            <div
+                            <Image
+                                src="/assets/logos/deped.svg"
+                                alt="Deped Logo"
                                 style={{
                                     width: "100%",
                                     height: "100%",
-                                    border: "1px solid #ccc",
+                                    objectFit: "cover",
                                     borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "10px",
-                                    color: "#666",
                                 }}
-                            >
-                                DepEd
-                            </div>
+                            />
                         </div>
                     </div>
 
@@ -1010,7 +1025,7 @@ function SalesandPurchasesContent() {
                         </div>
                         <div style={{ borderBottom: "1px solid #000", width: "200px", marginBottom: "5px" }}></div>
                         <div style={{ fontSize: "12px", fontWeight: "bold" }}>{preparedBy || "NAME"}</div>
-                        <div style={{ fontSize: "10px" }}>{userCtx.userInfo?.position || "Position"}</div>
+                        <div style={{ fontSize: "10px" }}>{preparedByPosition || "Position"}</div>
                     </div>
 
                     <div style={{ textAlign: "center" }}>

@@ -133,6 +133,8 @@ function LiquidationReportContent() {
     // Signature state management
     // Reason: Track prepared by (current user) and noted by (selected user) for report signatures
     const [preparedBy, setPreparedBy] = useState<string | null>(null);
+    const [preparedByPosition, setPreparedByPosition] = useState<string | null>(null);
+    const [preparedById, setPreparedById] = useState<string | null>(null); // Store the user ID for API calls
     const [notedBy, setNotedBy] = useState<string | null>(null);
     const [preparedBySignatureUrl, setPreparedBySignatureUrl] = useState<string | null>(null);
     const [notedBySignatureUrl, setNotedBySignatureUrl] = useState<string | null>(null);
@@ -189,7 +191,41 @@ function LiquidationReportContent() {
 
                     // Load signature information from existing report
                     if (report.preparedBy) {
-                        setPreparedBy(report.preparedBy);
+                        console.log("Loading preparedBy user for ID:", report.preparedBy);
+                        setPreparedById(report.preparedBy); // Store the user ID for API calls
+                        try {
+                            // Get the user details for the preparedBy user using simple endpoint
+                            const userResponse = await csclient.getUsersSimpleEndpointV1UsersSimpleGet();
+
+                            if (userResponse.data) {
+                                // Find the user with the matching ID
+                                const preparedByUser = userResponse.data.find((user) => user.id === report.preparedBy);
+
+                                if (preparedByUser) {
+                                    const userName = `${preparedByUser.nameFirst} ${preparedByUser.nameLast}`.trim();
+                                    console.log("Setting preparedBy to:", userName);
+                                    setPreparedBy(userName);
+                                    setPreparedByPosition(preparedByUser.position || null);
+
+                                    // Load user's signature for preparedBy (load the actual preparedBy user's signature)
+                                    if (preparedByUser.signatureUrn) {
+                                        try {
+                                            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                                                query: { fn: preparedByUser.signatureUrn },
+                                            });
+                                            if (response.data) {
+                                                const signatureUrl = URL.createObjectURL(response.data as Blob);
+                                                setPreparedBySignatureUrl(signatureUrl);
+                                            }
+                                        } catch (error) {
+                                            customLogger.error("Failed to load preparedBy user signature:", error);
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            customLogger.error("Failed to load preparedBy user details:", error);
+                        }
                     }
                     if (report.notedBy) {
                         setNotedBy(report.notedBy);
@@ -304,18 +340,24 @@ function LiquidationReportContent() {
                 }
             };
 
-            // Set prepared by to current user ID (ensure we store user ID, not name)
-            setPreparedBy(userCtx.userInfo.id);
+            // Set prepared by to current user ID only for new reports (not when loading existing reports)
+            // This should only run if there's no existing report with preparedBy data
+            if (!preparedBy && !preparedBySignatureUrl && reportStatus === null) {
+                const currentUserName = `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim();
+                setPreparedBy(currentUserName);
+                setPreparedByPosition(userCtx.userInfo.position || null);
+                setPreparedById(userCtx.userInfo.id); // Set the user ID for API calls
 
-            // Load current user's signature if available
-            if (userCtx.userInfo.signatureUrn) {
-                try {
-                    const signatureUrl = await fetchUserSignature(userCtx.userInfo.signatureUrn);
-                    if (signatureUrl) {
-                        setPreparedBySignatureUrl(signatureUrl);
+                // Load current user's signature for preparedBy only if preparedBy is not set yet
+                if (userCtx.userInfo.signatureUrn) {
+                    try {
+                        const signatureUrl = await fetchUserSignature(userCtx.userInfo.signatureUrn);
+                        if (signatureUrl) {
+                            setPreparedBySignatureUrl(signatureUrl);
+                        }
+                    } catch (error) {
+                        customLogger.error("Failed to load user signature:", error);
                     }
-                } catch (error) {
-                    customLogger.error("Failed to load user signature:", error);
                 }
             }
 
@@ -324,7 +366,7 @@ function LiquidationReportContent() {
         };
 
         initializeSignatures();
-    }, [userCtx.userInfo]);
+    }, [userCtx.userInfo, preparedBy, preparedBySignatureUrl, reportStatus]);
 
     // Effect to match loaded notedBy ID with actual user and load their signature
     useEffect(() => {
@@ -644,7 +686,7 @@ function LiquidationReportContent() {
             const reportData: csclient.LiquidationReportCreateRequest = {
                 entries,
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
-                preparedBy: preparedBy || null, // Use user ID - ensure it's a valid user ID
+                preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
                 teacherInCharge: userCtx.userInfo.id, // Current user ID
                 certifiedBy: [], // Can be set later
                 memo: notes || null, // Add memo field
@@ -654,7 +696,7 @@ function LiquidationReportContent() {
             if (notedBy && typeof notedBy !== "string") {
                 throw new Error("Invalid notedBy user ID");
             }
-            if (preparedBy && typeof preparedBy !== "string") {
+            if (preparedById && typeof preparedById !== "string") {
                 throw new Error("Invalid preparedBy user ID");
             }
 
@@ -730,7 +772,7 @@ function LiquidationReportContent() {
             const reportData: csclient.LiquidationReportCreateRequest = {
                 entries,
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
-                preparedBy: preparedBy || null, // Use user ID - ensure it's a valid user ID
+                preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
                 teacherInCharge: userCtx.userInfo.id,
                 certifiedBy: [],
                 memo: notes || null, // Add memo field
@@ -740,7 +782,7 @@ function LiquidationReportContent() {
             if (notedBy && typeof notedBy !== "string") {
                 throw new Error("Invalid notedBy user ID");
             }
-            if (preparedBy && typeof preparedBy !== "string") {
+            if (preparedById && typeof preparedById !== "string") {
                 throw new Error("Invalid preparedBy user ID");
             }
 
@@ -1113,12 +1155,10 @@ function LiquidationReportContent() {
                             </Box>
                             <div style={{ textAlign: "center" }}>
                                 <Text fw={600} size="sm">
-                                    {userCtx.userInfo
-                                        ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
-                                        : "N/A"}
+                                    {preparedBy || "NAME"}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {userCtx.userInfo?.position || "Position"}
+                                    {preparedByPosition || "Position"}
                                 </Text>
                             </div>
                         </Stack>

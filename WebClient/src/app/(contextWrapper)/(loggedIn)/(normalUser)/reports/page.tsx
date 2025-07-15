@@ -64,6 +64,7 @@ export default function ReportsPage() {
     const router = useRouter();
     const userCtx = useUser();
     const [userAssignedToSchool, setUserAssignedToSchool] = useState<boolean>(true);
+    const [schoolData, setSchoolData] = useState<School | null>(null);
     const [search, setSearch] = useState("");
     const [selectedReports, setSelectedReports] = useState<string[]>([]);
     const [statusFilter, setStatusFilter] = useState("all");
@@ -100,6 +101,26 @@ export default function ReportsPage() {
 
         fetchReports();
     }, [userCtx.userInfo]);
+
+    // Fetch school data to check for assigned principal
+    useEffect(() => {
+        const fetchSchoolData = async () => {
+            try {
+                if (userCtx.userInfo?.schoolId) {
+                    const school = await GetSchoolInfo(userCtx.userInfo.schoolId);
+                    setSchoolData(school);
+                    customLogger.debug("Fetched school data:", school);
+                } else {
+                    setSchoolData(null);
+                }
+            } catch (error) {
+                customLogger.error("Failed to fetch school data:", error);
+                setSchoolData(null);
+            }
+        };
+
+        fetchSchoolData();
+    }, [userCtx.userInfo?.schoolId]);
 
     const filteredReports = reportSubmissions.filter((report) => {
         const matchesSearch = report.name?.toLowerCase().includes(search.toLowerCase());
@@ -358,12 +379,19 @@ export default function ReportsPage() {
         return !!userCtx.userInfo?.schoolId;
     }, [userCtx.userInfo?.schoolId]);
 
+    const hasPrincipalAssigned = useMemo(() => {
+        return !!schoolData?.assignedNotedBy;
+    }, [schoolData?.assignedNotedBy]);
+
     const getDisabledReason = () => {
         if (!isAssignedToSchool) {
             return "Not assigned to a school";
         }
         if (!hasCompleteProfile) {
             return "Profile incomplete";
+        }
+        if (!hasPrincipalAssigned) {
+            return "No principal assigned to school";
         }
         if (!canCreateReports) {
             return "Access restricted by role";
@@ -598,6 +626,22 @@ export default function ReportsPage() {
         }
     }, [hasCompleteProfile, userCtx.userInfo, isAssignedToSchool]);
 
+    // Show notification for schools without assigned principal
+    useEffect(() => {
+        if (!hasPrincipalAssigned && userCtx.userInfo && isAssignedToSchool && hasCompleteProfile && schoolData) {
+            notifications.show({
+                id: "no-principal-assigned",
+                title: "No Principal Assigned",
+                message:
+                    "Your school does not have a principal assigned. Reports require a principal for approval. Please contact your administrator to assign a principal to your school.",
+                color: "orange",
+                icon: <IconAlertCircle size={16} />,
+                autoClose: false,
+                withCloseButton: true,
+            });
+        }
+    }, [hasPrincipalAssigned, userCtx.userInfo, isAssignedToSchool, hasCompleteProfile, schoolData]);
+
     return (
         <Stack gap="lg">
             {!canCreateReports && userCtx.userInfo?.roleId && (
@@ -625,7 +669,9 @@ export default function ReportsPage() {
                             icon={IconCash}
                             color="blue"
                             onClick={handleNavigateToSales}
-                            disabled={!canCreateReports || !hasCompleteProfile || !isAssignedToSchool}
+                            disabled={
+                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
+                            }
                             disabledReason={getDisabledReason()}
                         />
                     </Grid.Col>
@@ -636,7 +682,9 @@ export default function ReportsPage() {
                             icon={IconReceipt}
                             color="green"
                             onClick={() => setLiquidationModalOpened(true)}
-                            disabled={!canCreateReports || !hasCompleteProfile || !isAssignedToSchool}
+                            disabled={
+                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
+                            }
                             disabledReason={getDisabledReason()}
                         />
                     </Grid.Col>
@@ -647,7 +695,9 @@ export default function ReportsPage() {
                             icon={IconUsers}
                             color="violet"
                             onClick={handleNavigateToPayroll}
-                            disabled={!canCreateReports || !hasCompleteProfile || !isAssignedToSchool}
+                            disabled={
+                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
+                            }
                             disabledReason={getDisabledReason()}
                         />
                     </Grid.Col>

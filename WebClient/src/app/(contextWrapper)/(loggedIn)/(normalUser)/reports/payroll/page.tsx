@@ -130,8 +130,11 @@ function PayrollPageContent() {
     const [isLoadingExistingReport, setIsLoadingExistingReport] = useState(false);
 
     // Signature state management for report approval
-    // Reason: Track prepared by (current user) and noted by (selected user) for report signatures
+    // Reason: Track prepared by (actual user from DB) and noted by (selected user) for report signatures
     const [notedBy, setNotedBy] = useState<string | null>(null);
+    const [preparedBy, setPreparedBy] = useState<string | null>(null);
+    const [preparedById, setPreparedById] = useState<string | null>(null);
+    const [preparedByPosition, setPreparedByPosition] = useState<string | null>(null);
     const [preparedBySignatureUrl, setPreparedBySignatureUrl] = useState<string | null>(null);
     const [notedBySignatureUrl, setNotedBySignatureUrl] = useState<string | null>(null);
 
@@ -146,7 +149,7 @@ function PayrollPageContent() {
     const [reportStatus, setReportStatus] = useState<string | null>(null);
 
     // School data for automatic principal assignment
-    const [, setSchoolData] = useState<csclient.School | null>(null);
+    const [schoolData, setSchoolData] = useState<csclient.School | null>(null);
 
     // Helper function to check if the report is read-only
     const isReadOnly = useCallback(() => {
@@ -210,6 +213,11 @@ function PayrollPageContent() {
                     // Note: This will be converted to a user name once school users are loaded
                     if (reportResponse.data.notedBy) {
                         setNotedBy(reportResponse.data.notedBy);
+                    }
+
+                    // Store the preparedBy user ID from the loaded report
+                    if (reportResponse.data.preparedBy) {
+                        setPreparedById(reportResponse.data.preparedBy);
                     }
 
                     // Parse the entries and convert them back to our internal format
@@ -371,8 +379,8 @@ function PayrollPageContent() {
                 }
             };
 
-            // Load current user's signature if available
-            if (userCtx.userInfo.signatureUrn) {
+            // Load current user's signature if available and no preparedBy user is set
+            if (userCtx.userInfo.signatureUrn && !preparedById) {
                 try {
                     const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
                         query: { fn: userCtx.userInfo.signatureUrn },
@@ -393,7 +401,7 @@ function PayrollPageContent() {
         };
 
         initializeSignatures();
-    }, [userCtx.userInfo]);
+    }, [userCtx.userInfo, preparedById]);
 
     // Load school data and auto-assign principal
     useEffect(() => {
@@ -455,6 +463,40 @@ function PayrollPageContent() {
 
         loadSchoolData();
     }, [userCtx.userInfo?.schoolId]);
+
+    // Load preparedBy user's signature when preparedById is available
+    useEffect(() => {
+        const loadPreparedBySignature = async () => {
+            if (preparedById && schoolUsers.length > 0) {
+                // Find the preparedBy user
+                const preparedByUser = schoolUsers.find((user) => user.id === preparedById);
+                if (preparedByUser) {
+                    // Set the preparedBy display name and position
+                    const userName = `${preparedByUser.nameFirst} ${preparedByUser.nameLast}`.trim();
+                    setPreparedBy(userName);
+                    setPreparedByPosition(preparedByUser.position || "Position");
+
+                    // Load the preparedBy user's signature if available
+                    if (preparedByUser.signatureUrn) {
+                        try {
+                            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                                query: { fn: preparedByUser.signatureUrn },
+                            });
+
+                            if (response.data) {
+                                const signatureUrl = URL.createObjectURL(response.data as Blob);
+                                setPreparedBySignatureUrl(signatureUrl);
+                            }
+                        } catch (error) {
+                            customLogger.error("Failed to load preparedBy user signature:", error);
+                        }
+                    }
+                }
+            }
+        };
+
+        loadPreparedBySignature();
+    }, [preparedById, schoolUsers]);
 
     // Effect to match loaded notedBy ID with actual user and load their signature
     useEffect(() => {
@@ -817,7 +859,7 @@ function PayrollPageContent() {
                     month: month,
                 },
                 query: {
-                    noted_by: userCtx.userInfo.id, // Set the current user as the one who noted it
+                    noted_by: schoolData?.assignedNotedBy || userCtx.userInfo.id, // Use school's assigned principal or current user as fallback
                 },
             });
 
@@ -952,7 +994,7 @@ function PayrollPageContent() {
                     month: month,
                 },
                 query: {
-                    noted_by: userCtx.userInfo.id,
+                    noted_by: schoolData?.assignedNotedBy || userCtx.userInfo.id, // Use school's assigned principal or current user as fallback
                 },
             });
 
@@ -1518,6 +1560,7 @@ function PayrollPageContent() {
                             year: selectedMonth?.getFullYear() || new Date().getFullYear(),
                             month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
                         }}
+                        disabled={reportStatus !== null && reportStatus !== "draft"}
                         onSuccess={() => {
                             notifications.show({
                                 title: "Status Updated",
@@ -1584,12 +1627,13 @@ function PayrollPageContent() {
                         </Box>
                         <div style={{ textAlign: "center" }}>
                             <Text fw={600} size="sm">
-                                {userCtx.userInfo
-                                    ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
-                                    : "N/A"}
+                                {preparedBy ||
+                                    (userCtx.userInfo
+                                        ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
+                                        : "N/A")}
                             </Text>
                             <Text size="xs" c="dimmed">
-                                {userCtx.userInfo?.position || "Position"}
+                                {preparedByPosition || userCtx.userInfo?.position || "Position"}
                             </Text>
                         </div>
                     </Stack>

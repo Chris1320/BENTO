@@ -249,7 +249,7 @@ async def create_school_daily_report(
     if selected_monthly_report is None:
         selected_monthly_report = MonthlyReport(
             id=datetime.date(year=year, month=month, day=1),
-            name=f"Daily Report for {datetime.date(year=year, month=month, day=1).strftime('%B %Y')}",
+            name=f"Report for {datetime.date(year=year, month=month, day=1).strftime('%B %Y')}",
             submittedBySchool=school_id,
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,
@@ -729,7 +729,7 @@ async def create_daily_sales_and_purchases_entry(
 
         monthly_report = MonthlyReport(
             id=datetime.date(year=year, month=month, day=1),
-            name=f"Daily Report for {datetime.date(year=year, month=month, day=1).strftime('%B %Y')}",
+            name=f"Report for {datetime.date(year=year, month=month, day=1).strftime('%B %Y')}",
             submittedBySchool=school_id,
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,
@@ -1093,7 +1093,7 @@ async def create_bulk_daily_sales_and_purchases_entries(
 
         monthly_report = MonthlyReport(
             id=datetime.date(year=year, month=month, day=1),
-            name=f"Daily Report for {datetime.date(year=year, month=month, day=1).strftime('%B %Y')}",
+            name=f"Report for {datetime.date(year=year, month=month, day=1).strftime('%B %Y')}",
             submittedBySchool=school_id,
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,

@@ -210,9 +210,11 @@ function LiquidationReportContent() {
                                     // Load user's signature for preparedBy (load the actual preparedBy user's signature)
                                     if (preparedByUser.signatureUrn) {
                                         try {
-                                            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
-                                                query: { fn: preparedByUser.signatureUrn },
-                                            });
+                                            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet(
+                                                {
+                                                    query: { fn: preparedByUser.signatureUrn },
+                                                }
+                                            );
                                             if (response.data) {
                                                 const signatureUrl = URL.createObjectURL(response.data as Blob);
                                                 setPreparedBySignatureUrl(signatureUrl);
@@ -1037,6 +1039,7 @@ function LiquidationReportContent() {
                                                             onChange={(value) => updateItem(item.id, "unit", value)}
                                                             unitOptions={unitOptions}
                                                             onAddUnit={addUnitOption}
+                                                            disabled={isReadOnly()}
                                                         />
                                                     </Table.Td>
                                                 </>
@@ -1260,6 +1263,7 @@ function LiquidationReportContent() {
                             onClick={() => router.push(`/reports/disbursement-voucher?category=${category}`)}
                             className="bg-blue-600 hover:bg-blue-700"
                             style={{ width: "270px" }}
+                            disabled={isSubmitting || isReadOnly() || !reportPeriod || !category}
                         >
                             Create Disbursement Voucher
                         </Button>
@@ -1277,6 +1281,7 @@ function LiquidationReportContent() {
                                     : new Date().getMonth() + 1,
                                 category: category || "",
                             }}
+                            disabled={reportStatus !== null && reportStatus !== "draft"}
                             onSuccess={() => {
                                 notifications.show({
                                     title: "Status Updated",

@@ -479,13 +479,20 @@ export default function ReportsPage() {
                     <Table.Tr key={`${report.id}`}>
                         <Table.Td>
                             <Checkbox
+                                disabled={!canCreateReports}
                                 checked={selectedReports.includes(report.id)}
                                 onChange={(e) => handleSelectReport(report.id, e.currentTarget.checked)}
                             />
                         </Table.Td>
                         <Table.Td>
-                            <div style={{ cursor: "pointer" }} onClick={() => handleOpenReportDetails(report)}>
-                                <Text fw={500} size="sm">
+                            <div
+                                style={{
+                                    cursor: hasCompleteProfile ? "pointer" : "not-allowed",
+                                    opacity: hasCompleteProfile ? 1 : 0.6,
+                                }}
+                                onClick={hasCompleteProfile ? () => handleOpenReportDetails(report) : undefined}
+                            >
+                                <Text fw={500} size="sm" c={hasCompleteProfile ? undefined : "dimmed"}>
                                     {report.name}
                                 </Text>
                                 <Text size="xs" c="dimmed">
@@ -515,13 +522,13 @@ export default function ReportsPage() {
                                 </Text>
                                 {userCtx.userInfo?.schoolId && (
                                     <ReportStatusManager
+                                        disabled={!canCreateReports}
                                         currentStatus={report.reportStatus || "draft"}
                                         reportType="monthly"
                                         schoolId={userCtx.userInfo.schoolId}
                                         year={parseInt(dayjs(report.id).format("YYYY"))}
                                         month={parseInt(dayjs(report.id).format("MM"))}
                                         onStatusChanged={(newStatus) => handleReportStatusChange(report.id, newStatus)}
-                                        disabled={false}
                                     />
                                 )}
                             </Group>
@@ -541,7 +548,7 @@ export default function ReportsPage() {
                             </Text>
                         </Table.Td>
                         <Table.Td>
-                            <Menu withinPortal position="bottom-end" shadow="sm">
+                            <Menu disabled={!canCreateReports} withinPortal position="bottom-end" shadow="sm">
                                 <Menu.Target>
                                     <ActionIcon variant="subtle" color="gray">
                                         <IconDots size={16} />
@@ -590,6 +597,7 @@ export default function ReportsPage() {
             handleOpenEditModal,
             handleReportStatusChange,
             canCreateReports,
+            hasCompleteProfile,
             userCtx.userInfo?.schoolId,
         ]
     );

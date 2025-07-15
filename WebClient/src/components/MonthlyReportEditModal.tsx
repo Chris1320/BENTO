@@ -1,13 +1,14 @@
 "use client";
 
-import { Button, Group, Modal, Stack, Text, TextInput, Alert } from "@mantine/core";
+import { MonthlyReport, createSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthPatch } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
+import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
+import { Alert, Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { MonthlyReport, createSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthPatch } from "@/lib/api/csclient";
-import { useEffect } from "react";
-import dayjs from "dayjs";
-import { customLogger } from "@/lib/api/customLogger";
 import { IconAlertCircle } from "@tabler/icons-react";
+import dayjs from "dayjs";
+import { useEffect } from "react";
 
 interface MonthlyReportEditModalProps {
     opened: boolean;
@@ -138,7 +139,7 @@ export function MonthlyReportEditModal({ opened, onClose, report, onUpdate }: Mo
                                     Date Approved:
                                 </Text>
                                 <Text size="sm">
-                                    {new Date(report.dateApproved).toLocaleDateString("en-US", {
+                                    {formatUTCDateOnlyLocalized(report.dateApproved, "en-US", {
                                         month: "long",
                                         day: "numeric",
                                         year: "numeric",
@@ -154,7 +155,7 @@ export function MonthlyReportEditModal({ opened, onClose, report, onUpdate }: Mo
                                         Date Received:
                                     </Text>
                                     <Text size="sm">
-                                        {new Date(report.dateReceived).toLocaleDateString("en-US", {
+                                        {formatUTCDateOnlyLocalized(report.dateReceived, "en-US", {
                                             month: "long",
                                             day: "numeric",
                                             year: "numeric",

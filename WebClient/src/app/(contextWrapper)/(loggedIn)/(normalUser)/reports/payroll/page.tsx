@@ -206,7 +206,8 @@ function PayrollPageContent() {
                     // Set report status from the loaded report
                     setReportStatus(reportResponse.data.reportStatus || "draft");
 
-                    // Set notedBy from the loaded report
+                    // Store the notedBy user ID from the loaded report
+                    // Note: This will be converted to a user name once school users are loaded
                     if (reportResponse.data.notedBy) {
                         setNotedBy(reportResponse.data.notedBy);
                     }
@@ -458,16 +459,25 @@ function PayrollPageContent() {
     // Effect to match loaded notedBy ID with actual user and load their signature
     useEffect(() => {
         const loadNotedBySignature = async () => {
-            // If we have a notedBy name from a loaded report but no selected user yet
+            // If we have a notedBy value from a loaded report but no selected user yet
             if (notedBy && !selectedNotedByUser && schoolUsers.length > 0) {
-                // Try to find the user by matching their name
-                const matchingUser = schoolUsers.find((user) => {
-                    const userName = `${user.nameFirst} ${user.nameLast}`.trim();
-                    return userName === notedBy;
-                });
+                // Try to find the user by matching their ID first (for loaded reports)
+                let matchingUser = schoolUsers.find((user) => user.id === notedBy);
+
+                // If not found by ID, try to find by name (for backward compatibility)
+                if (!matchingUser) {
+                    matchingUser = schoolUsers.find((user) => {
+                        const userName = `${user.nameFirst} ${user.nameLast}`.trim();
+                        return userName === notedBy;
+                    });
+                }
 
                 if (matchingUser) {
                     setSelectedNotedByUser(matchingUser);
+
+                    // Convert the user ID to the user's display name
+                    const userName = `${matchingUser.nameFirst} ${matchingUser.nameLast}`.trim();
+                    setNotedBy(userName);
 
                     // Load the user's signature if available and report is approved
                     if (matchingUser.signatureUrn && reportStatus === "approved") {
@@ -1237,7 +1247,7 @@ function PayrollPageContent() {
                             </Badge>
                         </Group>
 
-                        {selectedWeekId && (
+                        {/* {selectedWeekId && (
                             <Button
                                 size="xs"
                                 variant="light"
@@ -1248,7 +1258,7 @@ function PayrollPageContent() {
                                     ? "Mark Incomplete"
                                     : "Mark Complete"}
                             </Button>
-                        )}
+                        )} */}
                     </Group>
                     <ScrollArea className="flex-1">
                         <Group gap="xs" wrap="nowrap" className="min-w-fit">

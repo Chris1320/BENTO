@@ -7,6 +7,7 @@ import { School } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools, GetSchoolLogo, GetSchoolQuantity } from "@/lib/api/school";
 import { useUser } from "@/lib/providers/user";
+import { formatUTCDate, getRelativeTime } from "@/lib/utils/date";
 import {
     ActionIcon,
     Anchor,
@@ -344,24 +345,14 @@ export default function SchoolsPage(): JSX.Element {
                                     {school.deactivated ? <IconLock color="red" /> : <IconLockOpen color="green" />}
                                 </Tooltip>
                             </TableTd>
-                            <Tooltip
-                                label={
-                                    school.lastModified
-                                        ? dayjs(school.lastModified).format("YYYY-MM-DD HH:mm:ss")
-                                        : "N/A"
-                                }
-                            >
+                            <Tooltip label={formatUTCDate(school.lastModified, "YYYY-MM-DD HH:mm:ss")}>
                                 <TableTd c={school.lastModified ? undefined : "dimmed"}>
-                                    {school.lastModified ? dayjs(school.lastModified).fromNow() : "N/A"}
+                                    {getRelativeTime(school.lastModified)}
                                 </TableTd>
                             </Tooltip>
-                            <Tooltip
-                                label={
-                                    school.dateCreated ? dayjs(school.dateCreated).format("YYYY-MM-DD HH:mm:ss") : "N/A"
-                                }
-                            >
+                            <Tooltip label={formatUTCDate(school.dateCreated, "YYYY-MM-DD HH:mm:ss")}>
                                 <TableTd c={school.dateCreated ? undefined : "dimmed"}>
-                                    {school.dateCreated ? dayjs(school.dateCreated).fromNow() : "N/A"}
+                                    {getRelativeTime(school.dateCreated)}
                                 </TableTd>
                             </Tooltip>
                             <TableTd>

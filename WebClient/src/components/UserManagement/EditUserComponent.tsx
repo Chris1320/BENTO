@@ -1,9 +1,10 @@
 "use client";
 
+import { getStrength, PasswordRequirement, requirements } from "@/components/Password";
 import { Role, School, UserDelete, UserPublic, UserUpdate } from "@/lib/api/csclient";
 import { userAvatarConfig } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
-import { getStrength, PasswordRequirement, requirements } from "@/components/Password";
+import { formatUTCDate } from "@/lib/utils/date";
 import {
     Badge,
     Box,
@@ -37,11 +38,10 @@ import {
     IconTrash,
     IconUser,
 } from "@tabler/icons-react";
-import dayjs from "dayjs";
 import { motion } from "motion/react";
 
-import { useEffect, useState } from "react";
 import { customLogger } from "@/lib/api/customLogger";
+import { useEffect, useState } from "react";
 
 interface EditUserProps {
     index: number;
@@ -429,14 +429,14 @@ export function EditUserComponent({
                         <Table.Tr>
                             <Table.Td align="right">Date Created</Table.Td>
                             <Table.Td align="left" c="dimmed">
-                                {dayjs(user.dateCreated).format("MM/DD/YYYY, h:mm:ss A")}
+                                {formatUTCDate(user.dateCreated)}
                             </Table.Td>
                         </Table.Tr>
                         <Table.Tr>
                             <Table.Td align="right">Last Logged In Time</Table.Td>
                             {user.lastLoggedInTime ? (
                                 <Table.Td align="left" c="dimmed">
-                                    {dayjs(user.lastLoggedInTime).format("MM/DD/YYYY, h:mm:ss A")}
+                                    {formatUTCDate(user.lastLoggedInTime)}
                                 </Table.Td>
                             ) : (
                                 <Table.Td align="left" c="dimmed">

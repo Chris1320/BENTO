@@ -43,6 +43,7 @@ import {
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
 
 export default function ReportsPage() {
     customLogger.debug("Rendering Administration ReportsPage");
@@ -343,16 +344,13 @@ export default function ReportsPage() {
                                 <Text size="sm">{dayjs(report.id).format("MMMM YYYY")}</Text>
                             </div>
                         </Table.Td>
-                        <Table.Td>
-                            <Text size="sm" c="dimmed">
-                                {report.lastModified
-                                    ? new Date(report.lastModified).toLocaleDateString("en-US", {
-                                          month: "2-digit",
-                                          day: "2-digit",
-                                          year: "numeric",
-                                      })
-                                    : "N/A"}
-                            </Text>
+                        <Table.Td>                                <Text size="sm" c="dimmed">
+                                    {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
+                                        month: "2-digit",
+                                        day: "2-digit",
+                                        year: "numeric",
+                                    })}
+                                </Text>
                         </Table.Td>
                         <Table.Td>
                             <Menu withinPortal position="bottom-end" shadow="sm">

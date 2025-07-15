@@ -4,18 +4,20 @@ import { LiquidationReportModal } from "@/components/LiquidationReportCategory";
 import { MonthlyReportDetailsModal } from "@/components/MonthlyReportDetailsModal";
 import { MonthlyReportEditModal } from "@/components/MonthlyReportEditModal";
 import { ReportStatusManager } from "@/components/ReportStatusManager";
-import { GetSchoolInfo } from "@/lib/api/school";
-import { useUser } from "@/lib/providers/user";
 import {
     MonthlyReport,
     School,
-    getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet,
-    deleteSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthDelete,
     changeDailyReportStatusV1ReportsDailySchoolIdYearMonthStatusPatch,
-    changePayrollReportStatusV1ReportsPayrollSchoolIdYearMonthStatusPatch,
     changeLiquidationReportStatusV1ReportsLiquidationSchoolIdYearMonthCategoryStatusPatch,
+    changePayrollReportStatusV1ReportsPayrollSchoolIdYearMonthStatusPatch,
+    deleteSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthDelete,
+    getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet,
 } from "@/lib/api/csclient";
 import type { ReportStatus } from "@/lib/api/csclient/types.gen";
+import { customLogger } from "@/lib/api/customLogger";
+import { GetSchoolInfo } from "@/lib/api/school";
+import { useUser } from "@/lib/providers/user";
+import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
 import {
     ActionIcon,
     Alert,
@@ -55,7 +57,6 @@ import {
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { customLogger } from "@/lib/api/customLogger";
 
 export default function ReportsPage() {
     customLogger.debug("Rendering ReportsPage");
@@ -504,13 +505,11 @@ export default function ReportsPage() {
                         </Table.Td>
                         <Table.Td>
                             <Text size="sm" c="dimmed">
-                                {report.lastModified
-                                    ? new Date(report.lastModified).toLocaleDateString("en-US", {
-                                          month: "2-digit",
-                                          day: "2-digit",
-                                          year: "numeric",
-                                      })
-                                    : "N/A"}
+                                {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
+                                    month: "2-digit",
+                                    day: "2-digit",
+                                    year: "numeric",
+                                })}
                             </Text>
                         </Table.Td>
                         <Table.Td>

@@ -1,26 +1,27 @@
 "use client";
 
-import { Badge, Button, Group, Modal, Stack, Table, Text, Title, ActionIcon, Alert } from "@mantine/core";
 import {
     MonthlyReport,
     ReportStatus,
+    getLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryGet,
     getSchoolDailyReportV1ReportsDailySchoolIdYearMonthGet,
     getSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthGet,
-    getLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryGet,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
+import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
+import { ActionIcon, Alert, Badge, Button, Group, Modal, Stack, Table, Text, Title } from "@mantine/core";
 import {
-    IconEye,
-    IconExternalLink,
     IconAlertCircle,
     IconCalendar,
     IconCash,
+    IconExternalLink,
+    IconEye,
     IconReceipt,
     IconUsers,
 } from "@tabler/icons-react";
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
-import { customLogger } from "@/lib/api/customLogger";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 interface LiquidationReportData {
     reportStatus?: string;
@@ -266,18 +267,16 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     <Group gap="md">
                         <Text size="sm">
                             <strong>Last Modified:</strong>{" "}
-                            {report.lastModified
-                                ? new Date(report.lastModified).toLocaleDateString("en-US", {
-                                      month: "long",
-                                      day: "numeric",
-                                      year: "numeric",
-                                  })
-                                : "N/A"}
+                            {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
+                                month: "long",
+                                day: "numeric",
+                                year: "numeric",
+                            })}
                         </Text>
                         {report.dateApproved && (
                             <Text size="sm">
                                 <strong>Date Approved:</strong>{" "}
-                                {new Date(report.dateApproved).toLocaleDateString("en-US", {
+                                {formatUTCDateOnlyLocalized(report.dateApproved, "en-US", {
                                     month: "long",
                                     day: "numeric",
                                     year: "numeric",

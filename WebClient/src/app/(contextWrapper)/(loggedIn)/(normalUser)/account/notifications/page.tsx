@@ -3,21 +3,22 @@
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import {
     AnnouncementRecipients,
-    Notification,
-    NotificationType,
-    Role,
-    School,
-    UserPublic,
     announceNotificationV1NotificationsAnnouncePost,
     archiveNotificationV1NotificationsPost,
     getAllRolesV1AuthRolesGet,
     getAllUsersEndpointV1UsersAllGet,
     getUserNotificationsV1NotificationsMeGet,
+    Notification,
+    NotificationType,
+    Role,
+    School,
+    UserPublic,
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools } from "@/lib/api/school";
 import { notificationIcons } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
+import { getRelativeTime } from "@/lib/utils/date";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import {
     ActionIcon,
@@ -72,7 +73,7 @@ export default function NotificationsPage() {
     const [search, setSearch] = useState("");
     const [selectAll, setSelectAll] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
-    
+
     // Announcement modal state
     const [announcementModalOpen, announcementModalHandlers] = useDisclosure(false);
     const [announcementLoading, announcementLoadingHandlers] = useDisclosure(false);
@@ -177,10 +178,8 @@ export default function NotificationsPage() {
             title: (value) => (!value?.trim() ? "Title is required" : null),
             content: (value) => (!value?.trim() ? "Content is required" : null),
             recipientType: (value) => (!value ? "Recipient type is required" : null),
-            roleId: (value, values) =>
-                values.recipientType === "role" && !value ? "Role is required" : null,
-            schoolId: (value, values) =>
-                values.recipientType === "school" && !value ? "School is required" : null,
+            roleId: (value, values) => (values.recipientType === "role" && !value ? "Role is required" : null),
+            schoolId: (value, values) => (values.recipientType === "school" && !value ? "School is required" : null),
             userIds: (value, values) =>
                 values.recipientType === "users" && (!value || value.length === 0)
                     ? "At least one user must be selected"
@@ -499,7 +498,7 @@ export default function NotificationsPage() {
                                                         label={dayjs(n.created).format("YYYY-MM-DD HH:mm:ss")}
                                                         withArrow
                                                     >
-                                                        <Badge>{dayjs(n.created).fromNow()}</Badge>
+                                                        <Badge>{getRelativeTime(n.created)}</Badge>
                                                     </Tooltip>
                                                 </Group>
                                                 <Text size="sm" c="dimmed">

@@ -513,11 +513,6 @@ function LiquidationReportContent() {
         router.push("/reports");
     };
 
-    const openApprovalModal = () => {
-        setApprovalCheckbox(false);
-        setApprovalModalOpened(true);
-    };
-
     const handleApprovalConfirm = async () => {
         if (!approvalCheckbox || !selectedNotedByUser?.signatureUrn) return;
 
@@ -1225,30 +1220,6 @@ function LiquidationReportContent() {
                                     {selectedNotedByUser?.position || "Position"}
                                 </Text>
                             </div>
-                            {/* Approval Section */}
-                            {selectedNotedByUser && (
-                                <div style={{ textAlign: "center", marginTop: "8px" }}>
-                                    {/* Show "Approved" badge only when report status is actually "approved" by principal */}
-                                    {reportStatus === "approved" ? (
-                                        <Badge color="green" variant="light">
-                                            Approved
-                                        </Badge>
-                                    ) : (
-                                        /* Only show approve button if the logged-in user is the same as the notedBy user */
-                                        selectedNotedByUser.id === userCtx.userInfo?.id && (
-                                            <Button
-                                                size="xs"
-                                                variant="light"
-                                                color="blue"
-                                                onClick={openApprovalModal}
-                                                disabled={!selectedNotedByUser.signatureUrn}
-                                            >
-                                                Approve Report
-                                            </Button>
-                                        )
-                                    )}
-                                </div>
-                            )}
                         </Stack>
                     </Card>
                 </SimpleGrid>
@@ -1281,13 +1252,16 @@ function LiquidationReportContent() {
                                     : new Date().getMonth() + 1,
                                 category: category || "",
                             }}
-                            disabled={reportStatus !== null && reportStatus !== "draft"}
+                            disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
                             onSuccess={() => {
                                 notifications.show({
                                     title: "Status Updated",
                                     message: "Report status has been updated to 'Review'.",
                                     color: "green",
                                 });
+                                setTimeout(() => {
+                                    router.push("/reports");
+                                }, 1000);
                             }}
                         />
                         <Button

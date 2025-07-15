@@ -80,7 +80,12 @@ function SalesandPurchasesContent() {
 
     // Helper function to check if the report is read-only
     const isReadOnly = useCallback(() => {
-        return reportStatus === "review" || reportStatus === "approved";
+        return (
+            reportStatus === "review" ||
+            reportStatus === "approved" ||
+            reportStatus === "received" ||
+            reportStatus === "archived"
+        );
     }, [reportStatus]);
 
     // Fetch entries for the current month
@@ -1449,21 +1454,6 @@ function SalesandPurchasesContent() {
                                 <Text size="xs" c="dimmed">
                                     {selectedNotedByUser?.position || "Position"}
                                 </Text>
-                                {selectedNotedByUser &&
-                                    !approvalConfirmed &&
-                                    selectedNotedByUser.id === userCtx.userInfo?.id && (
-                                        <Button
-                                            size="xs"
-                                            variant="light"
-                                            color="blue"
-                                            onClick={openApprovalModal}
-                                            disabled={!selectedNotedByUser.signatureUrn}
-                                            mt="xs"
-                                            mb="xs"
-                                        >
-                                            Approve Report
-                                        </Button>
-                                    )}
                             </div>
                         </Stack>
                     </Card>

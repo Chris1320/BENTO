@@ -522,7 +522,7 @@ export default function ReportsPage() {
                                 </Text>
                                 {userCtx.userInfo?.schoolId && (
                                     <ReportStatusManager
-                                        disabled={!canCreateReports}
+                                        disabled={!hasCompleteProfile}
                                         currentStatus={report.reportStatus || "draft"}
                                         reportType="monthly"
                                         schoolId={userCtx.userInfo.schoolId}
@@ -548,7 +548,7 @@ export default function ReportsPage() {
                             </Text>
                         </Table.Td>
                         <Table.Td>
-                            <Menu disabled={!canCreateReports} withinPortal position="bottom-end" shadow="sm">
+                            <Menu disabled={!hasCompleteProfile} withinPortal position="bottom-end" shadow="sm">
                                 <Menu.Target>
                                     <ActionIcon variant="subtle" color="gray">
                                         <IconDots size={16} />

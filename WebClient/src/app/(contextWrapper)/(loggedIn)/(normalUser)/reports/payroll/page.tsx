@@ -1226,6 +1226,7 @@ function PayrollPageContent() {
                             <Group gap="xs">
                                 {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
                                     <ActionIcon
+                                        disabled={isReadOnly()}
                                         key={`${day}-${index}`}
                                         size="sm"
                                         variant={workingDaysSchedule.includes(index) ? "filled" : "outline"}
@@ -1550,6 +1551,120 @@ function PayrollPageContent() {
                         </Group>
                     </Card>
                 )}
+                {/* Signature Cards */}
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
+                    {/* Prepared By */}
+                    <Card withBorder p="md">
+                        <Stack gap="sm" align="center">
+                            <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
+                                Prepared by
+                            </Text>
+                            <Box
+                                w={200}
+                                h={80}
+                                style={{
+                                    border: "1px solid #dee2e6",
+                                    borderRadius: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "#f8f9fa",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                {preparedBySignatureUrl ? (
+                                    <Image
+                                        src={preparedBySignatureUrl}
+                                        alt="Prepared by signature"
+                                        fit="contain"
+                                        w="100%"
+                                        h="100%"
+                                    />
+                                ) : (
+                                    <Text size="xs" c="dimmed">
+                                        Signature
+                                    </Text>
+                                )}
+                            </Box>
+                            <div style={{ textAlign: "center" }}>
+                                <Text fw={600} size="sm">
+                                    {preparedBy ||
+                                        (userCtx.userInfo
+                                            ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
+                                            : "N/A")}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    {preparedByPosition || userCtx.userInfo?.position || "Position"}
+                                </Text>
+                            </div>
+                        </Stack>
+                    </Card>
+
+                    {/* Noted by */}
+                    <Card withBorder p="md">
+                        <Stack gap="sm" align="center">
+                            <Group justify="space-between" w="100%">
+                                <Text size="sm" c="dimmed" fw={500}>
+                                    Noted by
+                                </Text>
+                                <Badge
+                                    size="sm"
+                                    color={
+                                        approvalConfirmed && reportStatus === "approved"
+                                            ? "green"
+                                            : selectedNotedByUser
+                                            ? "yellow"
+                                            : "gray"
+                                    }
+                                    variant="light"
+                                >
+                                    {approvalConfirmed && reportStatus === "approved"
+                                        ? "Approved"
+                                        : selectedNotedByUser
+                                        ? "Pending Approval"
+                                        : "Not Selected"}
+                                </Badge>
+                            </Group>
+                            <Box
+                                w={200}
+                                h={80}
+                                style={{
+                                    border: "1px solid #dee2e6",
+                                    borderRadius: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "#f8f9fa",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
+                                    <Image
+                                        src={notedBySignatureUrl}
+                                        alt="Noted by signature"
+                                        fit="contain"
+                                        w="100%"
+                                        h="100%"
+                                    />
+                                ) : (
+                                    <Stack align="center" gap="xs">
+                                        <Text size="xs" c="dimmed">
+                                            {selectedNotedByUser ? "Awaiting Approval" : "Signature"}
+                                        </Text>
+                                    </Stack>
+                                )}
+                            </Box>
+                            <div style={{ textAlign: "center" }}>
+                                <Text fw={600} size="sm">
+                                    {notedBy || "NAME"}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    {selectedNotedByUser?.position || "Position"}
+                                </Text>
+                            </div>
+                        </Stack>
+                    </Card>
+                </SimpleGrid>
 
                 {/* Action Buttons */}
                 <Group justify="flex-end" gap="md">
@@ -1560,7 +1675,7 @@ function PayrollPageContent() {
                             year: selectedMonth?.getFullYear() || new Date().getFullYear(),
                             month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
                         }}
-                        disabled={reportStatus !== null && reportStatus !== "draft"}
+                        disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
                         onSuccess={() => {
                             notifications.show({
                                 title: "Status Updated",
@@ -1589,136 +1704,6 @@ function PayrollPageContent() {
                     </SplitButton>
                 </Group>
             </Stack>
-
-            {/* Signature Cards */}
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
-                {/* Prepared By */}
-                <Card withBorder p="md">
-                    <Stack gap="sm" align="center">
-                        <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
-                            Prepared by
-                        </Text>
-                        <Box
-                            w={200}
-                            h={80}
-                            style={{
-                                border: "1px solid #dee2e6",
-                                borderRadius: "8px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: "#f8f9fa",
-                                overflow: "hidden",
-                            }}
-                        >
-                            {preparedBySignatureUrl ? (
-                                <Image
-                                    src={preparedBySignatureUrl}
-                                    alt="Prepared by signature"
-                                    fit="contain"
-                                    w="100%"
-                                    h="100%"
-                                />
-                            ) : (
-                                <Text size="xs" c="dimmed">
-                                    Signature
-                                </Text>
-                            )}
-                        </Box>
-                        <div style={{ textAlign: "center" }}>
-                            <Text fw={600} size="sm">
-                                {preparedBy ||
-                                    (userCtx.userInfo
-                                        ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
-                                        : "N/A")}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                                {preparedByPosition || userCtx.userInfo?.position || "Position"}
-                            </Text>
-                        </div>
-                    </Stack>
-                </Card>
-
-                {/* Noted by */}
-                <Card withBorder p="md">
-                    <Stack gap="sm" align="center">
-                        <Group justify="space-between" w="100%">
-                            <Text size="sm" c="dimmed" fw={500}>
-                                Noted by
-                            </Text>
-                            <Badge
-                                size="sm"
-                                color={
-                                    approvalConfirmed && reportStatus === "approved"
-                                        ? "green"
-                                        : selectedNotedByUser
-                                        ? "yellow"
-                                        : "gray"
-                                }
-                                variant="light"
-                            >
-                                {approvalConfirmed && reportStatus === "approved"
-                                    ? "Approved"
-                                    : selectedNotedByUser
-                                    ? "Pending Approval"
-                                    : "Not Selected"}
-                            </Badge>
-                        </Group>
-                        <Box
-                            w={200}
-                            h={80}
-                            style={{
-                                border: "1px solid #dee2e6",
-                                borderRadius: "8px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: "#f8f9fa",
-                                overflow: "hidden",
-                            }}
-                        >
-                            {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
-                                <Image
-                                    src={notedBySignatureUrl}
-                                    alt="Noted by signature"
-                                    fit="contain"
-                                    w="100%"
-                                    h="100%"
-                                />
-                            ) : (
-                                <Stack align="center" gap="xs">
-                                    <Text size="xs" c="dimmed">
-                                        {selectedNotedByUser ? "Awaiting Approval" : "Signature"}
-                                    </Text>
-                                </Stack>
-                            )}
-                        </Box>
-                        <div style={{ textAlign: "center" }}>
-                            <Text fw={600} size="sm">
-                                {notedBy || "NAME"}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                                {selectedNotedByUser?.position || "Position"}
-                            </Text>
-                            {selectedNotedByUser &&
-                                !approvalConfirmed &&
-                                selectedNotedByUser.id === userCtx.userInfo?.id && (
-                                    <Button
-                                        size="xs"
-                                        variant="light"
-                                        color="blue"
-                                        onClick={openApprovalModal}
-                                        disabled={!selectedNotedByUser.signatureUrn || isReadOnly()}
-                                        mt="xs"
-                                        mb="xs"
-                                    >
-                                        Approve Report
-                                    </Button>
-                                )}
-                        </div>
-                    </Stack>
-                </Card>
-            </SimpleGrid>
 
             {/* Employee Management Modal */}
             <Modal
@@ -1807,6 +1792,7 @@ function PayrollPageContent() {
                                                     variant="subtle"
                                                     onClick={() => openEmployeeModal(employee)}
                                                     title="Edit employee"
+                                                    disabled={isReadOnly()}
                                                 >
                                                     <IconEdit size={16} />
                                                 </ActionIcon>
@@ -1818,6 +1804,7 @@ function PayrollPageContent() {
                                                         setDeleteEmployeeModalOpened(true);
                                                     }}
                                                     title="Delete employee"
+                                                    disabled={isReadOnly()}
                                                 >
                                                     <IconTrash size={16} />
                                                 </ActionIcon>

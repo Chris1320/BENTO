@@ -153,7 +153,17 @@ function PayrollPageContent() {
 
     // Helper function to check if the report is read-only
     const isReadOnly = useCallback(() => {
-        return reportStatus === "review" || reportStatus === "approved";
+        return (
+            reportStatus === "review" ||
+            reportStatus === "approved" ||
+            reportStatus === "received" ||
+            reportStatus === "archived"
+        );
+    }, [reportStatus]);
+
+    // Helper function to check if the report should show as "under review"
+    const isUnderReview = useCallback(() => {
+        return reportStatus === "review";
     }, [reportStatus]);
 
     useEffect(() => {
@@ -208,6 +218,11 @@ function PayrollPageContent() {
                 if (reportResponse.data && entriesResponse.data) {
                     // Set report status from the loaded report
                     setReportStatus(reportResponse.data.reportStatus || "draft");
+
+                    // Set approval confirmation if the report is already approved
+                    if (reportResponse.data.reportStatus === "approved") {
+                        setApprovalConfirmed(true);
+                    }
 
                     // Store the notedBy user ID from the loaded report
                     // Note: This will be converted to a user name once school users are loaded
@@ -616,11 +631,6 @@ function PayrollPageContent() {
     };
 
     // Signature management handlers
-    const openApprovalModal = () => {
-        setReportApprovalCheckbox(false);
-        setReportApprovalModalOpened(true);
-    };
-
     const handleReportApprovalConfirm = async () => {
         if (!reportApprovalCheckbox || !selectedNotedByUser?.signatureUrn) return;
 
@@ -726,12 +736,6 @@ function PayrollPageContent() {
                 },
             ]);
         }
-    };
-
-    const toggleWeekCompletion = (weekId: string) => {
-        setWeekPeriods(
-            weekPeriods.map((week) => (week.id === weekId ? { ...week, isCompleted: !week.isCompleted } : week))
-        );
     };
 
     const getAttendanceStatus = (employeeId: string, date: Date): boolean => {
@@ -1167,9 +1171,14 @@ function PayrollPageContent() {
                                 Manage staff payroll
                                 {isLoadingExistingReport && " • Loading existing data..."}
                             </Text>
-                            {isReadOnly() && (
+                            {isUnderReview() && (
                                 <Badge color="orange" variant="light" size="sm" mt="xs">
                                     Read-Only Mode - Report Under Review
+                                </Badge>
+                            )}
+                            {reportStatus === "approved" && (
+                                <Badge color="green" variant="light" size="sm" mt="xs">
+                                    Report Approved
                                 </Badge>
                             )}
                         </div>

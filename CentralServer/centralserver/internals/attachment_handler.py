@@ -1,4 +1,5 @@
 import json
+import uuid
 
 from fastapi import HTTPException, UploadFile, status
 from sqlmodel import Session, select
@@ -55,7 +56,6 @@ async def upload_report_attachment(
         object_store_manager = await get_object_store_handler(app_config.object_store)
 
         # Generate a unique filename using timestamp
-        import uuid
         unique_filename = f"{uuid.uuid4()}_{file.filename}"
 
         # Upload to object storage
@@ -176,9 +176,7 @@ async def get_report_attachment_metadata(
     }
 
 
-def add_attachment_to_urns(
-    current_urns: str | None, new_urn: str
-) -> str:
+def add_attachment_to_urns(current_urns: str | None, new_urn: str) -> str:
     """Add a new attachment URN to the existing list.
 
     Args:

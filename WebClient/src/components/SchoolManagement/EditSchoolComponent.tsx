@@ -1,22 +1,16 @@
 "use client";
 
-import { deleteSchoolInfoEndpointV1SchoolsDelete, School, SchoolDelete, SchoolUpdate } from "@/lib/api/csclient";
 import {
-    RemoveSchoolLogo,
-    UpdateSchoolInfo,
-    UploadSchoolLogo,
-} from "@/lib/api/school";
-import {
-    Button,
-    Card,
-    Center,
-    FileButton,
-    Flex,
-    Image,
-    Modal,
-    Switch,
-    TextInput,
-} from "@mantine/core";
+    deleteSchoolInfoEndpointV1SchoolsDelete,
+    getAllUsersEndpointV1UsersAllGet,
+    School,
+    SchoolDelete,
+    SchoolUpdate,
+    UserPublic,
+} from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
+import { RemoveSchoolLogo, UpdateSchoolInfo, UploadSchoolLogo } from "@/lib/api/school";
+import { Button, Card, Center, FileButton, Flex, Image, Modal, Select, Switch, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
@@ -52,6 +46,31 @@ export function EditSchoolComponent({
     const [editSchoolLogoUrl, setEditSchoolLogoUrl] = useState<string | null>(null);
     const [logoToRemove, setLogoToRemove] = useState(false);
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
+    const [users, setUsers] = useState<UserPublic[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
+    const loadUsers = useCallback(async () => {
+        if (!school?.id) return;
+
+        setLoadingUsers(true);
+        try {
+            const result = await getAllUsersEndpointV1UsersAllGet({
+                query: { show_all: false, limit: 999 }, // Get all active users
+            });
+            if (result.data) {
+                // Filter to only show principals (roleId: 4) from the specific school
+                const principals = result.data.filter((user) => user.roleId === 4 && user.schoolId === school.id);
+                setUsers(principals);
+            } else {
+                setUsers([]);
+            }
+        } catch (error) {
+            customLogger.error("Failed to load users:", error);
+            setUsers([]);
+        } finally {
+            setLoadingUsers(false);
+        }
+    }, [school?.id]);
 
     useEffect(() => {
         if (school) {
@@ -64,8 +83,10 @@ export function EditSchoolComponent({
                 setEditSchoolLogo(null);
                 setEditSchoolLogoUrl(null);
             }
+            // Load users for this school
+            loadUsers();
         }
-    }, [school, fetchSchoolLogo]);
+    }, [school, fetchSchoolLogo, loadUsers]);
 
     const handleSave = useCallback(async () => {
         buttonStateHandler.open();
@@ -78,6 +99,7 @@ export function EditSchoolComponent({
                 email: editSchool.email,
                 website: editSchool.website,
                 deactivated: editSchool.deactivated,
+                assignedNotedBy: editSchool.assignedNotedBy,
             };
             try {
                 // Handle value removal first
@@ -91,11 +113,11 @@ export function EditSchoolComponent({
                 const hasValuesToRemove = Object.values(valuesToRemove).some(
                     (field, index) => index > 0 && field === true
                 );
-                console.debug("Has values to remove:", hasValuesToRemove);
+                customLogger.debug("Has values to remove:", hasValuesToRemove);
                 if (hasValuesToRemove) {
                     const deleteResult = await deleteSchoolInfoEndpointV1SchoolsDelete({ body: valuesToRemove });
                     if (deleteResult.error) {
-                        console.error("Failed to remove school values:", deleteResult.error);
+                        customLogger.error("Failed to remove school values:", deleteResult.error);
                         notifications.show({
                             id: "remove-school-values-error",
                             title: "Error",
@@ -113,15 +135,15 @@ export function EditSchoolComponent({
                 let updatedSchool = { ...editSchool };
                 // logo removal
                 if (logoToRemove && editSchool.logoUrn) {
-                    console.debug("Removing logo...");
+                    customLogger.debug("Removing logo...");
                     try {
                         const schoolAfterLogoRemoval = await RemoveSchoolLogo(editSchool.id);
                         if (schoolAfterLogoRemoval) {
                             updatedSchool = schoolAfterLogoRemoval;
                         }
-                        console.debug("Logo removed successfully.");
+                        customLogger.debug("Logo removed successfully.");
                     } catch (error) {
-                        console.error("Failed to remove school logo:", error);
+                        customLogger.error("Failed to remove school logo:", error);
                         notifications.show({
                             id: "remove-logo-error",
                             title: "Error",
@@ -135,16 +157,16 @@ export function EditSchoolComponent({
                 }
                 // logo upload
                 else if (editSchoolLogo) {
-                    console.debug("Uploading logo...");
+                    customLogger.debug("Uploading logo...");
                     try {
                         const schoolAfterLogoUpload = await UploadSchoolLogo(editSchool.id, editSchoolLogo);
                         updatedSchool = schoolAfterLogoUpload;
                         if (schoolAfterLogoUpload.logoUrn) {
                             fetchSchoolLogo(schoolAfterLogoUpload.logoUrn);
                         }
-                        console.debug("Logo uploaded successfully.");
+                        customLogger.debug("Logo uploaded successfully.");
                     } catch (error) {
-                        console.error("Failed to upload school logo:", error);
+                        customLogger.error("Failed to upload school logo:", error);
                         notifications.show({
                             id: "upload-logo-error",
                             title: "Error",
@@ -154,7 +176,7 @@ export function EditSchoolComponent({
                         });
                     }
                 }
-                
+
                 notifications.show({
                     id: "school-update-success",
                     title: "Success",
@@ -162,10 +184,10 @@ export function EditSchoolComponent({
                     color: "green",
                     icon: <IconPencilCheck />,
                 });
-                
+
                 if (onSchoolUpdate) onSchoolUpdate(updatedSchool);
             } catch (error) {
-                console.error("Failed to update school:", error);
+                customLogger.error("Failed to update school:", error);
                 notifications.show({
                     id: "school-update-error",
                     title: "Error",
@@ -183,11 +205,21 @@ export function EditSchoolComponent({
                 if (onRefresh) onRefresh();
             }
         }
-    }, [index, editSchool, logoToRemove, editSchoolLogo, setIndex, onSchoolUpdate, onRefresh, fetchSchoolLogo, buttonStateHandler]);
+    }, [
+        index,
+        editSchool,
+        logoToRemove,
+        editSchoolLogo,
+        setIndex,
+        onSchoolUpdate,
+        onRefresh,
+        fetchSchoolLogo,
+        buttonStateHandler,
+    ]);
 
     const setLogo = useCallback(async (file: File | null) => {
         if (file === null) {
-            console.debug("No file selected, skipping upload...");
+            customLogger.debug("No file selected, skipping upload...");
             return;
         }
         setEditSchoolLogo(file);
@@ -375,6 +407,43 @@ export function EditSchoolComponent({
                                 onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
                                 onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
                             />
+                        }
+                    />
+                    <Select
+                        label="Assigned Report Approver"
+                        placeholder={loadingUsers ? "Loading principals..." : "Select a principal to approve reports"}
+                        data={users.map((user) => ({
+                            value: user.id,
+                            label:
+                                `${user.nameFirst || ""} ${user.nameMiddle || ""} ${user.nameLast || ""}`.trim() ||
+                                user.id,
+                        }))}
+                        value={editSchool.assignedNotedBy || ""}
+                        onChange={(value) =>
+                            setEditSchool({
+                                ...editSchool,
+                                assignedNotedBy: value,
+                            })
+                        }
+                        searchable
+                        clearable
+                        disabled={loadingUsers}
+                        description="This principal will automatically approve all reports created by this school"
+                        rightSection={
+                            editSchool.assignedNotedBy ? (
+                                <IconTrash
+                                    size={16}
+                                    color="red"
+                                    onClick={() => setEditSchool({ ...editSchool, assignedNotedBy: null })}
+                                    style={{
+                                        opacity: 0,
+                                        cursor: "pointer",
+                                        transition: "opacity 0.2s ease",
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
+                                />
+                            ) : null
                         }
                     />
                     <Switch

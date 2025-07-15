@@ -2,38 +2,59 @@
 
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import {
+    AnnouncementRecipients,
     Notification,
+    NotificationType,
+    Role,
+    School,
+    UserPublic,
+    announceNotificationV1NotificationsAnnouncePost,
     archiveNotificationV1NotificationsPost,
+    getAllRolesV1AuthRolesGet,
+    getAllUsersEndpointV1UsersAllGet,
     getUserNotificationsV1NotificationsMeGet,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
+import { GetAllSchools } from "@/lib/api/school";
 import { notificationIcons } from "@/lib/info";
+import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import {
     ActionIcon,
     Avatar,
     Badge,
     Box,
+    Button,
     Card,
     Checkbox,
+    Container,
     Divider,
     Group,
+    Modal,
+    MultiSelect,
     ScrollArea,
     SegmentedControl,
     Select,
     Stack,
+    Switch,
     Text,
+    Textarea,
     TextInput,
     Title,
     Tooltip,
 } from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
     IconAlertCircle,
     IconCircleCheck,
+    IconConfetti,
     IconInfoCircle,
     IconMail,
     IconMailOpened,
     IconSearch,
+    IconSpeakerphone,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -43,14 +64,21 @@ import React, { useEffect, useState } from "react";
 dayjs.extend(relativeTime);
 
 export default function NotificationsPage() {
+    const userCtx = useUser();
     const [loading, setLoading] = useState(true);
     const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
     const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
     const [filter, setFilter] = useState("unread");
     const [search, setSearch] = useState("");
-    const [groupBy, setGroupBy] = useState("Date");
     const [selectAll, setSelectAll] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    
+    // Announcement modal state
+    const [announcementModalOpen, announcementModalHandlers] = useDisclosure(false);
+    const [announcementLoading, announcementLoadingHandlers] = useDisclosure(false);
+    const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
+    const [availableSchools, setAvailableSchools] = useState<School[]>([]);
+    const [availableUsers, setAvailableUsers] = useState<UserPublic[]>([]);
 
     const handleFetch = async () => {
         try {
@@ -67,7 +95,7 @@ export default function NotificationsPage() {
             const data = result.data as Notification[];
             setAllNotifications(data);
         } catch (error) {
-            console.error("Failed to fetch notifications:", error);
+            customLogger.error("Failed to fetch notifications:", error);
         } finally {
             setLoading(false);
         }
@@ -133,6 +161,115 @@ export default function NotificationsPage() {
         }
     };
 
+    // Announcement form
+    const announcementForm = useForm({
+        initialValues: {
+            title: "",
+            content: "",
+            recipientType: "" as AnnouncementRecipients | "",
+            roleId: null as number | null,
+            schoolId: null as number | null,
+            userIds: [] as string[],
+            notificationType: "info" as NotificationType,
+            important: false,
+        },
+        validate: {
+            title: (value) => (!value?.trim() ? "Title is required" : null),
+            content: (value) => (!value?.trim() ? "Content is required" : null),
+            recipientType: (value) => (!value ? "Recipient type is required" : null),
+            roleId: (value, values) =>
+                values.recipientType === "role" && !value ? "Role is required" : null,
+            schoolId: (value, values) =>
+                values.recipientType === "school" && !value ? "School is required" : null,
+            userIds: (value, values) =>
+                values.recipientType === "users" && (!value || value.length === 0)
+                    ? "At least one user must be selected"
+                    : null,
+        },
+    });
+
+    // Fetch data for announcement form
+    const fetchAnnouncementData = async () => {
+        try {
+            const [rolesResponse, schoolsResponse, usersResponse] = await Promise.all([
+                getAllRolesV1AuthRolesGet(),
+                GetAllSchools(0, 1000),
+                getAllUsersEndpointV1UsersAllGet({
+                    query: { limit: 1000 },
+                    headers: { Authorization: GetAccessTokenHeader() },
+                }),
+            ]);
+
+            if (rolesResponse.data) {
+                setAvailableRoles(rolesResponse.data);
+            }
+            if (schoolsResponse) {
+                setAvailableSchools(schoolsResponse);
+            }
+            if (usersResponse.data) {
+                setAvailableUsers(usersResponse.data);
+            }
+        } catch (error) {
+            customLogger.error("Failed to fetch announcement data:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to load form data. Please try again.",
+                color: "red",
+                icon: <IconAlertCircle />,
+            });
+        }
+    };
+
+    // Handle announcement submission
+    const handleAnnouncementSubmit = async (values: typeof announcementForm.values) => {
+        announcementLoadingHandlers.open();
+
+        try {
+            const response = await announceNotificationV1NotificationsAnnouncePost({
+                query: {
+                    title: values.title,
+                    content: values.content,
+                    recipient_types: values.recipientType as AnnouncementRecipients,
+                    important: values.important,
+                    notification_type: values.notificationType,
+                    ...(values.recipientType === "role" && { recipient_role_id: values.roleId }),
+                    ...(values.recipientType === "school" && { recipient_school_id: values.schoolId }),
+                },
+                ...(values.recipientType === "users" && { body: values.userIds }),
+                headers: { Authorization: GetAccessTokenHeader() },
+            });
+
+            if (response.data) {
+                notifications.show({
+                    title: "Success",
+                    message: response.data.message || "Announcement sent successfully!",
+                    color: "green",
+                    icon: <IconCircleCheck />,
+                });
+                announcementForm.reset();
+                announcementModalHandlers.close();
+                // Refresh notifications to show any new ones
+                handleFetch();
+            }
+        } catch (error) {
+            customLogger.error("Failed to send announcement:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to send announcement. Please try again.",
+                color: "red",
+                icon: <IconAlertCircle />,
+            });
+        } finally {
+            announcementLoadingHandlers.close();
+        }
+    };
+
+    // Handle opening announcement modal
+    const handleOpenAnnouncement = () => {
+        fetchAnnouncementData();
+        announcementModalHandlers.open();
+    };
+
     useEffect(() => {
         handleFetch();
     }, []);
@@ -171,20 +308,22 @@ export default function NotificationsPage() {
                         { label: "Unread", value: "unread" },
                     ]}
                 />
-                <TextInput
-                    style={{ width: 500 }}
-                    placeholder="Search notifications"
-                    leftSection={<IconSearch size={14} />}
-                    value={search}
-                    onChange={(e) => setSearch(e.currentTarget.value)}
-                />
-                <Select
-                    value={groupBy}
-                    onChange={(value) => {
-                        if (value) setGroupBy(value);
-                    }}
-                    data={["Date", "Type"]}
-                />
+                <Group gap="sm">
+                    <TextInput
+                        style={{ width: 500 }}
+                        placeholder="Search notifications"
+                        leftSection={<IconSearch size={14} />}
+                        value={search}
+                        onChange={(e) => setSearch(e.currentTarget.value)}
+                    />
+                    {userCtx.userPermissions?.includes("notifications:announce") && (
+                        <Tooltip label="Create Announcement" withArrow>
+                            <ActionIcon variant="filled" aria-label="Announce" onClick={handleOpenAnnouncement}>
+                                <IconSpeakerphone />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </Group>
             </Group>
 
             <Group mb="sm" justify="space-between">
@@ -305,7 +444,18 @@ export default function NotificationsPage() {
             <ScrollArea h={600}>
                 <Stack>
                     {loading && <LoadingComponent withBorder={false} />}
-                    {!loading && filteredNotifications.length === 0 && <Text>No notifications found.</Text>}
+                    {!loading && filteredNotifications.length === 0 && (
+                        <Container size="xl" mt={50} style={{ textAlign: "center" }}>
+                            <IconConfetti
+                                size={64}
+                                style={{ margin: "auto", display: "block" }}
+                                color="var(--mantine-color-dimmed)"
+                            />
+                            <Text size="lg" mt="xl" c="dimmed">
+                                You&apos;re all good!
+                            </Text>
+                        </Container>
+                    )}
                     {!loading &&
                         filteredNotifications
                             .slice()
@@ -389,6 +539,133 @@ export default function NotificationsPage() {
                             })}
                 </Stack>
             </ScrollArea>
+
+            {/* Announcement Modal */}
+            <Modal
+                opened={announcementModalOpen}
+                onClose={announcementModalHandlers.close}
+                title="Create Announcement"
+                size="lg"
+            >
+                <form onSubmit={announcementForm.onSubmit(handleAnnouncementSubmit)}>
+                    <Stack gap="md">
+                        <TextInput
+                            label="Title"
+                            placeholder="Enter announcement title"
+                            required
+                            {...announcementForm.getInputProps("title")}
+                        />
+
+                        <Textarea
+                            label="Content"
+                            placeholder="Enter announcement content"
+                            required
+                            minRows={4}
+                            {...announcementForm.getInputProps("content")}
+                        />
+
+                        <Select
+                            label="Send to"
+                            placeholder="Select recipient type"
+                            data={[
+                                { value: "all", label: "Everyone" },
+                                { value: "role", label: "Everyone with a specific role" },
+                                { value: "school", label: "Everyone within a specific school" },
+                                { value: "users", label: "Specific users" },
+                            ]}
+                            required
+                            {...announcementForm.getInputProps("recipientType")}
+                        />
+
+                        {announcementForm.values.recipientType === "role" && (
+                            <Select
+                                label="Role"
+                                placeholder="Select a role"
+                                data={availableRoles.map((role) => ({
+                                    value: role.id?.toString() || "",
+                                    label: role.description || "",
+                                }))}
+                                required
+                                value={announcementForm.values.roleId?.toString() || null}
+                                onChange={(value) =>
+                                    announcementForm.setFieldValue("roleId", value ? parseInt(value) : null)
+                                }
+                                error={announcementForm.errors.roleId}
+                            />
+                        )}
+
+                        {announcementForm.values.recipientType === "school" && (
+                            <Select
+                                label="School"
+                                placeholder="Select a school"
+                                data={availableSchools.map((school) => ({
+                                    value: school.id?.toString() || "",
+                                    label: school.name || "",
+                                }))}
+                                required
+                                value={announcementForm.values.schoolId?.toString() || null}
+                                onChange={(value) =>
+                                    announcementForm.setFieldValue("schoolId", value ? parseInt(value) : null)
+                                }
+                                error={announcementForm.errors.schoolId}
+                            />
+                        )}
+
+                        {announcementForm.values.recipientType === "users" && (
+                            <MultiSelect
+                                label="Users"
+                                placeholder="Select users"
+                                data={availableUsers.map((user) => ({
+                                    value: user.id,
+                                    label: `${user.nameFirst || ""} ${user.nameLast || ""} (${user.username})`.trim(),
+                                }))}
+                                required
+                                searchable
+                                clearable
+                                {...announcementForm.getInputProps("userIds")}
+                            />
+                        )}
+
+                        <Select
+                            label="Notification Type"
+                            placeholder="Select notification type"
+                            data={[
+                                { value: "info", label: "Information" },
+                                { value: "success", label: "Success" },
+                                { value: "warning", label: "Warning" },
+                                { value: "error", label: "Error" },
+                                { value: "mail", label: "Mail" },
+                                { value: "security", label: "Security" },
+                            ]}
+                            {...announcementForm.getInputProps("notificationType")}
+                        />
+
+                        <Switch
+                            label="Mark as important"
+                            description="Important notifications will be highlighted for recipients"
+                            {...announcementForm.getInputProps("important", { type: "checkbox" })}
+                        />
+
+                        <Group justify="flex-end" mt="md">
+                            <Button
+                                type="button"
+                                variant="light"
+                                onClick={announcementModalHandlers.close}
+                                disabled={announcementLoading}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                loading={announcementLoading}
+                                leftSection={<IconSpeakerphone size={16} />}
+                            >
+                                Send Announcement
+                            </Button>
+                        </Group>
+                    </Stack>
+                </form>
+            </Modal>
         </Box>
     );
 }

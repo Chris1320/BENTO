@@ -2,7 +2,7 @@ import datetime
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from centralserver.internals.adapters.object_store import (
     BucketNames,
@@ -25,11 +25,40 @@ async def create_school(new_school: SchoolCreate, session: Session) -> School:
         phone=new_school.phone,
         email=new_school.email,
         website=new_school.website,
+        assignedNotedBy=new_school.assignedNotedBy,
     )
     session.add(school)
     session.commit()
     session.refresh(school)
     return school
+
+
+async def clear_assigned_noted_by_for_user(user_id: str, session: Session) -> None:
+    """Clear assignedNotedBy field from all schools where this user is assigned."""
+
+    # Find all schools where this user is assigned as the approver
+    statement = select(School).where(School.assignedNotedBy == user_id)
+    schools_to_update = session.exec(statement).all()
+
+    # Clear the assignedNotedBy field for each school
+    for school in schools_to_update:
+        logger.info(
+            "Clearing assignedNotedBy for school '%s' (ID: %s) - user %s no longer in school",
+            school.name,
+            school.id,
+            user_id,
+        )
+        school.assignedNotedBy = None
+        school.lastModified = datetime.datetime.now(datetime.timezone.utc)
+        session.add(school)
+
+    if schools_to_update:
+        session.commit()
+        logger.info(
+            "Cleared assignedNotedBy from %d schools for user %s",
+            len(schools_to_update),
+            user_id,
+        )
 
 
 async def get_school_logo(fn: str) -> BucketObject | None:

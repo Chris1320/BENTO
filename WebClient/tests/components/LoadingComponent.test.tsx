@@ -19,9 +19,18 @@ vi.mock("motion/react", () => ({
     },
 }));
 
-// Mock the random loading messages
+// Mock the random loading messages and LocalStorage
 vi.mock("@/lib/info", () => ({
     randomLoadingMessages: ["Loading test message 1", "Loading test message 2", "Loading test message 3"],
+    LocalStorage: {
+        accessToken: "at",
+        userData: "ud",
+        userPermissions: "up",
+        userAvatar: "userAvatar",
+        userPreferences: "userPrefs",
+        setupCompleteDismissed: "setupCompleteDismissed",
+        useBasicLoader: "useBasicLoader",
+    },
 }));
 
 const renderWithProvider = (component: React.ReactElement) => {

@@ -8,7 +8,7 @@ describe("Info Configuration", () => {
         });
 
         it("has correct program description", () => {
-            expect(Program.description).toBe("Baliuag's Enhanced Network for School Canteen Tracking Operations");
+            expect(Program.description).toBe("Baliuag's Enhanced Network for Tracking Operations");
         });
 
         it("has version information", () => {
@@ -23,8 +23,8 @@ describe("Info Configuration", () => {
             expect(LocalStorage.accessToken).toBe("at");
             expect(LocalStorage.userData).toBe("ud");
             expect(LocalStorage.userPermissions).toBe("up");
-            expect(LocalStorage.userAvatar).toBe("ua");
-            expect(LocalStorage.userPreferences).toBe("upref");
+            expect(LocalStorage.userAvatar).toBe("userAvatar");
+            expect(LocalStorage.userPreferences).toBe("userPrefs");
             expect(LocalStorage.setupCompleteDismissed).toBe("setupCompleteDismissed");
         });
 

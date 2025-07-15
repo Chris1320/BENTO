@@ -58,15 +58,26 @@ from centralserver.internals.models.reports.monthly_report import (
     MonthlyReport,
     ReportStatus,
 )
-from centralserver.internals.models.reports.status_change_request import (
-    StatusChangeRequest,
-)
 from centralserver.internals.models.reports.report_status_manager import (
     ReportStatusManager,
 )
+from centralserver.internals.models.reports.status_change_request import (
+    StatusChangeRequest,
+)
+from centralserver.internals.models.school import School
 from centralserver.internals.models.token import DecodedJWTToken
 
 logger = LoggerFactory().get_logger(__name__)
+
+
+async def get_school_assigned_noted_by(school_id: int, session: Session) -> str | None:
+    """Get the assigned noted by user for a school."""
+    school = session.get(School, school_id)
+    if school and school.assignedNotedBy:
+        return school.assignedNotedBy
+    return None
+
+
 router = APIRouter(prefix="/liquidation")
 logged_in_dep = Annotated[DecodedJWTToken, Depends(verify_access_token)]
 
@@ -512,6 +523,11 @@ async def create_or_update_liquidation_report(
         )
     ).one_or_none()
 
+    # If no notedBy is provided, try to get it from the school's assignedNotedBy
+    noted_by = request_data.notedBy
+    if noted_by is None:
+        noted_by = await get_school_assigned_noted_by(school_id, session)
+
     if selected_monthly_report is None:
         selected_monthly_report = MonthlyReport(
             id=parent_date,
@@ -519,7 +535,7 @@ async def create_or_update_liquidation_report(
             submittedBySchool=school_id,
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,
-            notedBy=request_data.notedBy,
+            notedBy=noted_by,
         )
         session.add(selected_monthly_report)
 
@@ -528,7 +544,7 @@ async def create_or_update_liquidation_report(
     report_data: Dict[str, Any] = {
         "parent": parent_date,
         "preparedBy": request_data.preparedBy or user.id,
-        "notedBy": request_data.notedBy,
+        "notedBy": noted_by,
         "teacherInCharge": request_data.teacherInCharge,
         "memo": request_data.memo,
     }
@@ -553,7 +569,10 @@ async def create_or_update_liquidation_report(
         }
 
         # Add receipt attachment URNs if available
-        if hasattr(entry_data, "receipt_attachment_urns") and entry_data.receipt_attachment_urns:
+        if (
+            hasattr(entry_data, "receipt_attachment_urns")
+            and entry_data.receipt_attachment_urns
+        ):
             entry_dict["receipt_attachment_urns"] = entry_data.receipt_attachment_urns
 
         # Handle receipt number field variations based on model type
@@ -929,7 +948,7 @@ async def change_liquidation_report_status(
     # Get the monthly report and then the liquidation report
     # Note: We don't actually need monthly_report here, just checking it exists
     ReportStatusManager.get_monthly_report(session, school_id, year, month)
-    
+
     # Get the specific liquidation report
     parent_date = datetime.date(year=year, month=month, day=1)
     category_config = LIQUIDATION_CATEGORIES[category]
@@ -942,7 +961,7 @@ async def change_liquidation_report_status(
         )
 
     # Use the generic status manager to change the status
-    return ReportStatusManager.change_report_status(
+    return await ReportStatusManager.change_report_status(
         session=session,
         user=user,
         report=liquidation_report,

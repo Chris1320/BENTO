@@ -1,13 +1,14 @@
 "use client";
 
-import { School } from "@/lib/api/csclient";
+import { getAllUsersEndpointV1UsersAllGet, School, UserPublic } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { CreateSchool } from "@/lib/api/school";
-import { Button, Modal, Stack, TextInput } from "@mantine/core";
+import { Button, Modal, Select, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconUserCheck, IconUserExclamation, IconSendOff } from "@tabler/icons-react";
-import { useCallback } from "react";
+import { IconBuildingPlus, IconCheck, IconSendOff, IconTrash, IconUserExclamation } from "@tabler/icons-react";
+import { useCallback, useEffect, useState } from "react";
 
 interface CreateSchoolComponentProps {
     modalOpen: boolean;
@@ -15,12 +16,10 @@ interface CreateSchoolComponentProps {
     onSchoolCreate?: (newSchool: School) => void;
 }
 
-export function CreateSchoolComponent({
-    modalOpen,
-    setModalOpen,
-    onSchoolCreate,
-}: CreateSchoolComponentProps) {
+export function CreateSchoolComponent({ modalOpen, setModalOpen, onSchoolCreate }: CreateSchoolComponentProps) {
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
+    const [users, setUsers] = useState<UserPublic[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
 
     const form = useForm({
         initialValues: {
@@ -29,11 +28,40 @@ export function CreateSchoolComponent({
             phone: "",
             email: "",
             website: "",
+            assignedNotedBy: "",
         },
         validate: {
             schoolName: (value) => (!value ? "School name is required" : null),
         },
     });
+
+    const loadUsers = useCallback(async () => {
+        setLoadingUsers(true);
+        try {
+            const result = await getAllUsersEndpointV1UsersAllGet({
+                query: { show_all: false, limit: 999 },
+            });
+            if (result.data) {
+                // Filter to only show principals (roleId: 4) who can approve reports
+                const principals = result.data.filter((user) => user.roleId === 4);
+                setUsers(principals);
+            } else {
+                setUsers([]);
+            }
+        } catch (error) {
+            customLogger.error("Failed to load users:", error);
+            setUsers([]);
+        } finally {
+            setLoadingUsers(false);
+        }
+    }, []);
+
+    // Load users when modal opens
+    useEffect(() => {
+        if (modalOpen) {
+            loadUsers();
+        }
+    }, [modalOpen, loadUsers]);
 
     const handleCreateSchool = useCallback(
         async (values: typeof form.values) => {
@@ -45,6 +73,7 @@ export function CreateSchoolComponent({
                     phone: values.phone !== "" ? values.phone : null,
                     email: values.email !== "" ? values.email : null,
                     website: values.website !== "" ? values.website : null,
+                    assignedNotedBy: values.assignedNotedBy !== "" ? values.assignedNotedBy : null,
                 });
                 notifications.show({
                     id: "create-school-success",
@@ -57,7 +86,7 @@ export function CreateSchoolComponent({
                 form.reset();
                 if (onSchoolCreate) onSchoolCreate(createdSchool);
             } catch (error) {
-                console.error("Failed to create school:", error);
+                customLogger.error("Failed to create school:", error);
                 if (error instanceof Error && error.message.includes("already exists")) {
                     notifications.show({
                         id: "create-school-exists",
@@ -75,7 +104,7 @@ export function CreateSchoolComponent({
                         icon: <IconSendOff />,
                     });
                 } else {
-                    console.error("Unexpected error:", error);
+                    customLogger.error("Unexpected error:", error);
                     notifications.show({
                         id: "create-school-unexpected-error",
                         title: "Error",
@@ -95,29 +124,45 @@ export function CreateSchoolComponent({
         <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Add New School">
             <form onSubmit={form.onSubmit(handleCreateSchool)}>
                 <Stack>
-                    <TextInput
-                        withAsterisk
-                        label="School Name"
-                        {...form.getInputProps("schoolName")}
+                    <TextInput withAsterisk label="School Name" {...form.getInputProps("schoolName")} />
+                    <TextInput label="Address" {...form.getInputProps("address")} />
+                    <TextInput label="Phone Number" {...form.getInputProps("phone")} />
+                    <TextInput label="Email Address" type="email" {...form.getInputProps("email")} />
+                    <TextInput label="Website" {...form.getInputProps("website")} />
+
+                    <Select
+                        label="Assigned Report Approver"
+                        placeholder={loadingUsers ? "Loading principals..." : "Select a principal to approve reports"}
+                        data={users.map((user) => ({
+                            value: user.id,
+                            label:
+                                `${user.nameFirst || ""} ${user.nameMiddle || ""} ${user.nameLast || ""}`.trim() ||
+                                user.id,
+                        }))}
+                        {...form.getInputProps("assignedNotedBy")}
+                        searchable
+                        clearable
+                        disabled={loadingUsers}
+                        description="This principal will automatically approve all reports created by this school"
+                        rightSection={
+                            form.values.assignedNotedBy ? (
+                                <IconTrash
+                                    size={16}
+                                    color="red"
+                                    onClick={() => form.setFieldValue("assignedNotedBy", "")}
+                                    style={{
+                                        opacity: 0,
+                                        cursor: "pointer",
+                                        transition: "opacity 0.2s ease",
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
+                                />
+                            ) : null
+                        }
                     />
-                    <TextInput
-                        label="Address"
-                        {...form.getInputProps("address")}
-                    />
-                    <TextInput
-                        label="Phone Number"
-                        {...form.getInputProps("phone")}
-                    />
-                    <TextInput
-                        label="Email Address"
-                        type="email"
-                        {...form.getInputProps("email")}
-                    />
-                    <TextInput
-                        label="Website"
-                        {...form.getInputProps("website")}
-                    />
-                    <Button type="submit" loading={buttonLoading} rightSection={<IconUserCheck />}>
+
+                    <Button type="submit" loading={buttonLoading} rightSection={<IconBuildingPlus />}>
                         Create School
                     </Button>
                 </Stack>

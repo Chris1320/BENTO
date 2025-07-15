@@ -1,10 +1,10 @@
-import { Connections, LocalStorage, Program, randomLoadingMessages } from "@/lib/info";
+import { LocalStorage, Program, randomLoadingMessages } from "@/lib/info";
 import { describe, expect, it } from "vitest";
 
 describe("Program information", () => {
     it("has correct program details", () => {
         expect(Program.name).toBe("BENTO");
-        expect(Program.description).toBe("Baliuag's Enhanced Network for School Canteen Tracking Operations");
+        expect(Program.description).toBe("Baliuag's Enhanced Network for Tracking Operations");
         expect(Program.version).toMatch(/^\d+\.\d+\.\d+$/);
     });
 

@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlmodel import Session, func, select
 
+from centralserver.info import AnnouncementRecipients
 from centralserver.internals.auth_handler import (
     verify_access_token,
     verify_user_permission,
@@ -13,8 +14,10 @@ from centralserver.internals.logger import LoggerFactory
 from centralserver.internals.models.notification import (
     Notification,
     NotificationArchiveRequest,
+    NotificationType,
 )
 from centralserver.internals.models.token import DecodedJWTToken
+from centralserver.internals.models.user import User
 from centralserver.internals.notification_handler import (
     archive_notification as internals_archive_notification,
 )
@@ -23,6 +26,9 @@ from centralserver.internals.notification_handler import (
 )
 from centralserver.internals.notification_handler import (
     get_user_notifications as internals_get_user_notifications,
+)
+from centralserver.internals.notification_handler import (
+    push_notification,
 )
 
 logger = LoggerFactory().get_logger(__name__)
@@ -268,3 +274,102 @@ async def get_user_notifications(
     )
     logger.debug("Found %d notifications for user %s.", len(notifications), token.id)
     return notifications
+
+
+@router.post("/announce")
+async def announce_notification(
+    token: logged_in_dep,
+    session: Annotated[Session, Depends(get_db_session)],
+    background_tasks: BackgroundTasks,
+    title: str,
+    content: str,
+    recipient_types: AnnouncementRecipients,
+    important: bool = False,
+    recipient_ids: list[str] | None = None,
+    recipient_role_id: int | None = None,
+    recipient_school_id: int | None = None,
+    notification_type: NotificationType = NotificationType.INFO,
+) -> dict[str, str]:
+    """
+    Announce a notification to users based on recipient criteria.
+
+    Args:
+        token: The decoded JWT token of the logged-in user.
+        session: The database session.
+        background_tasks: Background tasks to handle notification processing.
+        title: The title of the notification.
+        content: The content of the notification.
+        recipient_types: The types of recipients for the notification.
+        important: Whether the notification is marked as important.
+        recipient_ids: Optional list of specific user IDs to notify.
+        recipient_role_id: Role ID when sending to users with a specific role.
+        recipient_school_id: School ID when sending to users in a specific school.
+        notification_type: The type of the notification (e.g., INFO, WARNING, ERROR).
+
+    Returns:
+        A dictionary with a success message.
+    """
+
+    logger.info("User %s is announcing a notification.", token.id)
+
+    if not await verify_user_permission("notifications:announce", session, token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to create announcements.",
+        )
+
+    target: list[User] = []
+    if recipient_types == AnnouncementRecipients.ALL:
+        target.extend(session.exec(select(User)).all())
+
+    elif recipient_types == AnnouncementRecipients.ROLE:
+        if recipient_role_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Role ID is required when sending to a specific role.",
+            )
+        target.extend(
+            session.exec(select(User).where(User.roleId == recipient_role_id)).all()
+        )
+
+    elif recipient_types == AnnouncementRecipients.SCHOOL:
+        if recipient_school_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="School ID is required when sending to a specific school.",
+            )
+        target.extend(
+            session.exec(select(User).where(User.schoolId == recipient_school_id)).all()
+        )
+
+    elif recipient_types == AnnouncementRecipients.USERS:
+        if recipient_ids is None or len(recipient_ids) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User IDs are required when sending to specific users.",
+            )
+        for user_id in recipient_ids:
+            user = session.exec(select(User).where(User.id == user_id)).first()
+            if user:
+                target.append(user)
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid recipient type specified.",
+        )
+
+    logger.debug("Targeting %d users for notification announcement.", len(target))
+    for user in target:
+        background_tasks.add_task(
+            push_notification,
+            owner_id=user.id,
+            title=title,
+            content=content,
+            important=important,
+            notification_type=notification_type,
+            session=session,
+        )
+
+    logger.info("Notification announced successfully by user %s.", token.id)
+    return {"message": f"Notification announced to {len(target)} users successfully."}

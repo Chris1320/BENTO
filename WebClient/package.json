@@ -1,6 +1,6 @@
 {
     "name": "webclient",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "private": true,
     "scripts": {
         "dev": "next dev --turbopack",
@@ -16,6 +16,7 @@
     "dependencies": {
         "@mantine/carousel": "^8.1.3",
         "@mantine/charts": "^8.1.3",
+        "@mantine/colors-generator": "^8.1.3",
         "@mantine/core": "^8.1.3",
         "@mantine/dates": "^8.1.3",
         "@mantine/dropzone": "^8.1.3",
@@ -34,16 +35,19 @@
         "dayjs": "^1.11.13",
         "embla-carousel": "^8.6.0",
         "embla-carousel-react": "^8.6.0",
+        "html2canvas": "^1.4.1",
+        "jspdf": "^3.0.1",
         "ky": "^1.8.1",
         "mantine-data-grid": "^0.2.3",
-        "motion": "^12.23.0",
+        "motion": "^12.23.3",
         "next": "15.3.5",
         "next-qrcode": "^2.5.1",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-easy-crop": "^5.4.2",
         "react-scan": "^0.4.3",
-        "recharts": "^2.15.4"
+        "recharts": "^2.15.4",
+        "swapy": "^1.0.5"
     },
     "devDependencies": {
         "@codecov/nextjs-webpack-plugin": "^1.9.1",
@@ -54,6 +58,7 @@
         "@testing-library/jest-dom": "^6.6.3",
         "@testing-library/react": "^16.3.0",
         "@testing-library/user-event": "^14.6.1",
+        "@types/html2canvas": "^0.5.35",
         "@types/node": "^24",
         "@types/react": "^19",
         "@types/react-dom": "^19",

@@ -164,7 +164,9 @@ async def validate_attachment_file(contents: bytes, filename: str) -> bytes:
         )
 
     # For general attachments, we don't need to process the file, just return as-is
-    logger.debug("File '%s' validated successfully. Size: %d bytes", filename, len(contents))
+    logger.debug(
+        "File '%s' validated successfully. Size: %d bytes", filename, len(contents)
+    )
     return contents
 
 

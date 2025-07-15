@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 describe("Theme configuration", () => {
     it("has correct default color scheme", () => {
-        expect(defaultColorscheme).toBe("light");
+        expect(defaultColorscheme).toBe("auto");
     });
 
     it("has theme object", () => {

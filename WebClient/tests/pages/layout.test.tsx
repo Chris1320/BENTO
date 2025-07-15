@@ -25,6 +25,9 @@ vi.mock("@mantine/notifications", () => ({
 // Mock theme
 vi.mock("@/lib/theme", () => ({
     theme: { primaryColor: "blue" },
+    defaultColorscheme: "auto",
+    notificationLimit: 5,
+    notificationAutoClose: 5000,
 }));
 
 // Mock program info

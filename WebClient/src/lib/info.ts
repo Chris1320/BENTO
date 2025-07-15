@@ -10,8 +10,8 @@ import {
 // Used for exporting the program information and connection details into NavBar Component
 export const Program = {
     name: "BENTO",
-    description: "Baliuag's Enhanced Network for School Canteen Tracking Operations",
-    version: "0.5.0",
+    description: "Baliuag's Enhanced Network for Tracking Operations",
+    version: "0.6.0",
 };
 
 export const Connections = {
@@ -24,9 +24,10 @@ export const LocalStorage = {
     accessToken: "at",
     userData: "ud",
     userPermissions: "up",
-    userAvatar: "ua",
-    userPreferences: "upref",
+    userAvatar: "userAvatar",
+    userPreferences: "userPrefs",
     setupCompleteDismissed: "setupCompleteDismissed",
+    useBasicLoader: "useBasicLoader",
 };
 
 export const randomLoadingMessages: string[] = [

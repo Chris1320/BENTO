@@ -42,6 +42,10 @@ class School(SQLModel, table=True):
         description="Indicates whether the school is deactivated or not.",
     )
 
+    assignedNotedBy: str | None = Field(
+        default=None, description="The user that should approve the school reports."
+    )
+
     dateCreated: datetime.datetime = Field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc),
         description="The timestamp when the record was created.",
@@ -65,6 +69,7 @@ class SchoolUpdate(SQLModel):
     email: EmailStr | None = None
     website: str | None = None
     deactivated: bool | None = None
+    assignedNotedBy: str | None = None
 
 
 class SchoolCreate(SQLModel):
@@ -75,6 +80,7 @@ class SchoolCreate(SQLModel):
     phone: str | None = None
     email: EmailStr | None = None
     website: str | None = None
+    assignedNotedBy: str | None = None
 
 
 class SchoolDelete(SQLModel):

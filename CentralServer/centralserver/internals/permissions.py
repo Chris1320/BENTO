@@ -11,6 +11,7 @@ DEFAULT_ROLES: Final[tuple[DefaultRole, ...]] = (
 )
 
 PERMISSIONS: Final[dict[str, str]] = {
+    "notifications:announce": "Create and send announcements to all users.",
     "notifications:global:archive": "Archive notifications owned by any user.",
     "notifications:self:archive": "Archive their own notifications.",
     "notifications:global:view": "View all notifications owned by any user.",
@@ -56,6 +57,7 @@ PERMISSIONS: Final[dict[str, str]] = {
 
 ROLE_PERMISSIONS: Final[dict[int, list[str]]] = {
     1: [  # Website Administrator
+        "notifications:announce",
         "notifications:global:archive",
         "notifications:self:archive",
         "notifications:global:view",
@@ -89,6 +91,7 @@ ROLE_PERMISSIONS: Final[dict[int, list[str]]] = {
         "roles:global:read",
     ],
     2: [  # Superintendent
+        "notifications:announce",
         "notifications:self:archive",
         "notifications:self:view",
         "reports:global:read",
@@ -127,6 +130,7 @@ ROLE_PERMISSIONS: Final[dict[int, list[str]]] = {
         "roles:global:read",
     ],
     3: [  # Administrator
+        "notifications:announce",
         "notifications:self:archive",
         "notifications:self:view",
         "reports:global:read",

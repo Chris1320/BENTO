@@ -3,7 +3,6 @@
 import { HomeSection } from "@/components/Dashboard/HomeSection";
 import { ErrorBoundary } from "@/components/ErrorBoundary/ErrorBoundary";
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
-import { SpotlightComponent } from "@/components/SpotlightComponent";
 import {
     Notification,
     getUserAvatarEndpointV1UsersAvatarGet,
@@ -11,7 +10,8 @@ import {
     getUserProfileEndpointV1UsersMeGet,
     type UserPublic,
 } from "@/lib/api/csclient";
-import { notificationIcons } from "@/lib/info";
+import { customLogger } from "@/lib/api/customLogger";
+import { LocalStorage, notificationIcons } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import {
@@ -46,24 +46,19 @@ const DashboardContent = memo(function DashboardContent() {
     const [profileCompletionPercentage, setProfileCompletionPercentage] = useState(0);
     const [HVNotifications, setHVNotifications] = useState<Notification[]>([]);
     const [setupCompleteDismissed, setSetupCompleteDismissed] = useState(
-        () => typeof window !== "undefined" && localStorage.getItem("setupCompleteDismissed") === "true"
+        () => typeof window !== "undefined" && localStorage.getItem(LocalStorage.setupCompleteDismissed) === "true"
     );
     const [isLoading, setIsLoading] = useState(true);
     const [isNotificationLoading, setIsNotificationLoading] = useState(true);
 
+    // Handle step clicks to navigate to the profile page
     const handleStepClick = (index: number) => {
         switch (index) {
             case 0:
-                window.location.href = "/account/profile";
-                break;
             case 1:
-                window.location.href = "/account/profile";
-                break;
             case 2:
-                window.location.href = "/account/profile";
-                break;
             case 3:
-                window.location.href = "/account/profile";
+                router.push("/account/profile");
                 break;
             default:
                 break;
@@ -83,7 +78,6 @@ const DashboardContent = memo(function DashboardContent() {
 
         const loadUserInfo = async () => {
             if (!userCtx.userInfo) return;
-
             try {
                 const userInfoResult = await getUserProfileEndpointV1UsersMeGet({
                     headers: { Authorization: GetAccessTokenHeader() },
@@ -97,7 +91,6 @@ const DashboardContent = memo(function DashboardContent() {
 
                 const [userInfo, userPermissions] = userInfoResult.data as [UserPublic, string[]];
                 if (!mounted) return;
-
                 if (userInfo.avatarUrn) {
                     const avatarResult = await getUserAvatarEndpointV1UsersAvatarGet({
                         query: { fn: userInfo.avatarUrn },
@@ -108,14 +101,14 @@ const DashboardContent = memo(function DashboardContent() {
                         const userAvatar = avatarResult.data as Blob;
                         userCtx.updateUserInfo(userInfo, userPermissions, userAvatar);
                     } else if (mounted) {
-                        console.warn("Failed to fetch avatar:", avatarResult.error);
+                        customLogger.warn("Failed to fetch avatar:", avatarResult.error);
                         userCtx.updateUserInfo(userInfo, userPermissions);
                     }
                 } else if (mounted) {
                     userCtx.updateUserInfo(userInfo, userPermissions);
                 }
             } catch (error) {
-                console.error("Failed to fetch user info:", error);
+                customLogger.error("Failed to fetch user info:", error);
                 if (mounted) {
                     notifications.show({
                         id: "user-info-error",
@@ -170,7 +163,7 @@ const DashboardContent = memo(function DashboardContent() {
                     setHVNotifications(notifications);
                 }
             } catch (error) {
-                console.error("Failed to fetch notifications:", error);
+                customLogger.error("Failed to fetch notifications:", error);
                 if (mounted) {
                     notifications.show({
                         id: "notifications-error",
@@ -194,6 +187,7 @@ const DashboardContent = memo(function DashboardContent() {
         };
     }, []); // Load notifications once on mount
 
+    // Calculate profile completion percentage
     const calculateSteps = useCallback(() => {
         if (!userCtx.userInfo) return;
 
@@ -236,8 +230,6 @@ const DashboardContent = memo(function DashboardContent() {
     return (
         <Container size="xl" py="md">
             <Stack gap="md">
-                <SpotlightComponent />
-
                 {/* User Welcome Section */}
                 <Card shadow="sm" p="md" radius="md" withBorder>
                     <Group gap={20}>
@@ -331,6 +323,8 @@ const DashboardContent = memo(function DashboardContent() {
                         </Text>
                     )}
                 </Card>
+
+                {/* <Divider my="md" /> */}
 
                 {/* Home Section */}
                 <Suspense fallback={<LoadingComponent message="Loading content..." withBorder={false} />}>

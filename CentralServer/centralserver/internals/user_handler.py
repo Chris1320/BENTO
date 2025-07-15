@@ -28,6 +28,7 @@ from centralserver.internals.models.user import (
 )
 from centralserver.internals.notification_handler import push_notification
 from centralserver.internals.permissions import DEFAULT_ROLES
+from centralserver.internals.school_handler import clear_assigned_noted_by_for_user
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -475,40 +476,60 @@ async def update_user_info(
         # Set new password
         selected_user.password = crypt_ctx.hash(target_user.password)
 
-    if target_user.schoolId is not None:  # Update school ID if provided
-        if not await verify_user_permission(
-            (
-                "users:self:modify:school"
-                if updating_self
-                else "users:global:modify:school"
-            ),
-            session=session,
-            token=token,
-        ):
-            logger.warning(
-                "Failed to update user: %s (permission denied: school)", target_user.id
-            )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Permission denied: Cannot modify school.",
-            )
+    # Handle schoolId updates - check if the field was explicitly provided in the request
+    if "schoolId" in target_user.model_fields_set:
+        # Only check permissions and validate if the school is actually changing
+        if selected_user.schoolId != target_user.schoolId:
+            if not await verify_user_permission(
+                (
+                    "users:self:modify:school"
+                    if updating_self
+                    else "users:global:modify:school"
+                ),
+                session=session,
+                token=token,
+            ):
+                logger.warning(
+                    "Failed to update user: %s (permission denied: school)",
+                    target_user.id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Permission denied: Cannot modify school.",
+                )
 
-        # Check if the school exists
-        if not session.get(School, target_user.schoolId):
-            logger.warning(
-                "Failed to update user: %s (school not found)", target_user.id
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="School not found",
-            )
+            # If schoolId is not None, check if the school exists
+            if target_user.schoolId is not None:
+                if not session.get(School, target_user.schoolId):
+                    logger.warning(
+                        "Failed to update user: %s (school not found)", target_user.id
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="School not found",
+                    )
 
-        logger.debug(
-            "Setting school ID for user: %s to %s",
-            target_user.id,
-            target_user.schoolId,
-        )
-        selected_user.schoolId = target_user.schoolId
+            # Clear any assignedNotedBy references since the school is changing
+            logger.debug(
+                "User %s school assignment changing from %s to %s, clearing assignedNotedBy references",
+                target_user.id,
+                selected_user.schoolId,
+                target_user.schoolId,
+            )
+            await clear_assigned_noted_by_for_user(target_user.id, session)
+
+            logger.debug(
+                "Setting school ID for user: %s to %s",
+                target_user.id,
+                target_user.schoolId,
+            )
+            selected_user.schoolId = target_user.schoolId
+        else:
+            logger.debug(
+                "School ID for user %s is not changing (remains %s), skipping update",
+                target_user.id,
+                selected_user.schoolId,
+            )
 
     if target_user.roleId is not None:  # Update role ID if provided
         if not await verify_user_permission(
@@ -673,7 +694,7 @@ async def update_user_info(
         await push_notification(
             owner_id=selected_user.id,
             title="Profile Updated",
-            content="Your profile information has been updated by an administrator. You may need to refresh your session to see the changes.",
+            content="Your profile information has been updated by a higher-up. You may need to refresh your session to see the changes.",
             important=True,
             notification_type=NotificationType.INFO,
             session=session,
@@ -733,6 +754,13 @@ async def remove_user_info(
         selected_user.position = None
 
     if target_user.schoolId:
+        # Clear any assignedNotedBy references before removing the user from the school
+        logger.debug(
+            "User %s is being removed from school %s, clearing assignedNotedBy references",
+            selected_user.id,
+            selected_user.schoolId,
+        )
+        await clear_assigned_noted_by_for_user(selected_user.id, session)
         selected_user.schoolId = None
 
     session.commit()

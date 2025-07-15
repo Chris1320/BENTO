@@ -269,6 +269,9 @@ async def update_school_endpoint(
     if updated_school_info.deactivated is not None:
         school.deactivated = updated_school_info.deactivated
 
+    if updated_school_info.assignedNotedBy is not None:
+        school.assignedNotedBy = updated_school_info.assignedNotedBy
+
     school.lastModified = datetime.datetime.now(datetime.timezone.utc)
     session.add(school)
     session.commit()
@@ -401,3 +404,11 @@ async def delete_school_logo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="School logo not found.",
         ) from e
+
+
+async def get_school_assigned_noted_by(school_id: int, session: Session) -> str | None:
+    """Get the assigned noted by user for a school."""
+    school = session.get(School, school_id)
+    if school and school.assignedNotedBy:
+        return school.assignedNotedBy
+    return None

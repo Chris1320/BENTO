@@ -20,6 +20,12 @@ class LiquidationReportClinicFund(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="monthlyReports.id"
     )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
     notedBy: str = Field(foreign_key="users.id")
     preparedBy: str = Field(foreign_key="users.id")
     teacherInCharge: str = Field(foreign_key="users.id")
@@ -50,6 +56,12 @@ class LiquidationReportClinicFundCertifiedBy(SQLModel, table=True):
         foreign_key="liquidationReportClinicFund.parent",
     )
     user: str = Field(primary_key=True, foreign_key="users.id")
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
 
     parent_report: LiquidationReportClinicFund = Relationship(
         back_populates="certified_by"
@@ -68,6 +80,12 @@ class LiquidationReportClinicFundEntry(SQLModel, table=True):
         primary_key=True,
         index=True,
         description="The date of the expense entry.",
+    )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
     )
     receiptNumber: str | None = Field(description="Receipt or voucher number.")
     particulars: str = Field(primary_key=True, description="Item description.")

@@ -6,8 +6,6 @@ import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import * as csclient from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { useUser } from "@/lib/providers/user";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import {
     ActionIcon,
     Alert,
@@ -32,6 +30,8 @@ import "@mantine/dates/styles.css";
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle, IconCalendar, IconDownload, IconFileTypePdf, IconHistory, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -379,11 +379,6 @@ function SalesandPurchasesContent() {
         router.push("/reports");
     };
 
-    const openApprovalModal = () => {
-        setApprovalCheckbox(false);
-        setApprovalModalOpened(true);
-    };
-
     const handleApprovalConfirm = async () => {
         if (!approvalCheckbox || !selectedNotedByUser?.signatureUrn) return;
 
@@ -484,6 +479,7 @@ function SalesandPurchasesContent() {
                             day: editingEntry.day,
                             sales: modalSales,
                             purchases: modalPurchases,
+                            schoolId: userCtx.userInfo?.schoolId || 0,
                         },
                     ],
                 });
@@ -641,6 +637,7 @@ function SalesandPurchasesContent() {
                         day: entry.day,
                         sales: entry.sales,
                         purchases: entry.purchases,
+                        schoolId: userCtx.userInfo?.schoolId || 0,
                     })),
                 });
             }
@@ -1108,34 +1105,36 @@ function SalesandPurchasesContent() {
                         </Table.Td>
                         <Table.Td className="text-center">
                             <Group gap="xs">
-                                <Button
-                                    size="xs"
-                                    variant="light"
-                                    onClick={() => {
-                                        const entryDate = dayjs(entry.date).date(entry.day).toDate();
-                                        setCurrentMonth(entryDate);
-                                        setSelectedDate(entryDate);
-                                        setEditingEntry(entry);
-                                        setModalSales(entry.sales);
-                                        setModalPurchases(entry.purchases);
-                                        setModalOpened(true);
-                                    }}
-                                    disabled={isReadOnly()}
-                                >
-                                    {isReadOnly() ? "View" : "Edit"}
-                                </Button>
                                 {!isReadOnly() && (
-                                    <Button
-                                        size="xs"
-                                        color="red"
-                                        variant="light"
-                                        onClick={() => {
-                                            setEntryToDelete(entry);
-                                            setDeleteModalOpened(true);
-                                        }}
-                                    >
-                                        Delete
-                                    </Button>
+                                    <>
+                                        <Button
+                                            size="xs"
+                                            variant="light"
+                                            onClick={() => {
+                                                const entryDate = dayjs(entry.date).date(entry.day).toDate();
+                                                setCurrentMonth(entryDate);
+                                                setSelectedDate(entryDate);
+                                                setEditingEntry(entry);
+                                                setModalSales(entry.sales);
+                                                setModalPurchases(entry.purchases);
+                                                setModalOpened(true);
+                                            }}
+                                            disabled={isReadOnly()}
+                                        >
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            size="xs"
+                                            color="red"
+                                            variant="light"
+                                            onClick={() => {
+                                                setEntryToDelete(entry);
+                                                setDeleteModalOpened(true);
+                                            }}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </>
                                 )}
                             </Group>
                         </Table.Td>

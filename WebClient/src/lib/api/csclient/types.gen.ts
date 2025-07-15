@@ -264,6 +264,11 @@ export type DailyEntryData = {
      * Total purchases for the day
      */
     purchases: number;
+    /**
+     * Schoolid
+     * The school that submitted the entry
+     */
+    schoolId: number;
 };
 
 /**
@@ -277,6 +282,11 @@ export type DailyFinancialReport = {
      * Parent
      */
     parent: string;
+    /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
     /**
      * The status of the report.
      */
@@ -304,6 +314,10 @@ export type DailyFinancialReportEntry = {
      * Parent
      */
     parent: string;
+    /**
+     * School
+     */
+    school: number;
     /**
      * Sales
      */
@@ -359,6 +373,11 @@ export type LiquidationReportAdministrativeExpenses = {
      */
     parent: string;
     /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
+    /**
      * Notedby
      */
     notedBy: string;
@@ -393,6 +412,11 @@ export type LiquidationReportClinicFund = {
      */
     parent: string;
     /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
+    /**
      * Notedby
      */
     notedBy: string;
@@ -420,6 +444,10 @@ export type LiquidationReportClinicFund = {
  * Request model for creating/updating liquidation reports.
  */
 export type LiquidationReportCreateRequest = {
+    /**
+     * Schoolid
+     */
+    schoolId?: number | null;
     /**
      * Notedby
      */
@@ -484,6 +512,11 @@ export type LiquidationReportEntryData = {
      * JSON string containing list of receipt attachment URNs
      */
     receipt_attachment_urns?: string | null;
+    /**
+     * Schoolid
+     * The school ID for the entry (optional for request, required for database)
+     */
+    schoolId?: number | null;
 };
 
 /**
@@ -495,6 +528,11 @@ export type LiquidationReportFacultyAndStudentDevFund = {
      * Parent
      */
     parent: string;
+    /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
     /**
      * Notedby
      */
@@ -526,6 +564,11 @@ export type LiquidationReportHeFund = {
      * Parent
      */
     parent: string;
+    /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
     /**
      * Notedby
      */
@@ -560,6 +603,11 @@ export type LiquidationReportOperatingExpenses = {
      * Parent
      */
     parent: string;
+    /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
     /**
      * Teacherincharge
      */
@@ -640,6 +688,11 @@ export type LiquidationReportRevolvingFund = {
      */
     parent: string;
     /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
+    /**
      * Notedby
      */
     notedBy: string;
@@ -672,6 +725,11 @@ export type LiquidationReportSchoolOperationFund = {
      */
     parent: string;
     /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
+    /**
      * Notedby
      */
     notedBy: string;
@@ -703,6 +761,11 @@ export type LiquidationReportSupplementaryFeedingFund = {
      * Parent
      */
     parent: string;
+    /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
     /**
      * Notedby
      */
@@ -1030,6 +1093,11 @@ export type PayrollReport = {
      */
     parent: string;
     /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
+    /**
      * Preparedby
      * The user who prepared the report.
      */
@@ -1053,6 +1121,11 @@ export type PayrollReportEntry = {
      * Parent
      */
     parent: string;
+    /**
+     * Schoolid
+     * The school that submitted the report.
+     */
+    schoolId: number;
     /**
      * Weeknumber
      * Week number in the month
@@ -3113,6 +3186,37 @@ export type AnnounceNotificationV1NotificationsAnnouncePostResponses = {
 };
 
 export type AnnounceNotificationV1NotificationsAnnouncePostResponse = AnnounceNotificationV1NotificationsAnnouncePostResponses[keyof AnnounceNotificationV1NotificationsAnnouncePostResponses];
+
+export type GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetData = {
+    body?: never;
+    path: {
+        /**
+         * School Id
+         */
+        school_id: number;
+    };
+    query?: never;
+    url: '/v1/reports/monthly/{school_id}/quantity';
+};
+
+export type GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetError = GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetErrors[keyof GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetErrors];
+
+export type GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetResponses = {
+    /**
+     * Response Get School Monthly Report Quantity V1 Reports Monthly  School Id  Quantity Get
+     * Successful Response
+     */
+    200: number;
+};
+
+export type GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetResponse = GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetResponses[keyof GetSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGetResponses];
 
 export type GetAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGetData = {
     body?: never;

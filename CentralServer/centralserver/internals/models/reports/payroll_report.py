@@ -18,6 +18,12 @@ class PayrollReport(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="monthlyReports.id"
     )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
     preparedBy: str = Field(
         foreign_key="users.id", description="The user who prepared the report."
     )
@@ -40,6 +46,12 @@ class PayrollReportEntry(SQLModel, table=True):
 
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="payrollReports.parent"
+    )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
     )
     weekNumber: int = Field(primary_key=True, description="Week number in the month")
     employeeName: str = Field(primary_key=True, description="Name of the employee")

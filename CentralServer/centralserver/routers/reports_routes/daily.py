@@ -185,7 +185,16 @@ async def get_school_daily_report_entries(
             detail="Daily financial report not found.",
         )
 
-    return list(daily_report.entries)
+    # Filter entries by school to ensure we only return entries for the requested school
+    school_entries = session.exec(
+        select(DailyFinancialReportEntry).where(
+            DailyFinancialReportEntry.parent
+            == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReportEntry.school == school_id,
+        )
+    ).all()
+
+    return list(school_entries)
 
 
 @router.patch("/{school_id}/{year}/{month}")
@@ -260,7 +269,8 @@ async def create_school_daily_report(
     # Check if daily report already exists
     existing_daily_report = session.exec(
         select(DailyFinancialReport).where(
-            DailyFinancialReport.parent == selected_monthly_report.id
+            DailyFinancialReport.parent == selected_monthly_report.id,
+            DailyFinancialReport.schoolId == school_id,
         )
     ).one_or_none()
 
@@ -278,6 +288,7 @@ async def create_school_daily_report(
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,
             notedBy=noted_by,
+            schoolId=school_id,
         )
         session.add(new_daily_report)
         session.commit()
@@ -354,7 +365,8 @@ async def update_school_daily_report_entry_legacy(
 
     daily_report = session.exec(
         select(DailyFinancialReport).where(
-            DailyFinancialReport.parent == selected_monthly_report.id
+            DailyFinancialReport.parent == selected_monthly_report.id,
+            DailyFinancialReport.schoolId == school_id,
         )
     ).one_or_none()
     if daily_report is None:
@@ -367,12 +379,14 @@ async def update_school_daily_report_entry_legacy(
         select(DailyFinancialReportEntry).where(
             DailyFinancialReportEntry.parent == daily_report.parent,
             DailyFinancialReportEntry.day == day,
+            DailyFinancialReportEntry.school == school_id,
         )
     ).one_or_none()
     if entry is None:
         entry = DailyFinancialReportEntry(
             parent=daily_report.parent,
             day=day,
+            school=school_id,
             sales=sales,
             purchases=purchases,
         )
@@ -435,7 +449,8 @@ async def delete_school_daily_report(
 
     daily_report = session.exec(
         select(DailyFinancialReport).where(
-            DailyFinancialReport.parent == selected_monthly_report.id
+            DailyFinancialReport.parent == selected_monthly_report.id,
+            DailyFinancialReport.schoolId == school_id,
         )
     ).one_or_none()
     if daily_report is None:
@@ -560,7 +575,16 @@ async def get_school_daily_financial_report_with_entries(
             detail="Daily financial report not found.",
         )
 
-    return (report, list(report.entries))
+    # Filter entries by school to ensure we only return entries for the requested school
+    school_entries = session.exec(
+        select(DailyFinancialReportEntry).where(
+            DailyFinancialReportEntry.parent
+            == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReportEntry.school == school_id,
+        )
+    ).all()
+
+    return (report, list(school_entries))
 
 
 @router.put("/{school_id}/{year}/{month}")
@@ -638,6 +662,7 @@ async def create_school_daily_financial_report(
         preparedBy=user.id,
         notedBy=noted_by,
         parent_report=monthly_report,
+        schoolId=school_id,
     )
 
     session.add(report)
@@ -741,6 +766,7 @@ async def create_daily_sales_and_purchases_entry(
     daily_report = session.exec(
         select(DailyFinancialReport).where(
             DailyFinancialReport.parent == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReport.schoolId == school_id,
         )
     ).one_or_none()
 
@@ -753,6 +779,7 @@ async def create_daily_sales_and_purchases_entry(
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,
             notedBy=noted_by,
+            schoolId=school_id,
         )
         session.add(daily_report)
 
@@ -762,6 +789,7 @@ async def create_daily_sales_and_purchases_entry(
             DailyFinancialReportEntry.parent
             == datetime.date(year=year, month=month, day=1),
             DailyFinancialReportEntry.day == day,
+            DailyFinancialReportEntry.school == school_id,
         )
     ).one_or_none()
 
@@ -775,6 +803,7 @@ async def create_daily_sales_and_purchases_entry(
     new_entry = DailyFinancialReportEntry(
         parent=datetime.date(year=year, month=month, day=1),
         day=day,
+        school=school_id,
         sales=sales,
         purchases=purchases,
     )
@@ -872,6 +901,7 @@ async def update_daily_sales_and_purchases_entry(
     daily_report = session.exec(
         select(DailyFinancialReport).where(
             DailyFinancialReport.parent == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReport.schoolId == school_id,
         )
     ).one_or_none()
 
@@ -894,6 +924,7 @@ async def update_daily_sales_and_purchases_entry(
             DailyFinancialReportEntry.parent
             == datetime.date(year=year, month=month, day=1),
             DailyFinancialReportEntry.day == day,
+            DailyFinancialReportEntry.school == school_id,
         )
     ).one_or_none()
 
@@ -986,6 +1017,7 @@ async def delete_daily_sales_and_purchases_entry(
     daily_report = session.exec(
         select(DailyFinancialReport).where(
             DailyFinancialReport.parent == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReport.schoolId == school_id,
         )
     ).one_or_none()
 
@@ -1008,6 +1040,7 @@ async def delete_daily_sales_and_purchases_entry(
             DailyFinancialReportEntry.parent
             == datetime.date(year=year, month=month, day=1),
             DailyFinancialReportEntry.day == day,
+            DailyFinancialReportEntry.school == school_id,
         )
     ).one_or_none()
 
@@ -1105,6 +1138,7 @@ async def create_bulk_daily_sales_and_purchases_entries(
     daily_report = session.exec(
         select(DailyFinancialReport).where(
             DailyFinancialReport.parent == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReport.schoolId == school_id,
         )
     ).one_or_none()
 
@@ -1114,6 +1148,7 @@ async def create_bulk_daily_sales_and_purchases_entries(
 
         daily_report = DailyFinancialReport(
             parent=datetime.date(year=year, month=month, day=1),
+            schoolId=school_id,
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,
             notedBy=noted_by,
@@ -1125,6 +1160,7 @@ async def create_bulk_daily_sales_and_purchases_entries(
         select(DailyFinancialReportEntry.day).where(
             DailyFinancialReportEntry.parent
             == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReportEntry.school == school_id,
         )
     ).all()
     existing_days_set = set(existing_days)
@@ -1142,6 +1178,7 @@ async def create_bulk_daily_sales_and_purchases_entries(
         new_entry = DailyFinancialReportEntry(
             parent=datetime.date(year=year, month=month, day=1),
             day=day,
+            school=entry_data.schoolId,
             sales=entry_data.sales,
             purchases=entry_data.purchases,
         )
@@ -1230,6 +1267,7 @@ async def get_daily_sales_and_purchases_summary(
         select(DailyFinancialReportEntry).where(
             DailyFinancialReportEntry.parent
             == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReportEntry.school == school_id,
         )
     ).all()
 
@@ -1458,6 +1496,7 @@ async def get_daily_sales_and_purchases_summary_filtered(
         select(DailyFinancialReportEntry).where(
             DailyFinancialReportEntry.parent
             == datetime.date(year=year, month=month, day=1),
+            DailyFinancialReportEntry.school == school_id,
         )
     ).all()
 
@@ -1607,6 +1646,7 @@ async def get_daily_sales_and_purchases_entry(
             DailyFinancialReportEntry.parent
             == datetime.date(year=year, month=month, day=1),
             DailyFinancialReportEntry.day == day,
+            DailyFinancialReportEntry.school == school_id,
         )
     ).one_or_none()
 

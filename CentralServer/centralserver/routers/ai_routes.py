@@ -131,7 +131,7 @@ async def get_financial_data(
 
         # Get liquidation report expenses for this month
         liquidation_expenses = await get_liquidation_expenses(
-            session, monthly_report_id
+            session, monthly_report_id, school_id
         )
 
         # Get previous month for comparison
@@ -153,7 +153,7 @@ async def get_financial_data(
 
         # Get previous month liquidation expenses
         prev_liquidation_expenses = await get_liquidation_expenses(
-            session, prev_monthly_report_id
+            session, prev_monthly_report_id, school_id
         )
 
         return {
@@ -558,7 +558,7 @@ async def get_ai_status(
 
 
 async def get_liquidation_expenses(
-    session: Session, monthly_report_id: str
+    session: Session, monthly_report_id: str, school_id: int
 ) -> Dict[str, Any]:
     """Get liquidation expenses for a specific monthly report."""
 
@@ -572,13 +572,15 @@ async def get_liquidation_expenses(
         # Operating Expenses
         operating_report = session.exec(
             select(LiquidationReportOperatingExpenses).where(
-                LiquidationReportOperatingExpenses.parent == report_date
+                LiquidationReportOperatingExpenses.parent == report_date,
+                LiquidationReportOperatingExpenses.schoolId == school_id,
             )
         ).first()
         if operating_report:
             operating_entries = session.exec(
                 select(OperatingExpenseEntry).where(
-                    OperatingExpenseEntry.parent == report_date
+                    OperatingExpenseEntry.parent == report_date,
+                    OperatingExpenseEntry.schoolId == school_id,
                 )
             ).all()
             operating_total = sum(
@@ -590,13 +592,15 @@ async def get_liquidation_expenses(
         # Administrative Expenses
         admin_report = session.exec(
             select(LiquidationReportAdministrativeExpenses).where(
-                LiquidationReportAdministrativeExpenses.parent == report_date
+                LiquidationReportAdministrativeExpenses.parent == report_date,
+                LiquidationReportAdministrativeExpenses.schoolId == school_id,
             )
         ).first()
         if admin_report:
             admin_entries = session.exec(
                 select(AdministrativeExpenseEntry).where(
-                    AdministrativeExpenseEntry.parent == report_date
+                    AdministrativeExpenseEntry.parent == report_date,
+                    AdministrativeExpenseEntry.schoolId == school_id,
                 )
             ).all()
             admin_total = sum(
@@ -608,13 +612,15 @@ async def get_liquidation_expenses(
         # Supplementary Feeding Fund
         feeding_report = session.exec(
             select(LiquidationReportSupplementaryFeedingFund).where(
-                LiquidationReportSupplementaryFeedingFund.parent == report_date
+                LiquidationReportSupplementaryFeedingFund.parent == report_date,
+                LiquidationReportSupplementaryFeedingFund.schoolId == school_id,
             )
         ).first()
         if feeding_report:
             feeding_entries = session.exec(
                 select(SupplementaryFeedingFundEntry).where(
-                    SupplementaryFeedingFundEntry.parent == report_date
+                    SupplementaryFeedingFundEntry.parent == report_date,
+                    SupplementaryFeedingFundEntry.schoolId == school_id,
                 )
             ).all()
             feeding_total = sum(entry.amount for entry in feeding_entries)
@@ -624,13 +630,15 @@ async def get_liquidation_expenses(
         # Clinic Fund
         clinic_report = session.exec(
             select(LiquidationReportClinicFund).where(
-                LiquidationReportClinicFund.parent == report_date
+                LiquidationReportClinicFund.parent == report_date,
+                LiquidationReportClinicFund.schoolId == school_id,
             )
         ).first()
         if clinic_report:
             clinic_entries = session.exec(
                 select(LiquidationReportClinicFundEntry).where(
-                    LiquidationReportClinicFundEntry.parent == report_date
+                    LiquidationReportClinicFundEntry.parent == report_date,
+                    LiquidationReportClinicFundEntry.schoolId == school_id,
                 )
             ).all()
             clinic_total = sum(entry.amount for entry in clinic_entries)
@@ -640,13 +648,15 @@ async def get_liquidation_expenses(
         # Faculty and Student Development Fund
         faculty_report = session.exec(
             select(LiquidationReportFacultyAndStudentDevFund).where(
-                LiquidationReportFacultyAndStudentDevFund.parent == report_date
+                LiquidationReportFacultyAndStudentDevFund.parent == report_date,
+                LiquidationReportFacultyAndStudentDevFund.schoolId == school_id,
             )
         ).first()
         if faculty_report:
             faculty_entries = session.exec(
                 select(FacultyAndStudentDevFundEntry).where(
-                    FacultyAndStudentDevFundEntry.parent == report_date
+                    FacultyAndStudentDevFundEntry.parent == report_date,
+                    FacultyAndStudentDevFundEntry.schoolId == school_id,
                 )
             ).all()
             faculty_total = sum(
@@ -658,13 +668,15 @@ async def get_liquidation_expenses(
         # HE Fund
         he_report = session.exec(
             select(LiquidationReportHEFund).where(
-                LiquidationReportHEFund.parent == report_date
+                LiquidationReportHEFund.parent == report_date,
+                LiquidationReportHEFund.schoolId == school_id,
             )
         ).first()
         if he_report:
             he_entries = session.exec(
                 select(LiquidationReportHEFundEntry).where(
-                    LiquidationReportHEFundEntry.parent == report_date
+                    LiquidationReportHEFundEntry.parent == report_date,
+                    LiquidationReportHEFundEntry.schoolId == school_id,
                 )
             ).all()
             he_total = sum(
@@ -676,13 +688,15 @@ async def get_liquidation_expenses(
         # School Operation Fund
         school_report = session.exec(
             select(LiquidationReportSchoolOperationFund).where(
-                LiquidationReportSchoolOperationFund.parent == report_date
+                LiquidationReportSchoolOperationFund.parent == report_date,
+                LiquidationReportSchoolOperationFund.schoolId == school_id,
             )
         ).first()
         if school_report:
             school_entries = session.exec(
                 select(SchoolOperationFundEntry).where(
-                    SchoolOperationFundEntry.parent == report_date
+                    SchoolOperationFundEntry.parent == report_date,
+                    SchoolOperationFundEntry.schoolId == school_id,
                 )
             ).all()
             school_total = sum(
@@ -694,13 +708,15 @@ async def get_liquidation_expenses(
         # Revolving Fund
         revolving_report = session.exec(
             select(LiquidationReportRevolvingFund).where(
-                LiquidationReportRevolvingFund.parent == report_date
+                LiquidationReportRevolvingFund.parent == report_date,
+                LiquidationReportRevolvingFund.schoolId == school_id,
             )
         ).first()
         if revolving_report:
             revolving_entries = session.exec(
                 select(RevolvingFundEntry).where(
-                    RevolvingFundEntry.parent == report_date
+                    RevolvingFundEntry.parent == report_date,
+                    RevolvingFundEntry.schoolId == school_id,
                 )
             ).all()
             revolving_total = sum(

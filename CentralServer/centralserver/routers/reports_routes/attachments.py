@@ -149,7 +149,7 @@ async def get_attachments_metadata_endpoint(
     # TODO: Add permission checking based on user role and report access
     # For now, we'll allow any authenticated user to retrieve attachment metadata
 
-    metadata_list = []
+    metadata_list: list[AttachmentMetadataResponse] = []
     for file_urn in file_urns:
         try:
             metadata = await get_report_attachment_metadata(file_urn, session)

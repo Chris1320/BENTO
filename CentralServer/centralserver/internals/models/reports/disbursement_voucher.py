@@ -20,7 +20,15 @@ class DisbursementVoucher(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="monthlyReports.id"
     )
-    date: datetime.date
+    date: datetime.date = Field(
+        primary_key=True,
+        description="The date of the disbursement voucher report.",
+    )
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the disbursement voucher report.",
+    )
 
     modeOfPayment: str  # MDS Check, Commercial Check, ADA, Others
 
@@ -68,6 +76,12 @@ class DisbursementVoucherCertifiedBy(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="disbursementVouchers.parent"
     )
+    date: datetime.date = Field(primary_key=True)
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the certification.",
+    )
     user: str = Field(foreign_key="users.id")
     role: str | None = None  # e.g. Principal, Accountant, Cashier
 
@@ -81,7 +95,12 @@ class DisbursementVoucherEntry(SQLModel, table=True):
         primary_key=True, index=True, foreign_key="disbursementVouchers.parent"
     )
     # to be edited for specific inputs based on the report requirements
-    date: datetime.datetime
+    date: datetime.datetime = Field(primary_key=True)
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the entry.",
+    )
     receipt: str | None
     particulars: str = Field(primary_key=True)
     unit: str
@@ -96,6 +115,12 @@ class DisbursementVoucherAccountingEntry(SQLModel, table=True):
 
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="disbursementVouchers.parent"
+    )
+    date: datetime.datetime = Field(primary_key=True)
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the accounting entry.",
     )
     uacs_code: str
     accountTitle: str

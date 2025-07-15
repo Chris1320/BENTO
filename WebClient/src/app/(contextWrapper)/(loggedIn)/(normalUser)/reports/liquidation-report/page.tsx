@@ -681,6 +681,7 @@ function LiquidationReportContent() {
 
             // Prepare the report data
             const reportData: csclient.LiquidationReportCreateRequest = {
+                schoolId: userCtx.userInfo.schoolId,
                 entries,
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
                 preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
@@ -767,6 +768,7 @@ function LiquidationReportContent() {
 
             // Prepare the report data
             const reportData: csclient.LiquidationReportCreateRequest = {
+                schoolId: userCtx.userInfo.schoolId,
                 entries,
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
                 preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID

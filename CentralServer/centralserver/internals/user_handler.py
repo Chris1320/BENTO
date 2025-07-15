@@ -690,15 +690,15 @@ async def update_user_info(
     session.refresh(selected_user)
 
     # Send notification if user was updated by someone else
-    if not updating_self:
-        await push_notification(
-            owner_id=selected_user.id,
-            title="Profile Updated",
-            content="Your profile information has been updated by a higher-up. You may need to refresh your session to see the changes.",
-            important=True,
-            notification_type=NotificationType.INFO,
-            session=session,
-        )
+    # if not updating_self:
+    #     await push_notification(
+    #         owner_id=selected_user.id,
+    #         title="Profile Updated",
+    #         content="Your profile information has been updated by a higher-up. You may need to refresh your session to see the changes.",
+    #         important=True,
+    #         notification_type=NotificationType.INFO,
+    #         session=session,
+    #     )
 
     if email_changed:
         await push_notification(

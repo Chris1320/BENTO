@@ -62,7 +62,7 @@ export function ReportStatusManager({
     const [menuOpened, setMenuOpened] = useState(false);
     const [hasCheckedTransitions, setHasCheckedTransitions] = useState(false);
 
-    const fetchValidTransitions = async () => {
+    const fetchValidTransitions = async (): Promise<string[]> => {
         try {
             setLoading(true);
             let response;
@@ -121,6 +121,8 @@ export function ReportStatusManager({
             setValidTransitions(transitions);
             setUserRole(role);
             setHasCheckedTransitions(true);
+
+            return transitions;
         } catch (error) {
             customLogger.error("Failed to fetch valid transitions:", error);
 
@@ -154,6 +156,8 @@ export function ReportStatusManager({
                 message: errorMessage,
                 color: "red",
             });
+
+            return [];
         } finally {
             setLoading(false);
         }
@@ -259,12 +263,21 @@ export function ReportStatusManager({
 
     const handleMenuClick = async () => {
         if (!hasCheckedTransitions) {
-            await fetchValidTransitions();
-        }
+            const transitions = await fetchValidTransitions();
 
-        if (validTransitions.length > 0) {
+            if (transitions.length > 0) {
+                setMenuOpened(true);
+            } else {
+                // Show a notification if user clicks but has no valid transitions
+                notifications.show({
+                    title: "No Actions Available",
+                    message: `You don't have permission to change the status of this ${reportType} report.`,
+                    color: "orange",
+                });
+            }
+        } else if (validTransitions.length > 0) {
             setMenuOpened(true);
-        } else if (hasCheckedTransitions) {
+        } else {
             // Show a notification if user clicks but has no valid transitions
             notifications.show({
                 title: "No Actions Available",

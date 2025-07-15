@@ -86,7 +86,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         ["Set your position", userPermissions?.includes("users:self:modify:position")],
         ["Link your email", userPermissions?.includes("users:self:modify:email")],
         ["Set your password", userPermissions?.includes("users:self:modify:password")],
-        ["Link your Google/Microsoft/Facebook account", true],
+        ["Link your Google/Microsoft account", true],
     ];
     let maxSteps = 2; // Total number of steps in the welcome process
     maxSteps += userPermissions?.includes("users:self:modify:name") ? 1 : 0;
@@ -687,8 +687,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                 <ProgramTitleCenter classes={classes} logoControls={logoControls} />
                                 <Container size="xs" mt="xl">
                                     <Text mt="md" ta="center">
-                                        You can link your Google, Microsoft, or Facebook account to your profile for
-                                        easier login and account management.
+                                        You can link your Google or Microsoft account to your profile for easier login
+                                        and account management.
                                     </Text>
                                     <Stack mt="md">
                                         <Group justify="space-between" align="center">
@@ -844,7 +844,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 </Button>
                                             )}
                                         </Group>
-                                        <Group justify="space-between" align="center">
+                                        {/* <Group justify="space-between" align="center">
                                             <Group>
                                                 <Box w={30} h={30}>
                                                     <Image
@@ -907,7 +907,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                     Link Account
                                                 </Button>
                                             )}
-                                        </Group>
+                                        </Group> */}
                                     </Stack>
                                     <Text size="sm" c="dimmed" ta="center" mt="md">
                                         This step is optional and can be done later in the profile settings.

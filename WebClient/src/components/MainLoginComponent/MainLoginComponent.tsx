@@ -459,7 +459,7 @@ export function MainLoginComponent(): React.ReactElement {
                             />
                         </Button>
                         {/* TODO: Not implemented yet */}
-                        <Button
+                        {/* <Button
                             variant="light"
                             disabled={!oauthSupport.facebook}
                             component={motion.button}
@@ -486,7 +486,7 @@ export function MainLoginComponent(): React.ReactElement {
                                         : { pointerEvents: "none" }
                                 }
                             />
-                        </Button>
+                        </Button> */}
                     </Group>
                 </form>
             </Paper>

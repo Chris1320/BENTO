@@ -8,6 +8,7 @@ from centralserver.internals.config_handler import app_config
 from centralserver.internals.db_handler import populate_db
 from centralserver.internals.logger import LoggerFactory, log_app_info
 from centralserver.routers import (
+    ai_routes,
     auth_routes,
     misc_routes,
     notification_routes,
@@ -42,6 +43,7 @@ app = FastAPI(
     on_shutdown=[shutdown],
 )
 
+app.include_router(ai_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(users_routes.router)
 app.include_router(schools_routes.router)

@@ -8,22 +8,21 @@ import {
     getSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthGet,
     getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet,
     LiquidationReportResponse,
+    getSchoolEndpointV1SchoolsGet,
+    getSchoolLogoEndpointV1SchoolsLogoGet,
+    School,
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
-import { ActionIcon, Alert, Badge, Button, Group, Modal, Stack, Table, Text, Title } from "@mantine/core";
-import {
-    IconAlertCircle,
-    IconCalendar,
-    IconCash,
-    IconExternalLink,
-    IconEye,
-    IconReceipt,
-    IconUsers,
-} from "@tabler/icons-react";
+import { ActionIcon, Alert, Badge, Button, Group, Image, Modal, Stack, Table, Text, Title } from "@mantine/core";
+import { IconAlertCircle, IconCalendar, IconCash, IconExternalLink, IconReceipt, IconUsers } from "@tabler/icons-react";
 import dayjs from "dayjs";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { notifications } from "@mantine/notifications";
 
 interface LiquidationReportData {
     reportStatus?: string;
@@ -82,6 +81,11 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
     const [loading, setLoading] = useState(false);
     const [financialData, setFinancialData] = useState<FinancialData | null>(null);
     const [financialLoading, setFinancialLoading] = useState(false);
+    const [pdfModalOpened, setPdfModalOpened] = useState(false);
+    const [pdfCanvas, setPdfCanvas] = useState<HTMLCanvasElement | null>(null);
+    const [pdfLoading, setPdfLoading] = useState(false);
+    const [schoolData, setSchoolData] = useState<School | null>(null);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
     const getStatusColor = (status: ReportStatus | "not-created") => {
         switch (status) {
@@ -370,6 +374,55 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
         }
     }, [opened, report, fetchLinkedReports, fetchFinancialData]);
 
+    // Load school data and logo
+    useEffect(() => {
+        const loadSchoolData = async () => {
+            if (!report?.submittedBySchool) return;
+
+            try {
+                // Get school details using the school ID
+                const schoolResponse = await getSchoolEndpointV1SchoolsGet({
+                    query: {
+                        school_id: report.submittedBySchool,
+                    },
+                });
+
+                if (schoolResponse.data) {
+                    setSchoolData(schoolResponse.data);
+
+                    // Load school logo if available
+                    if (schoolResponse.data.logoUrn) {
+                        try {
+                            const logoResponse = await getSchoolLogoEndpointV1SchoolsLogoGet({
+                                query: { fn: schoolResponse.data.logoUrn },
+                            });
+
+                            if (logoResponse.data) {
+                                const logoUrl = URL.createObjectURL(logoResponse.data as Blob);
+                                setLogoUrl(logoUrl);
+                            }
+                        } catch (error) {
+                            customLogger.warn("Failed to load school logo:", error);
+                        }
+                    }
+                }
+            } catch (error) {
+                customLogger.error("Failed to load school data:", error);
+            }
+        };
+
+        if (opened && report) {
+            loadSchoolData();
+        }
+
+        // Cleanup function to revoke logo URL
+        return () => {
+            if (logoUrl) {
+                URL.revokeObjectURL(logoUrl);
+            }
+        };
+    }, [opened, report, logoUrl]);
+
     const handleOpenReport = (reportRoute: string) => {
         router.push(reportRoute);
         onClose();
@@ -382,539 +435,1014 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
         }
     };
 
+    const getFileName = () => {
+        const monthYear = formatReportPeriod(report?.id || "");
+        const schoolName = schoolData?.name || report?.submittedBySchool || "School";
+        return `Monthly-Report-${schoolName}-${monthYear.replace(" ", "-")}.pdf`;
+    };
+
+    const PDFReportTemplate = useCallback(() => {
+        if (!report || !financialData) return null;
+
+        const monthYear = formatReportPeriod(report.id);
+
+        return (
+            <div
+                id="monthly-report-content"
+                style={{
+                    backgroundColor: "white",
+                    padding: "40px",
+                    fontFamily: "Arial, sans-serif",
+                    minHeight: "100vh",
+                }}
+            >
+                {/* Header with logos and school info */}
+                <div style={{ textAlign: "center", marginBottom: "30px" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: "20px",
+                        }}
+                    >
+                        <div style={{ width: "80px", height: "80px" }}>
+                            {/* School Logo */}
+                            {logoUrl ? (
+                                <img
+                                    src={logoUrl}
+                                    alt="School Logo"
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        borderRadius: "50%",
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        border: "1px solid #ccc",
+                                        borderRadius: "50%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "12px",
+                                        color: "#666",
+                                    }}
+                                >
+                                    LOGO
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ textAlign: "center", flex: 1 }}>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Republic of the Philippines</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Department of Education</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Region III- Central Luzon</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>
+                                SCHOOLS DIVISION OF CITY OF BALIWAG
+                            </div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", marginTop: "5px" }}>
+                                {schoolData?.name.toUpperCase() || "SCHOOL NAME"}
+                            </div>
+                            <div style={{ fontSize: "12px" }}>{schoolData?.address || "School Address"}</div>
+                        </div>
+
+                        <div style={{ width: "80px", height: "80px" }}>
+                            {/* DepEd Logo */}
+                            <img
+                                src="/assets/logos/deped.svg"
+                                alt="Deped Logo"
+                                style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    borderRadius: "50%",
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            marginTop: "30px",
+                            textDecoration: "underline",
+                        }}
+                    >
+                        Monthly Financial Report for {monthYear.toUpperCase()}
+                    </div>
+                </div>
+
+                {/* Financial Statement Table */}
+                <div style={{ marginBottom: "30px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "10px" }}>
+                        Statement of Receipts, Disbursements and Utilization of Income
+                    </h3>
+                    <table
+                        style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            fontSize: "12px",
+                            marginBottom: "20px",
+                        }}
+                    >
+                        <thead>
+                            <tr style={{ backgroundColor: "#f5f5f5" }}>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "left" }}>
+                                    Description
+                                </th>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px", fontWeight: "bold" }}>
+                                    Net Sales
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.netSales)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px", fontWeight: "bold" }}>
+                                    Cost of Sales
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.costOfSales)}
+                                </td>
+                            </tr>
+                            <tr style={{ backgroundColor: "#f5f5f5" }}>
+                                <td style={{ border: "1px solid #000", padding: "8px", fontWeight: "bold" }}>
+                                    GROSS PROFIT
+                                </td>
+                                <td
+                                    style={{
+                                        border: "1px solid #000",
+                                        padding: "8px",
+                                        textAlign: "right",
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {formatCurrency(financialData.grossProfit)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px", fontWeight: "bold" }}>
+                                    Operating Expenses
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.operatingExpenses)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px", fontWeight: "bold" }}>
+                                    Administrative Expenses
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.administrativeExpenses)}
+                                </td>
+                            </tr>
+                            <tr style={{ backgroundColor: "#f5f5f5" }}>
+                                <td style={{ border: "1px solid #000", padding: "8px", fontWeight: "bold" }}>
+                                    NET INCOME FROM OPERATIONS
+                                </td>
+                                <td
+                                    style={{
+                                        border: "1px solid #000",
+                                        padding: "8px",
+                                        textAlign: "right",
+                                        fontWeight: "bold",
+                                    }}
+                                >
+                                    {formatCurrency(financialData.netIncomeFromOperations)}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Utilization Table */}
+                <div style={{ marginBottom: "30px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "10px" }}>
+                        Utilization of Net Income
+                    </h3>
+                    <table
+                        style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            fontSize: "12px",
+                        }}
+                    >
+                        <thead>
+                            <tr style={{ backgroundColor: "#f5f5f5" }}>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "left" }}>Fund</th>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    Percentage
+                                </th>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>Actual</th>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    Balance
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px" }}>
+                                    Supplementary Feeding Program
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    {financialData.utilizationBreakdown.supplementaryFeeding.percentage}%
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.supplementaryFeeding.actual)}
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.supplementaryFeeding.balance)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px" }}>Clinic Fund</td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    {financialData.utilizationBreakdown.clinicFund.percentage}%
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.clinicFund.actual)}
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.clinicFund.balance)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px" }}>
+                                    Faculty & Student Development Fund
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    {financialData.utilizationBreakdown.facultyStudentDev.percentage}%
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.facultyStudentDev.actual)}
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.facultyStudentDev.balance)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px" }}>Higher Education Fund</td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    {financialData.utilizationBreakdown.heFund.percentage}%
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.heFund.actual)}
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.heFund.balance)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px" }}>School Operations Fund</td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    {financialData.utilizationBreakdown.schoolOperations.percentage}%
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.schoolOperations.actual)}
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.schoolOperations.balance)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: "1px solid #000", padding: "8px" }}>Revolving Capital Fund</td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    {financialData.utilizationBreakdown.revolvingCapital.percentage}%
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.revolvingCapital.actual)}
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    {formatCurrency(financialData.utilizationBreakdown.revolvingCapital.balance)}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Signatures */}
+                <div
+                    style={{
+                        marginTop: "40px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                    }}
+                >
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "12px", marginBottom: "5px" }}>Prepared by:</div>
+                        <div
+                            style={{
+                                width: "200px",
+                                height: "60px",
+                                border: "1px solid #ccc",
+                                marginBottom: "10px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <div style={{ fontSize: "10px", color: "#666" }}>Signature</div>
+                        </div>
+                        <div style={{ borderBottom: "1px solid #000", width: "200px", marginBottom: "5px" }}></div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold" }}>NAME</div>
+                        <div style={{ fontSize: "10px" }}>Position</div>
+                    </div>
+
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "12px", marginBottom: "5px" }}>Noted:</div>
+                        <div
+                            style={{
+                                width: "200px",
+                                height: "60px",
+                                border: "1px solid #ccc",
+                                marginBottom: "10px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <div style={{ fontSize: "10px", color: "#666" }}>Signature</div>
+                        </div>
+                        <div style={{ borderBottom: "1px solid #000", width: "200px", marginBottom: "5px" }}></div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold" }}>NAME</div>
+                        <div style={{ fontSize: "10px" }}>Position</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }, [report, financialData, schoolData, logoUrl]);
+
+    const exportToPDF = useCallback(async () => {
+        if (!financialData || !report) return;
+
+        setPdfLoading(true);
+
+        try {
+            // Create a temporary div to render the PDF content
+            const tempDiv = document.createElement("div");
+            tempDiv.id = "monthly-report-content";
+            document.body.appendChild(tempDiv);
+
+            // Create React root and render the PDF template
+            const root = createRoot(tempDiv);
+            const pdfContent = PDFReportTemplate();
+
+            if (pdfContent) {
+                root.render(pdfContent);
+
+                // Wait for rendering to complete
+                await new Promise((resolve) => setTimeout(resolve, 100));
+
+                // Convert to canvas
+                const canvas = await html2canvas(tempDiv, {
+                    background: "#ffffff",
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: false,
+                    width: tempDiv.offsetWidth,
+                    height: tempDiv.offsetHeight,
+                });
+
+                // Clean up
+                root.unmount();
+                document.body.removeChild(tempDiv);
+
+                // Set canvas and open modal
+                setPdfCanvas(canvas);
+                setPdfModalOpened(true);
+            }
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to generate PDF. Please try again.",
+                color: "red",
+            });
+        } finally {
+            setPdfLoading(false);
+        }
+    }, [financialData, report, PDFReportTemplate]);
+
     if (!report) return null;
 
     return (
-        <Modal
-            opened={opened}
-            onClose={onClose}
-            title={
-                <Group>
-                    <IconCalendar size={20} />
-                    <Title order={3}>{report.name}</Title>
-                </Group>
-            }
-            size="xl"
-            padding="lg"
-        >
-            <Stack gap="lg">
-                {/* Report Information */}
-                <div>
-                    <Group gap="md" mb="sm">
-                        <Badge color={getStatusColor(report.reportStatus || "draft")} variant="filled">
-                            {report.reportStatus || "Draft"}
-                        </Badge>
-                        <Text size="sm" c="dimmed">
-                            Period: {formatReportPeriod(report.id)}
-                        </Text>
+        <>
+            <Modal
+                opened={opened}
+                onClose={onClose}
+                title={
+                    <Group>
+                        <IconCalendar size={20} />
+                        <Title order={3}>{report.name}</Title>
                     </Group>
+                }
+                size="xl"
+                padding="lg"
+            >
+                <Stack gap="lg">
+                    {/* Report Information */}
+                    <div>
+                        <Group gap="md" mb="sm">
+                            <Badge color={getStatusColor(report.reportStatus || "draft")} variant="filled">
+                                {report.reportStatus || "Draft"}
+                            </Badge>
+                            <Text size="sm" c="dimmed">
+                                Period: {formatReportPeriod(report.id)}
+                            </Text>
+                        </Group>
 
-                    <Group gap="md">
-                        <Text size="sm">
-                            <strong>Last Modified:</strong>{" "}
-                            {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
-                                month: "long",
-                                day: "numeric",
-                                year: "numeric",
-                            })}
-                        </Text>
-                        {report.dateApproved && (
+                        <Group gap="md">
                             <Text size="sm">
-                                <strong>Date Approved:</strong>{" "}
-                                {formatUTCDateOnlyLocalized(report.dateApproved, "en-US", {
+                                <strong>Last Modified:</strong>{" "}
+                                {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
                                     month: "long",
                                     day: "numeric",
                                     year: "numeric",
                                 })}
                             </Text>
-                        )}
-                    </Group>
-                </div>
+                            {report.dateApproved && (
+                                <Text size="sm">
+                                    <strong>Date Approved:</strong>{" "}
+                                    {formatUTCDateOnlyLocalized(report.dateApproved, "en-US", {
+                                        month: "long",
+                                        day: "numeric",
+                                        year: "numeric",
+                                    })}
+                                </Text>
+                            )}
+                        </Group>
+                    </div>
 
-                <div>
-                    <Title order={4} mb="md">
-                        Statement of Receipts, Disbursements and Utilization of Income
-                    </Title>
-                    <Table highlightOnHover>
-                        <Table.Tbody>
-                            {/* Sales Section */}
-                            <Table.Tr>
-                                <Table.Td>
-                                    <Text size="sm" fw={600}>
-                                        Net Sales
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.netSales)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-
-                            {/* Cost of Sales Section */}
-                            <Table.Tr>
-                                <Table.Td>
-                                    <Text size="sm" fw={600}>
-                                        Cost of Sales
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.costOfSales)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-
-                            {/* Gross Profit */}
-                            <Table.Tr style={{ backgroundColor: "#f8f9fa" }}>
-                                <Table.Td>
-                                    <Text size="sm" fw={700}>
-                                        GROSS PROFIT
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={700} c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.grossProfit)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-
-                            {/* Expenses Section */}
-                            <Table.Tr>
-                                <Table.Td>
-                                    <Text size="sm" fw={600}>
-                                        EXPENSES
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.operatingExpenses + financialData.administrativeExpenses
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">Operating Costs</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.operatingExpenses)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">Administrative Costs</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.administrativeExpenses)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-
-                            {/* Net Income From Operations */}
-                            <Table.Tr style={{ backgroundColor: "#f8f9fa" }}>
-                                <Table.Td>
-                                    <Text size="sm" fw={700}>
-                                        NET INCOME FROM OPERATIONS
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={700} c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.netIncomeFromOperations)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-
-                            {/* Utilization of Net Income Section */}
-                            <Table.Tr>
-                                <Table.Td>
-                                    <Text size="sm" fw={600} pt="md">
-                                        UTILIZATION OF NET INCOME
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={600} pt="md">
-                                        Percentage
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={600} pt="md">
-                                        Actual
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={600} pt="md">
-                                        Balance/Output
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">Supplementary Feeding Program</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        30%
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.supplementaryFeeding.actual
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.supplementaryFeeding.balance
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">Clinic Fund</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        5%
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.utilizationBreakdown.clinicFund.actual)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.utilizationBreakdown.clinicFund.balance)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">Faculty and Student Development Fund</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        15%
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.facultyStudentDev.actual
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.facultyStudentDev.balance
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">HE Instructional Fund</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        10%
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.utilizationBreakdown.heFund.actual)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.utilizationBreakdown.heFund.balance)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">Schools Operations Fund</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        25%
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.utilizationBreakdown.schoolOperations.actual)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.schoolOperations.balance
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr>
-                                <Table.Td pl="md">
-                                    <Text size="sm">Revolving Capital</Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        15%
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(financialData.utilizationBreakdown.revolvingCapital.actual)
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.revolvingCapital.balance
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                            <Table.Tr style={{ backgroundColor: "#f8f9fa" }}>
-                                <Table.Td>
-                                    <Text size="sm" fw={700}>
-                                        UTILIZATION OF NET INCOME
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={700}>
-                                        100%
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={700} c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.supplementaryFeeding.actual +
-                                                      financialData.utilizationBreakdown.clinicFund.actual +
-                                                      financialData.utilizationBreakdown.facultyStudentDev.actual +
-                                                      financialData.utilizationBreakdown.heFund.actual +
-                                                      financialData.utilizationBreakdown.schoolOperations.actual +
-                                                      financialData.utilizationBreakdown.revolvingCapital.actual
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                                <Table.Td>
-                                    <Text size="sm" fw={700} c="dimmed">
-                                        {financialLoading
-                                            ? "Loading..."
-                                            : financialData
-                                            ? formatCurrency(
-                                                  financialData.utilizationBreakdown.supplementaryFeeding.balance +
-                                                      financialData.utilizationBreakdown.clinicFund.balance +
-                                                      financialData.utilizationBreakdown.facultyStudentDev.balance +
-                                                      financialData.utilizationBreakdown.heFund.balance +
-                                                      financialData.utilizationBreakdown.schoolOperations.balance +
-                                                      financialData.utilizationBreakdown.revolvingCapital.balance
-                                              )
-                                            : "₱0.00"}
-                                    </Text>
-                                </Table.Td>
-                            </Table.Tr>
-                        </Table.Tbody>
-                    </Table>
-                </div>
-
-                {/* Linked Reports Section */}
-                <div>
-                    <Title order={4} mb="md">
-                        Related Reports
-                    </Title>
-
-                    {loading ? (
-                        <Text size="sm" c="dimmed">
-                            Loading related reports...
-                        </Text>
-                    ) : linkedReports.length > 0 ? (
+                    <div>
+                        <Title order={4} mb="md">
+                            Statement of Receipts, Disbursements and Utilization of Income
+                        </Title>
                         <Table highlightOnHover>
-                            <Table.Thead>
-                                <Table.Tr>
-                                    <Table.Th>Report Name</Table.Th>
-                                    <Table.Th>Type</Table.Th>
-                                    <Table.Th>Status</Table.Th>
-                                    {/* <Table.Th>Signatures</Table.Th> */}
-                                    <Table.Th>Actions</Table.Th>
-                                </Table.Tr>
-                            </Table.Thead>
                             <Table.Tbody>
-                                {linkedReports.map((linkedReport) => {
-                                    const Icon = linkedReport.icon;
-                                    return (
-                                        <Table.Tr key={linkedReport.id}>
-                                            <Table.Td>
-                                                <Group gap="sm">
-                                                    <Icon size={16} />
-                                                    <Text size="sm">{linkedReport.name}</Text>
-                                                </Group>
-                                            </Table.Td>
-                                            <Table.Td>
-                                                <Text size="sm" tt="capitalize">
-                                                    {linkedReport.type}
-                                                </Text>
-                                            </Table.Td>
-                                            <Table.Td>
-                                                <Badge
-                                                    color={getStatusColor(linkedReport.status)}
-                                                    variant="light"
-                                                    size="sm"
-                                                >
-                                                    {linkedReport.status === "not-created"
-                                                        ? "Not Created"
-                                                        : linkedReport.status || "Draft"}
-                                                </Badge>
-                                            </Table.Td>
-                                            {/* <Table.Td>
+                                {/* Sales Section */}
+                                <Table.Tr>
+                                    <Table.Td>
+                                        <Text size="sm" fw={600}>
+                                            Net Sales
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.netSales)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+
+                                {/* Cost of Sales Section */}
+                                <Table.Tr>
+                                    <Table.Td>
+                                        <Text size="sm" fw={600}>
+                                            Cost of Sales
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.costOfSales)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+
+                                {/* Gross Profit */}
+                                <Table.Tr style={{ backgroundColor: "#f8f9fa" }}>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700}>
+                                            GROSS PROFIT
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700} c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.grossProfit)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+
+                                {/* Expenses Section */}
+                                <Table.Tr>
+                                    <Table.Td>
+                                        <Text size="sm" fw={600}>
+                                            EXPENSES
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.operatingExpenses +
+                                                          financialData.administrativeExpenses
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">Operating Costs</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.operatingExpenses)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">Administrative Costs</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.administrativeExpenses)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+
+                                {/* Net Income From Operations */}
+                                <Table.Tr style={{ backgroundColor: "#f8f9fa" }}>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700}>
+                                            NET INCOME FROM OPERATIONS
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700} c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.netIncomeFromOperations)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+
+                                {/* Utilization of Net Income Section */}
+                                <Table.Tr>
+                                    <Table.Td>
+                                        <Text size="sm" fw={600} pt="md">
+                                            UTILIZATION OF NET INCOME
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={600} pt="md">
+                                            Percentage
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={600} pt="md">
+                                            Actual
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={600} pt="md">
+                                            Balance/Output
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">Supplementary Feeding Program</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            30%
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.supplementaryFeeding.actual
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.supplementaryFeeding.balance
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">Clinic Fund</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            5%
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.utilizationBreakdown.clinicFund.actual)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.utilizationBreakdown.clinicFund.balance)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">Faculty and Student Development Fund</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            15%
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.facultyStudentDev.actual
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.facultyStudentDev.balance
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">HE Instructional Fund</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            10%
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.utilizationBreakdown.heFund.actual)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(financialData.utilizationBreakdown.heFund.balance)
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">Schools Operations Fund</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            25%
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.schoolOperations.actual
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.schoolOperations.balance
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr>
+                                    <Table.Td pl="md">
+                                        <Text size="sm">Revolving Capital</Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            15%
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.revolvingCapital.actual
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.revolvingCapital.balance
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                                <Table.Tr style={{ backgroundColor: "#f8f9fa" }}>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700}>
+                                            UTILIZATION OF NET INCOME
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700}>
+                                            100%
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700} c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.supplementaryFeeding.actual +
+                                                          financialData.utilizationBreakdown.clinicFund.actual +
+                                                          financialData.utilizationBreakdown.facultyStudentDev.actual +
+                                                          financialData.utilizationBreakdown.heFund.actual +
+                                                          financialData.utilizationBreakdown.schoolOperations.actual +
+                                                          financialData.utilizationBreakdown.revolvingCapital.actual
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Text size="sm" fw={700} c="dimmed">
+                                            {financialLoading
+                                                ? "Loading..."
+                                                : financialData
+                                                ? formatCurrency(
+                                                      financialData.utilizationBreakdown.supplementaryFeeding.balance +
+                                                          financialData.utilizationBreakdown.clinicFund.balance +
+                                                          financialData.utilizationBreakdown.facultyStudentDev.balance +
+                                                          financialData.utilizationBreakdown.heFund.balance +
+                                                          financialData.utilizationBreakdown.schoolOperations.balance +
+                                                          financialData.utilizationBreakdown.revolvingCapital.balance
+                                                  )
+                                                : "₱0.00"}
+                                        </Text>
+                                    </Table.Td>
+                                </Table.Tr>
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+
+                    {/* Linked Reports Section */}
+                    <div>
+                        <Title order={4} mb="md">
+                            Related Reports
+                        </Title>
+
+                        {loading ? (
+                            <Text size="sm" c="dimmed">
+                                Loading related reports...
+                            </Text>
+                        ) : linkedReports.length > 0 ? (
+                            <Table highlightOnHover>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Report Name</Table.Th>
+                                        <Table.Th>Type</Table.Th>
+                                        <Table.Th>Status</Table.Th>
+                                        {/* <Table.Th>Signatures</Table.Th> */}
+                                        <Table.Th>Actions</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {linkedReports.map((linkedReport) => {
+                                        const Icon = linkedReport.icon;
+                                        return (
+                                            <Table.Tr key={linkedReport.id}>
+                                                <Table.Td>
+                                                    <Group gap="sm">
+                                                        <Icon size={16} />
+                                                        <Text size="sm">{linkedReport.name}</Text>
+                                                    </Group>
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    <Text size="sm" tt="capitalize">
+                                                        {linkedReport.type}
+                                                    </Text>
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    <Badge
+                                                        color={getStatusColor(linkedReport.status)}
+                                                        variant="light"
+                                                        size="sm"
+                                                    >
+                                                        {linkedReport.status === "not-created"
+                                                            ? "Not Created"
+                                                            : linkedReport.status || "Draft"}
+                                                    </Badge>
+                                                </Table.Td>
+                                                {/* <Table.Td>
                                                 <Text size="sm" c="dimmed">
                                                     {linkedReport.status === "approved" ? "Signed" : "Not Signed"}
                                                 </Text>
                                             </Table.Td> */}
-                                            <Table.Td>
-                                                <ActionIcon
-                                                    variant="subtle"
-                                                    color={linkedReport.status === "not-created" ? "gray" : "blue"}
-                                                    onClick={() => handleOpenReport(linkedReport.route)}
-                                                    aria-label={
-                                                        linkedReport.status === "not-created"
-                                                            ? `Create ${linkedReport.name}`
-                                                            : `Open ${linkedReport.name}`
-                                                    }
-                                                    title={
-                                                        linkedReport.status === "not-created"
-                                                            ? "Click to create this report"
-                                                            : "Click to open this report"
-                                                    }
-                                                >
-                                                    <IconExternalLink size={16} />
-                                                </ActionIcon>
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    );
-                                })}
-                            </Table.Tbody>
-                        </Table>
-                    ) : (
-                        <Alert
-                            variant="light"
-                            color="blue"
-                            icon={<IconAlertCircle size={16} />}
-                            title="No Related Reports"
-                        >
-                            This monthly report doesn&apos;t have any related daily, payroll, or liquidation reports
-                            yet.
-                        </Alert>
-                    )}
-                </div>
-
-                {/* Actions */}
-                <Group justify="space-between" mt="md">
-                    <Group>
-                        <Button variant="light">Download Monthly Report</Button>
-                    </Group>
-                    <Group>
-                        {onDelete && (
-                            <Button color="red" variant="outline" onClick={handleDeleteReport}>
-                                Delete Report
-                            </Button>
+                                                <Table.Td>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color={linkedReport.status === "not-created" ? "gray" : "blue"}
+                                                        onClick={() => handleOpenReport(linkedReport.route)}
+                                                        aria-label={
+                                                            linkedReport.status === "not-created"
+                                                                ? `Create ${linkedReport.name}`
+                                                                : `Open ${linkedReport.name}`
+                                                        }
+                                                        title={
+                                                            linkedReport.status === "not-created"
+                                                                ? "Click to create this report"
+                                                                : "Click to open this report"
+                                                        }
+                                                    >
+                                                        <IconExternalLink size={16} />
+                                                    </ActionIcon>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        );
+                                    })}
+                                </Table.Tbody>
+                            </Table>
+                        ) : (
+                            <Alert
+                                variant="light"
+                                color="blue"
+                                icon={<IconAlertCircle size={16} />}
+                                title="No Related Reports"
+                            >
+                                This monthly report doesn&apos;t have any related daily, payroll, or liquidation reports
+                                yet.
+                            </Alert>
                         )}
-                        <Button variant="default" onClick={onClose}>
+                    </div>
+
+                    {/* Actions */}
+                    <Group justify="space-between" mt="md">
+                        <Group>
+                            <Button
+                                variant="light"
+                                onClick={() => exportToPDF()}
+                                loading={pdfLoading}
+                                disabled={!financialData}
+                            >
+                                Export to PDF
+                            </Button>
+                        </Group>
+                        <Group>
+                            {onDelete && (
+                                <Button color="red" variant="outline" onClick={handleDeleteReport}>
+                                    Delete Report
+                                </Button>
+                            )}
+                            <Button variant="default" onClick={onClose}>
+                                Close
+                            </Button>
+                        </Group>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            {/* PDF Preview Modal */}
+            <Modal
+                opened={pdfModalOpened}
+                onClose={() => setPdfModalOpened(false)}
+                title="PDF Preview"
+                size="xl"
+                centered
+            >
+                <Stack align="center" p="md">
+                    {pdfCanvas && (
+                        <Image
+                            src={pdfCanvas.toDataURL()}
+                            alt="PDF Preview"
+                            style={{
+                                maxWidth: "100%",
+                                maxHeight: "70vh",
+                                border: "1px solid #ddd",
+                            }}
+                        />
+                    )}
+                    <Group>
+                        <Button
+                            variant="filled"
+                            onClick={() => {
+                                if (pdfCanvas) {
+                                    const pdf = new jsPDF({
+                                        orientation: "portrait",
+                                        unit: "mm",
+                                        format: "a4",
+                                    });
+
+                                    const imgData = pdfCanvas.toDataURL("image/png");
+                                    const imgWidth = 210;
+                                    const imgHeight = (pdfCanvas.height * imgWidth) / pdfCanvas.width;
+
+                                    let heightLeft = imgHeight;
+                                    let position = 0;
+
+                                    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                                    heightLeft -= 297;
+
+                                    while (heightLeft >= 0) {
+                                        position = heightLeft - imgHeight;
+                                        pdf.addPage();
+                                        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                                        heightLeft -= 297;
+                                    }
+
+                                    pdf.save(getFileName());
+                                }
+                            }}
+                            disabled={!pdfCanvas}
+                        >
+                            Download PDF
+                        </Button>
+                        <Button variant="outline" onClick={() => setPdfModalOpened(false)}>
                             Close
                         </Button>
                     </Group>
-                </Group>
-            </Stack>
-        </Modal>
+                </Stack>
+            </Modal>
+        </>
     );
 }

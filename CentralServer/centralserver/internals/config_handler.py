@@ -647,7 +647,7 @@ def read_config(
         fp,
         enc,
         ai=AI(
-            enabled=ai_config.get("enabled", True),
+            enabled=ai_config.get("enabled", None),
             gemini_api_key=ai_config.get("gemini_api_key", None),
             gemini_model=ai_config.get("gemini_model", None),
         ),

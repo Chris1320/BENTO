@@ -3,6 +3,7 @@ import datetime
 from typing import Annotated, Any, Dict, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from httpx import get
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
@@ -219,6 +220,7 @@ def _get_field_value(obj: Any, *field_names: str, default: Any = None) -> Any:
 def _calculate_total_amount(entries: list[Any], has_qty_unit: bool) -> float:
     """Calculate total amount from entries."""
     total = 0.0
+    print(entries)
     for entry in entries:
         if has_qty_unit and hasattr(entry, "quantity") and entry.quantity:
             # For entries with quantity and unit price
@@ -226,13 +228,19 @@ def _calculate_total_amount(entries: list[Any], has_qty_unit: bool) -> float:
             unit_price = (
                 getattr(entry, "unit_price", None)
                 or getattr(entry, "unitPrice", None)
-                or getattr(entry, "amount", 0.0)
+                or getattr(entry, "amount", None)
             )
-            total += entry.quantity * unit_price
+            if unit_price is not None:
+                total += entry.quantity * unit_price
         else:
             # For entries with direct amount
-            amount = getattr(entry, "amount", 0.0)
-            total += amount
+            amount = (
+                getattr(entry, "amount", None)
+                or getattr(entry, "unit_price", None)
+                or getattr(entry, "unitPrice", None)
+            )
+            if amount is not None:
+                total += amount
     return total
 
 
@@ -327,7 +335,9 @@ def _convert_to_response(
         memo=memo,
         entries=entries,
         certifiedBy=certified_by,
-        totalAmount=_calculate_total_amount(entries, category_config["has_qty_unit"]),
+        totalAmount=_calculate_total_amount(
+            report.entries, category_config["has_qty_unit"]
+        ),
     )
 
 

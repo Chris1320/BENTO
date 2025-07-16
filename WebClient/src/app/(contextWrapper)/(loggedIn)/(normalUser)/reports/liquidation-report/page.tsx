@@ -53,8 +53,19 @@ import {
 import { DateInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 import { notifications } from "@mantine/notifications";
-import { IconCalendar, IconFileText, IconHistory, IconPlus, IconTrash, IconX } from "@tabler/icons-react";
+import {
+    IconCalendar,
+    IconDownload,
+    IconFileText,
+    IconFileTypePdf,
+    IconHistory,
+    IconPlus,
+    IconTrash,
+    IconX,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { customLogger } from "@/lib/api/customLogger";
@@ -151,8 +162,9 @@ function LiquidationReportContent() {
     const [reportStatus, setReportStatus] = useState<string | null>(null);
 
     // School data for automatic principal assignment
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [schoolData, setSchoolData] = useState<csclient.School | null>(null);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [pdfModalOpened, setPdfModalOpened] = useState(false);
 
     // Helper function to check if the report is read-only
     const isReadOnly = useCallback(() => {
@@ -431,6 +443,21 @@ function LiquidationReportContent() {
 
                 if (schoolResponse.data) {
                     setSchoolData(schoolResponse.data);
+
+                    // Load school logo if available
+                    if (schoolResponse.data.logoUrn) {
+                        try {
+                            const logoResponse = await csclient.getSchoolLogoEndpointV1SchoolsLogoGet({
+                                query: { fn: schoolResponse.data.logoUrn },
+                            });
+                            if (logoResponse.data) {
+                                const logoUrl = URL.createObjectURL(logoResponse.data as Blob);
+                                setLogoUrl(logoUrl);
+                            }
+                        } catch (error) {
+                            customLogger.error("Failed to load school logo:", error);
+                        }
+                    }
 
                     // Automatically assign the principal as notedBy if not already set
                     if (!notedBy && !selectedNotedByUser && schoolResponse.data.assignedNotedBy) {
@@ -817,6 +844,389 @@ function LiquidationReportContent() {
             message: "Preview functionality will be implemented soon.",
             color: "blue",
         });
+    };
+
+    const getFileName = () => {
+        const monthYear = dayjs(reportPeriod).format("MMMM-YYYY");
+        const categoryName = report_type[category as keyof typeof report_type] || "Report";
+        const schoolName = schoolData?.name || userCtx.userInfo?.schoolId || "School";
+        return `${categoryName}-${schoolName}-${monthYear}.pdf`;
+    };
+
+    const exportToPDF = async () => {
+        const element = document.getElementById("liquidation-report-content");
+        if (!element) return;
+
+        try {
+            // Hide action buttons during export
+            const actionButtons = document.querySelectorAll(".hide-in-pdf");
+            actionButtons.forEach((btn) => ((btn as HTMLElement).style.display = "none"));
+
+            const canvas = await html2canvas(element, {
+                useCORS: true,
+                allowTaint: true,
+                background: "#ffffff",
+            });
+
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
+            });
+
+            const imgWidth = 210;
+            const pageHeight = 295;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+
+            let position = 0;
+
+            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save(getFileName());
+
+            // Show action buttons again
+            actionButtons.forEach((btn) => ((btn as HTMLElement).style.display = ""));
+
+            notifications.show({
+                title: "Success",
+                message: "PDF exported successfully",
+                color: "green",
+            });
+        } catch (error) {
+            console.error("Error exporting PDF:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to export PDF",
+                color: "red",
+            });
+        }
+    };
+
+    const PDFReportTemplate = () => {
+        const totalAmount = calculateTotalAmount();
+
+        return (
+            <div
+                id="liquidation-report-content"
+                style={{
+                    backgroundColor: "white",
+                    padding: "40px",
+                    fontFamily: "Arial, sans-serif",
+                    minHeight: "100vh",
+                }}
+            >
+                {/* Header with logos and school info */}
+                <div style={{ textAlign: "center", marginBottom: "30px" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: "20px",
+                        }}
+                    >
+                        <div style={{ width: "80px", height: "80px" }}>
+                            {/* School Logo */}
+                            {logoUrl ? (
+                                <Image
+                                    src={logoUrl}
+                                    alt="School Logo"
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        borderRadius: "50%",
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        border: "1px solid #ccc",
+                                        borderRadius: "50%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "12px",
+                                        color: "#666",
+                                    }}
+                                >
+                                    LOGO
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ textAlign: "center", flex: 1 }}>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Republic of the Philippines</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Department of Education</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Region III- Central Luzon</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>
+                                SCHOOLS DIVISION OF CITY OF BALIWAG
+                            </div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", marginTop: "5px" }}>
+                                {schoolData?.name.toUpperCase() || "SCHOOL NAME"}
+                            </div>
+                            <div style={{ fontSize: "12px" }}>{schoolData?.address || "School Address"}</div>
+                        </div>
+
+                        <div style={{ width: "80px", height: "80px" }}>
+                            {/* DepEd Logo */}
+                            <Image
+                                src="/assets/logos/deped.svg"
+                                alt="Deped Logo"
+                                style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    borderRadius: "50%",
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            marginTop: "30px",
+                            textDecoration: "underline",
+                        }}
+                    >
+                        LIQUIDATION REPORT
+                    </div>
+                    <div style={{ fontSize: "16px", fontWeight: "bold", marginTop: "10px" }}>
+                        {report_type[category as keyof typeof report_type]}
+                    </div>
+                    <div style={{ fontSize: "14px", marginTop: "5px" }}>
+                        For the Month of {dayjs(reportPeriod).format("MMMM, YYYY").toUpperCase()}
+                    </div>
+                </div>
+
+                {/* Table */}
+                <table
+                    style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        margin: "20px 0",
+                        fontSize: "11px",
+                    }}
+                >
+                    <thead>
+                        <tr style={{ backgroundColor: "#f5f5f5" }}>
+                            <th
+                                style={{ border: "1px solid #000", padding: "8px", textAlign: "center", width: "80px" }}
+                            >
+                                Date
+                            </th>
+                            <th
+                                style={{
+                                    border: "1px solid #000",
+                                    padding: "8px",
+                                    textAlign: "center",
+                                    width: "200px",
+                                }}
+                            >
+                                Particulars
+                            </th>
+                            {hasReceiptVoucher && (
+                                <th
+                                    style={{
+                                        border: "1px solid #000",
+                                        padding: "8px",
+                                        textAlign: "center",
+                                        width: "100px",
+                                    }}
+                                >
+                                    Receipt/Voucher No.
+                                </th>
+                            )}
+                            {hasQtyUnit && (
+                                <>
+                                    <th
+                                        style={{
+                                            border: "1px solid #000",
+                                            padding: "8px",
+                                            textAlign: "center",
+                                            width: "60px",
+                                        }}
+                                    >
+                                        Qty
+                                    </th>
+                                    <th
+                                        style={{
+                                            border: "1px solid #000",
+                                            padding: "8px",
+                                            textAlign: "center",
+                                            width: "60px",
+                                        }}
+                                    >
+                                        Unit
+                                    </th>
+                                    <th
+                                        style={{
+                                            border: "1px solid #000",
+                                            padding: "8px",
+                                            textAlign: "center",
+                                            width: "80px",
+                                        }}
+                                    >
+                                        Unit Price
+                                    </th>
+                                </>
+                            )}
+                            <th
+                                style={{
+                                    border: "1px solid #000",
+                                    padding: "8px",
+                                    textAlign: "center",
+                                    width: "100px",
+                                }}
+                            >
+                                {hasQtyUnit ? "Total Amount" : "Amount"}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {expenseItems.map((item, index) => (
+                            <tr key={index}>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    {dayjs(item.date).format("DD-MMM-YY")}
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px" }}>{item.particulars}</td>
+                                {hasReceiptVoucher && (
+                                    <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                        {item.receiptNumber || ""}
+                                    </td>
+                                )}
+                                {hasQtyUnit && (
+                                    <>
+                                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                            {item.quantity || ""}
+                                        </td>
+                                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                            {item.unit || ""}
+                                        </td>
+                                        <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                            ₱{item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                    </>
+                                )}
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                    ₱{calculateItemTotal(item).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </td>
+                            </tr>
+                        ))}
+                        <tr style={{ backgroundColor: "#f5f5f5", fontWeight: "bold" }}>
+                            <td
+                                style={{
+                                    border: "1px solid #000",
+                                    padding: "8px",
+                                    textAlign: "center",
+                                }}
+                                colSpan={
+                                    hasQtyUnit && hasReceiptVoucher ? 6 : hasQtyUnit ? 5 : hasReceiptVoucher ? 3 : 2
+                                }
+                            >
+                                TOTAL
+                            </td>
+                            <td style={{ border: "1px solid #000", padding: "8px", textAlign: "right" }}>
+                                ₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                {/* Notes section */}
+                {notes && (
+                    <div style={{ marginTop: "20px" }}>
+                        <div style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "10px" }}>Notes/Remarks:</div>
+                        <div style={{ fontSize: "12px", border: "1px solid #ccc", padding: "10px", minHeight: "60px" }}>
+                            {notes}
+                        </div>
+                    </div>
+                )}
+
+                {/* Signatures */}
+                <div
+                    style={{
+                        marginTop: "40px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                    }}
+                >
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "12px", marginBottom: "5px" }}>Prepared by:</div>
+                        <div
+                            style={{
+                                width: "200px",
+                                height: "60px",
+                                border: preparedBySignatureUrl ? "none" : "1px solid #ccc",
+                                marginBottom: "10px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            {preparedBySignatureUrl ? (
+                                <Image
+                                    src={preparedBySignatureUrl}
+                                    alt="Prepared by signature"
+                                    style={{ maxWidth: "100%", maxHeight: "100%" }}
+                                />
+                            ) : (
+                                <div style={{ fontSize: "10px", color: "#666" }}>Signature</div>
+                            )}
+                        </div>
+                        <div style={{ borderBottom: "1px solid #000", width: "200px", marginBottom: "5px" }}></div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold" }}>{preparedBy || "NAME"}</div>
+                        <div style={{ fontSize: "10px" }}>{preparedByPosition || "Position"}</div>
+                    </div>
+
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "12px", marginBottom: "5px" }}>Noted:</div>
+                        <div
+                            style={{
+                                width: "200px",
+                                height: "60px",
+                                border: notedBySignatureUrl && reportStatus === "approved" ? "none" : "1px solid #ccc",
+                                marginBottom: "10px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            {notedBySignatureUrl && reportStatus === "approved" ? (
+                                <Image
+                                    src={notedBySignatureUrl}
+                                    alt="Noted by signature"
+                                    style={{ maxWidth: "100%", maxHeight: "100%" }}
+                                />
+                            ) : (
+                                <div style={{ fontSize: "10px", color: "#666" }}>Signature</div>
+                            )}
+                        </div>
+                        <div style={{ borderBottom: "1px solid #000", width: "200px", marginBottom: "5px" }}></div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold" }}>
+                            {selectedNotedByUser
+                                ? `${selectedNotedByUser.nameFirst} ${selectedNotedByUser.nameLast}`.trim()
+                                : "NAME"}
+                        </div>
+                        <div style={{ fontSize: "10px" }}>{selectedNotedByUser?.position || "Position"}</div>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     const getDateRange = () => {
@@ -1269,10 +1679,18 @@ function LiquidationReportContent() {
                         <Button
                             variant="outline"
                             onClick={handleClose}
-                            className="hover:bg-gray-100"
+                            className="hover:bg-gray-100 hide-in-pdf"
                             disabled={isSubmitting}
                         >
                             Cancel
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setPdfModalOpened(true)}
+                            className="hide-in-pdf"
+                            leftSection={<IconFileTypePdf size={16} />}
+                        >
+                            Export PDF
                         </Button>
                         <SplitButton
                             onSubmit={handleSubmitReport}
@@ -1328,6 +1746,38 @@ function LiquidationReportContent() {
                             </Button>
                             <Button onClick={handleApprovalConfirm} disabled={!approvalCheckbox} color="green">
                                 Confirm Approval
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+
+                {/* PDF Export Modal */}
+                <Modal
+                    opened={pdfModalOpened}
+                    onClose={() => setPdfModalOpened(false)}
+                    title={getFileName()}
+                    size="90%"
+                    centered
+                    padding="sm"
+                >
+                    <Stack gap="xs">
+                        <div
+                            style={{
+                                maxHeight: "70vh",
+                                overflowY: "auto",
+                                border: "1px solid #e0e0e0",
+                                borderRadius: "8px",
+                            }}
+                        >
+                            <PDFReportTemplate />
+                        </div>
+
+                        <Group justify="flex-end" gap="md">
+                            <Button variant="outline" onClick={() => setPdfModalOpened(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={exportToPDF} leftSection={<IconDownload size={16} />}>
+                                Download
                             </Button>
                         </Group>
                     </Stack>

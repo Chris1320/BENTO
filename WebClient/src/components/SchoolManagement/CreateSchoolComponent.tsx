@@ -1,6 +1,6 @@
 "use client";
 
-import { getAllUsersEndpointV1UsersAllGet, School, UserPublic } from "@/lib/api/csclient";
+import { School } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { CreateSchool } from "@/lib/api/school";
 import { Button, Modal, Stack, TextInput } from "@mantine/core";
@@ -8,7 +8,7 @@ import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconBuildingPlus, IconCheck, IconSendOff, IconUserExclamation } from "@tabler/icons-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 
 interface CreateSchoolComponentProps {
     modalOpen: boolean;
@@ -18,8 +18,6 @@ interface CreateSchoolComponentProps {
 
 export function CreateSchoolComponent({ modalOpen, setModalOpen, onSchoolCreate }: CreateSchoolComponentProps) {
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
-    const [users, setUsers] = useState<UserPublic[]>([]);
-    const [loadingUsers, setLoadingUsers] = useState(false);
 
     const form = useForm({
         initialValues: {
@@ -34,34 +32,6 @@ export function CreateSchoolComponent({ modalOpen, setModalOpen, onSchoolCreate 
             schoolName: (value) => (!value ? "School name is required" : null),
         },
     });
-
-    const loadUsers = useCallback(async () => {
-        setLoadingUsers(true);
-        try {
-            const result = await getAllUsersEndpointV1UsersAllGet({
-                query: { show_all: false, limit: 999 },
-            });
-            if (result.data) {
-                // Filter to only show principals (roleId: 4) who can approve reports
-                const principals = result.data.filter((user) => user.roleId === 4);
-                setUsers(principals);
-            } else {
-                setUsers([]);
-            }
-        } catch (error) {
-            customLogger.error("Failed to load users:", error);
-            setUsers([]);
-        } finally {
-            setLoadingUsers(false);
-        }
-    }, []);
-
-    // Load users when modal opens
-    useEffect(() => {
-        if (modalOpen) {
-            loadUsers();
-        }
-    }, [modalOpen, loadUsers]);
 
     const handleCreateSchool = useCallback(
         async (values: typeof form.values) => {

@@ -25,7 +25,7 @@ class AI:
 
     def __init__(
         self,
-        enabled: bool = True,
+        enabled: bool | None = None,
         gemini_api_key: str | None = None,
         gemini_model: str | None = None,
     ):
@@ -37,7 +37,7 @@ class AI:
             gemini_model: The model to use for AI operations. (Optional)
         """
 
-        self.enabled: bool = enabled
+        self.enabled: bool = enabled or False
         if enabled and (gemini_api_key is None or gemini_model is None):
             raise ValueError(
                 "AI is enabled, but required values are not set in the configuration file."

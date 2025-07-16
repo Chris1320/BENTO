@@ -3,6 +3,7 @@ import datetime
 from typing import Annotated, Any, Dict, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from httpx import get
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
@@ -165,11 +166,16 @@ class LiquidationReportEntryData(BaseModel):
         default=None,
         description="JSON string containing list of receipt attachment URNs",
     )
+    schoolId: int | None = Field(
+        default=None,
+        description="The school ID for the entry (optional for request, required for database)",
+    )
 
 
 class LiquidationReportCreateRequest(BaseModel):
     """Request model for creating/updating liquidation reports."""
 
+    schoolId: int | None = None
     notedBy: str | None = None
     preparedBy: str | None = None
     teacherInCharge: str | None = None
@@ -214,26 +220,44 @@ def _get_field_value(obj: Any, *field_names: str, default: Any = None) -> Any:
 def _calculate_total_amount(entries: list[Any], has_qty_unit: bool) -> float:
     """Calculate total amount from entries."""
     total = 0.0
+    print(entries)
     for entry in entries:
         if has_qty_unit and hasattr(entry, "quantity") and entry.quantity:
             # For entries with quantity and unit price
-            unit_price = getattr(entry, "unitPrice", 0.0) or getattr(
-                entry, "amount", 0.0
+            # Try different field name variations for unit price
+            unit_price = (
+                getattr(entry, "unit_price", None)
+                or getattr(entry, "unitPrice", None)
+                or getattr(entry, "amount", None)
             )
-            total += entry.quantity * unit_price
+            if unit_price is not None:
+                total += entry.quantity * unit_price
         else:
-            # For entries with direct amount or unit price
-            amount = getattr(entry, "amount", None) or getattr(entry, "unitPrice", 0.0)
-            total += amount
+            # For entries with direct amount
+            amount = (
+                getattr(entry, "amount", None)
+                or getattr(entry, "unit_price", None)
+                or getattr(entry, "unitPrice", None)
+            )
+            if amount is not None:
+                total += amount
     return total
 
 
 def _get_liquidation_report(
-    session: Session, category_config: dict[str, Any], parent_date: datetime.date
+    session: Session,
+    category_config: dict[str, Any],
+    parent_date: datetime.date,
+    school_id: int,
 ) -> Any:
-    """Get liquidation report by category and parent date."""
+    """Get liquidation report by category, parent date, and school."""
     model = category_config["model"]
-    return session.exec(select(model).where(model.parent == parent_date)).one_or_none()
+    return session.exec(
+        select(model).where(
+            model.parent == parent_date,
+            model.schoolId == school_id,
+        )
+    ).one_or_none()
 
 
 def _convert_to_response(
@@ -311,7 +335,9 @@ def _convert_to_response(
         memo=memo,
         entries=entries,
         certifiedBy=certified_by,
-        totalAmount=_calculate_total_amount(entries, category_config["has_qty_unit"]),
+        totalAmount=_calculate_total_amount(
+            report.entries, category_config["has_qty_unit"]
+        ),
     )
 
 
@@ -373,7 +399,9 @@ async def get_liquidation_report(
             )
         ).one()
 
-        report = _get_liquidation_report(session, category_config, parent_date)
+        report = _get_liquidation_report(
+            session, category_config, parent_date, school_id
+        )
         return _convert_to_response(report, category, category_config)
 
     except NoResultFound as e:
@@ -448,7 +476,9 @@ async def get_liquidation_report_entries(
             )
         ).one()
 
-        report = _get_liquidation_report(session, category_config, parent_date)
+        report = _get_liquidation_report(
+            session, category_config, parent_date, school_id
+        )
         if not report:
             return []
 
@@ -543,6 +573,7 @@ async def create_or_update_liquidation_report(
     model = category_config["model"]
     report_data: Dict[str, Any] = {
         "parent": parent_date,
+        "schoolId": request_data.schoolId or school_id,
         "preparedBy": request_data.preparedBy or user.id,
         "notedBy": noted_by,
         "teacherInCharge": request_data.teacherInCharge,
@@ -550,8 +581,21 @@ async def create_or_update_liquidation_report(
     }
 
     # Delete existing report if it exists
-    existing_report = _get_liquidation_report(session, category_config, parent_date)
+    existing_report = _get_liquidation_report(
+        session, category_config, parent_date, school_id
+    )
     if existing_report:
+        # First, manually delete certified_by entries to avoid constraint issues
+        certified_model = category_config["certified_model"]
+        existing_certified_entries = session.exec(
+            select(certified_model).where(
+                certified_model.parent == parent_date,
+                certified_model.schoolId == school_id,
+            )
+        ).all()
+        for cert_entry in existing_certified_entries:
+            session.delete(cert_entry)
+
         session.delete(existing_report)
 
     # Create new report
@@ -566,6 +610,8 @@ async def create_or_update_liquidation_report(
             "parent": parent_date,
             "date": entry_data.date,
             "particulars": entry_data.particulars,
+            "schoolId": entry_data.schoolId
+            or school_id,  # Use entry schoolId if provided, otherwise use path schoolId
         }
 
         # Add receipt attachment URNs if available
@@ -629,7 +675,9 @@ async def create_or_update_liquidation_report(
     # Add certified by entries
     certified_model = category_config["certified_model"]
     for user_id in request_data.certifiedBy:
-        certified_entry = certified_model(parent=parent_date, user=user_id)
+        certified_entry = certified_model(
+            parent=parent_date, user=user_id, schoolId=school_id
+        )
         session.add(certified_entry)
 
     session.commit()
@@ -707,7 +755,7 @@ async def update_liquidation_report_entries(
         )
 
     # Verify liquidation report exists
-    report = _get_liquidation_report(session, category_config, parent_date)
+    report = _get_liquidation_report(session, category_config, parent_date, school_id)
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -717,7 +765,10 @@ async def update_liquidation_report_entries(
     # Delete existing entries
     entry_model = category_config["entry_model"]
     existing_entries = session.exec(
-        select(entry_model).where(entry_model.parent == parent_date)
+        select(entry_model).where(
+            entry_model.parent == parent_date,
+            entry_model.schoolId == school_id,
+        )
     ).all()
     for entry in existing_entries:
         session.delete(entry)
@@ -728,6 +779,8 @@ async def update_liquidation_report_entries(
             "parent": parent_date,
             "date": entry_data.date,
             "particulars": entry_data.particulars,
+            "schoolId": entry_data.schoolId
+            or school_id,  # Use entry schoolId if provided, otherwise use path schoolId
         }
 
         # Handle receipt number field variations based on model type
@@ -850,7 +903,7 @@ async def delete_liquidation_report(
         )
 
     # Delete liquidation report if it exists
-    report = _get_liquidation_report(session, category_config, parent_date)
+    report = _get_liquidation_report(session, category_config, parent_date, school_id)
     if report:
         session.delete(report)
         session.commit()
@@ -952,7 +1005,9 @@ async def change_liquidation_report_status(
     # Get the specific liquidation report
     parent_date = datetime.date(year=year, month=month, day=1)
     category_config = LIQUIDATION_CATEGORIES[category]
-    liquidation_report = _get_liquidation_report(session, category_config, parent_date)
+    liquidation_report = _get_liquidation_report(
+        session, category_config, parent_date, school_id
+    )
 
     if liquidation_report is None:
         raise HTTPException(
@@ -1028,7 +1083,9 @@ async def get_liquidation_valid_status_transitions(
     # Get the specific liquidation report
     parent_date = datetime.date(year=year, month=month, day=1)
     category_config = LIQUIDATION_CATEGORIES[category]
-    liquidation_report = _get_liquidation_report(session, category_config, parent_date)
+    liquidation_report = _get_liquidation_report(
+        session, category_config, parent_date, school_id
+    )
 
     if liquidation_report is None:
         raise HTTPException(
@@ -1038,3 +1095,48 @@ async def get_liquidation_valid_status_transitions(
 
     # Get valid transitions for this user role and current status
     return ReportStatusManager.get_valid_transitions_response(user, liquidation_report)
+
+
+def get_liquidation_expenses_by_category(
+    session: Session, monthly_report: MonthlyReport | None, school_id: int
+) -> Dict[str, float]:
+    """Get liquidation expenses by category for a specific monthly report and school.
+
+    This function directly queries the entry tables to get expenses, regardless of
+    whether the liquidation reports exist or not.
+
+    Args:
+        session: Database session
+        monthly_report: Monthly report to get expenses for
+        school_id: School ID to filter by
+
+    Returns:
+        Dictionary with category names as keys and total amounts as values
+    """
+    if not monthly_report:
+        return {}
+
+    expenses_by_category: Dict[str, float] = {}
+    parent_date = monthly_report.id
+
+    # Iterate through all liquidation categories and query entries directly
+    for category_key, category_config in LIQUIDATION_CATEGORIES.items():
+        entry_model = category_config["entry_model"]
+        has_qty_unit = category_config["has_qty_unit"]
+
+        # Query entries directly from the entry table
+        entries = session.exec(
+            select(entry_model).where(
+                entry_model.parent == parent_date,
+                entry_model.schoolId == school_id,
+            )
+        ).all()
+
+        if entries:
+            # Calculate total amount for this category
+            total_amount = _calculate_total_amount(list(entries), has_qty_unit)
+            expenses_by_category[category_key] = total_amount
+        else:
+            expenses_by_category[category_key] = 0.0
+
+    return expenses_by_category

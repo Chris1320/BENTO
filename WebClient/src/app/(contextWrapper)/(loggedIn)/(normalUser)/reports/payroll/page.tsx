@@ -46,7 +46,9 @@ import {
     IconCalendar,
     IconCalendarWeek,
     IconCheck,
+    IconDownload,
     IconEdit,
+    IconFileTypePdf,
     IconReceipt2,
     IconTrash,
     IconUser,
@@ -54,9 +56,11 @@ import {
     IconX,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
+import html2canvas from "html2canvas";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import jsPDF from "jspdf";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
@@ -130,8 +134,11 @@ function PayrollPageContent() {
     const [isLoadingExistingReport, setIsLoadingExistingReport] = useState(false);
 
     // Signature state management for report approval
-    // Reason: Track prepared by (current user) and noted by (selected user) for report signatures
+    // Reason: Track prepared by (actual user from DB) and noted by (selected user) for report signatures
     const [notedBy, setNotedBy] = useState<string | null>(null);
+    const [preparedBy, setPreparedBy] = useState<string | null>(null);
+    const [preparedById, setPreparedById] = useState<string | null>(null);
+    const [preparedByPosition, setPreparedByPosition] = useState<string | null>(null);
     const [preparedBySignatureUrl, setPreparedBySignatureUrl] = useState<string | null>(null);
     const [notedBySignatureUrl, setNotedBySignatureUrl] = useState<string | null>(null);
 
@@ -146,11 +153,23 @@ function PayrollPageContent() {
     const [reportStatus, setReportStatus] = useState<string | null>(null);
 
     // School data for automatic principal assignment
-    const [, setSchoolData] = useState<csclient.School | null>(null);
+    const [schoolData, setSchoolData] = useState<csclient.School | null>(null);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [pdfModalOpened, setPdfModalOpened] = useState(false);
 
     // Helper function to check if the report is read-only
     const isReadOnly = useCallback(() => {
-        return reportStatus === "review" || reportStatus === "approved";
+        return (
+            reportStatus === "review" ||
+            reportStatus === "approved" ||
+            reportStatus === "received" ||
+            reportStatus === "archived"
+        );
+    }, [reportStatus]);
+
+    // Helper function to check if the report should show as "under review"
+    const isUnderReview = useCallback(() => {
+        return reportStatus === "review";
     }, [reportStatus]);
 
     useEffect(() => {
@@ -206,9 +225,20 @@ function PayrollPageContent() {
                     // Set report status from the loaded report
                     setReportStatus(reportResponse.data.reportStatus || "draft");
 
-                    // Set notedBy from the loaded report
+                    // Set approval confirmation if the report is already approved
+                    if (reportResponse.data.reportStatus === "approved") {
+                        setApprovalConfirmed(true);
+                    }
+
+                    // Store the notedBy user ID from the loaded report
+                    // Note: This will be converted to a user name once school users are loaded
                     if (reportResponse.data.notedBy) {
                         setNotedBy(reportResponse.data.notedBy);
+                    }
+
+                    // Store the preparedBy user ID from the loaded report
+                    if (reportResponse.data.preparedBy) {
+                        setPreparedById(reportResponse.data.preparedBy);
                     }
 
                     // Parse the entries and convert them back to our internal format
@@ -370,8 +400,8 @@ function PayrollPageContent() {
                 }
             };
 
-            // Load current user's signature if available
-            if (userCtx.userInfo.signatureUrn) {
+            // Load current user's signature if available and no preparedBy user is set
+            if (userCtx.userInfo.signatureUrn && !preparedById) {
                 try {
                     const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
                         query: { fn: userCtx.userInfo.signatureUrn },
@@ -392,7 +422,7 @@ function PayrollPageContent() {
         };
 
         initializeSignatures();
-    }, [userCtx.userInfo]);
+    }, [userCtx.userInfo, preparedById]);
 
     // Load school data and auto-assign principal
     useEffect(() => {
@@ -406,6 +436,21 @@ function PayrollPageContent() {
 
                 if (response.data) {
                     setSchoolData(response.data);
+
+                    // Load school logo if available
+                    if (response.data.logoUrn) {
+                        try {
+                            const logoResponse = await csclient.getSchoolLogoEndpointV1SchoolsLogoGet({
+                                query: { fn: response.data.logoUrn },
+                            });
+                            if (logoResponse.data) {
+                                const logoUrl = URL.createObjectURL(logoResponse.data as Blob);
+                                setLogoUrl(logoUrl);
+                            }
+                        } catch (error) {
+                            customLogger.error("Failed to load school logo:", error);
+                        }
+                    }
 
                     // Auto-assign principal when loading school data
                     if (response.data.assignedNotedBy) {
@@ -455,19 +500,62 @@ function PayrollPageContent() {
         loadSchoolData();
     }, [userCtx.userInfo?.schoolId]);
 
+    // Load preparedBy user's signature when preparedById is available
+    useEffect(() => {
+        const loadPreparedBySignature = async () => {
+            if (preparedById && schoolUsers.length > 0) {
+                // Find the preparedBy user
+                const preparedByUser = schoolUsers.find((user) => user.id === preparedById);
+                if (preparedByUser) {
+                    // Set the preparedBy display name and position
+                    const userName = `${preparedByUser.nameFirst} ${preparedByUser.nameLast}`.trim();
+                    setPreparedBy(userName);
+                    setPreparedByPosition(preparedByUser.position || "Position");
+
+                    // Load the preparedBy user's signature if available
+                    if (preparedByUser.signatureUrn) {
+                        try {
+                            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                                query: { fn: preparedByUser.signatureUrn },
+                            });
+
+                            if (response.data) {
+                                const signatureUrl = URL.createObjectURL(response.data as Blob);
+                                setPreparedBySignatureUrl(signatureUrl);
+                            }
+                        } catch (error) {
+                            customLogger.error("Failed to load preparedBy user signature:", error);
+                        }
+                    }
+                }
+            }
+        };
+
+        loadPreparedBySignature();
+    }, [preparedById, schoolUsers]);
+
     // Effect to match loaded notedBy ID with actual user and load their signature
     useEffect(() => {
         const loadNotedBySignature = async () => {
-            // If we have a notedBy name from a loaded report but no selected user yet
+            // If we have a notedBy value from a loaded report but no selected user yet
             if (notedBy && !selectedNotedByUser && schoolUsers.length > 0) {
-                // Try to find the user by matching their name
-                const matchingUser = schoolUsers.find((user) => {
-                    const userName = `${user.nameFirst} ${user.nameLast}`.trim();
-                    return userName === notedBy;
-                });
+                // Try to find the user by matching their ID first (for loaded reports)
+                let matchingUser = schoolUsers.find((user) => user.id === notedBy);
+
+                // If not found by ID, try to find by name (for backward compatibility)
+                if (!matchingUser) {
+                    matchingUser = schoolUsers.find((user) => {
+                        const userName = `${user.nameFirst} ${user.nameLast}`.trim();
+                        return userName === notedBy;
+                    });
+                }
 
                 if (matchingUser) {
                     setSelectedNotedByUser(matchingUser);
+
+                    // Convert the user ID to the user's display name
+                    const userName = `${matchingUser.nameFirst} ${matchingUser.nameLast}`.trim();
+                    setNotedBy(userName);
 
                     // Load the user's signature if available and report is approved
                     if (matchingUser.signatureUrn && reportStatus === "approved") {
@@ -564,11 +652,6 @@ function PayrollPageContent() {
     };
 
     // Signature management handlers
-    const openApprovalModal = () => {
-        setReportApprovalCheckbox(false);
-        setReportApprovalModalOpened(true);
-    };
-
     const handleReportApprovalConfirm = async () => {
         if (!reportApprovalCheckbox || !selectedNotedByUser?.signatureUrn) return;
 
@@ -674,12 +757,6 @@ function PayrollPageContent() {
                 },
             ]);
         }
-    };
-
-    const toggleWeekCompletion = (weekId: string) => {
-        setWeekPeriods(
-            weekPeriods.map((week) => (week.id === weekId ? { ...week, isCompleted: !week.isCompleted } : week))
-        );
     };
 
     const getAttendanceStatus = (employeeId: string, date: Date): boolean => {
@@ -807,7 +884,7 @@ function PayrollPageContent() {
                     month: month,
                 },
                 query: {
-                    noted_by: userCtx.userInfo.id, // Set the current user as the one who noted it
+                    noted_by: schoolData?.assignedNotedBy || userCtx.userInfo.id, // Use school's assigned principal or current user as fallback
                 },
             });
 
@@ -942,7 +1019,7 @@ function PayrollPageContent() {
                     month: month,
                 },
                 query: {
-                    noted_by: userCtx.userInfo.id,
+                    noted_by: schoolData?.assignedNotedBy || userCtx.userInfo.id, // Use school's assigned principal or current user as fallback
                 },
             });
 
@@ -1096,6 +1173,390 @@ function PayrollPageContent() {
         setPreviewModalOpened(true);
     };
 
+    const getFileName = () => {
+        const monthYear = dayjs(selectedMonth).format("MMMM-YYYY");
+        const schoolName = schoolData?.name || userCtx.userInfo?.schoolId || "School";
+        return `Payroll-${schoolName}-${monthYear}.pdf`;
+    };
+
+    const exportToPDF = async () => {
+        const element = document.getElementById("payroll-report-content");
+        if (!element) return;
+
+        try {
+            // Hide action buttons during export
+            const actionButtons = document.querySelectorAll(".hide-in-pdf");
+            actionButtons.forEach((btn) => ((btn as HTMLElement).style.display = "none"));
+
+            const canvas = await html2canvas(element, {
+                useCORS: true,
+                allowTaint: true,
+                background: "#ffffff",
+            });
+
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
+            });
+
+            const imgWidth = 210;
+            const pageHeight = 295;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+
+            let position = 0;
+
+            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save(getFileName());
+
+            // Show action buttons again
+            actionButtons.forEach((btn) => ((btn as HTMLElement).style.display = ""));
+
+            notifications.show({
+                title: "Success",
+                message: "PDF exported successfully",
+                color: "green",
+            });
+        } catch (error) {
+            console.error("Error exporting PDF:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to export PDF",
+                color: "red",
+            });
+        }
+    };
+
+    const PDFReportTemplate = () => {
+        const totalAmountReceived = calculateTotalAmountReceived();
+
+        return (
+            <div
+                id="payroll-report-content"
+                style={{
+                    backgroundColor: "white",
+                    padding: "40px",
+                    fontFamily: "Arial, sans-serif",
+                    minHeight: "100vh",
+                }}
+            >
+                {/* Header with logos and school info */}
+                <div style={{ textAlign: "center", marginBottom: "30px" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: "20px",
+                        }}
+                    >
+                        <div style={{ width: "80px", height: "80px" }}>
+                            {/* School Logo */}
+                            {logoUrl ? (
+                                <Image
+                                    src={logoUrl}
+                                    alt="School Logo"
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        borderRadius: "50%",
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        border: "1px solid #ccc",
+                                        borderRadius: "50%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "12px",
+                                        color: "#666",
+                                    }}
+                                >
+                                    LOGO
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ textAlign: "center", flex: 1 }}>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Republic of the Philippines</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Department of Education</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>Region III- Central Luzon</div>
+                            <div style={{ fontSize: "14px", fontWeight: "bold" }}>
+                                SCHOOLS DIVISION OF CITY OF BALIWAG
+                            </div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", marginTop: "5px" }}>
+                                {schoolData?.name.toUpperCase() || "SCHOOL NAME"}
+                            </div>
+                            <div style={{ fontSize: "12px" }}>{schoolData?.address || "School Address"}</div>
+                        </div>
+
+                        <div style={{ width: "80px", height: "80px" }}>
+                            {/* DepEd Logo */}
+                            <Image
+                                src="/assets/logos/deped.svg"
+                                alt="Deped Logo"
+                                style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    borderRadius: "50%",
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            marginTop: "30px",
+                            textDecoration: "underline",
+                        }}
+                    >
+                        PAYROLL
+                    </div>
+                    <div style={{ fontSize: "16px", fontWeight: "bold", marginTop: "5px" }}>CANTEEN HELPER</div>
+                    <div style={{ fontSize: "14px", marginTop: "10px" }}>
+                        PERIOD COVERED: {dayjs(selectedMonth).format("MMMM YYYY").toUpperCase()}
+                    </div>
+                </div>
+
+                {/* Week Tables */}
+                {weekPeriods.map((week) => (
+                    <div key={week.id} style={{ marginBottom: "30px" }}>
+                        <div style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "10px" }}>
+                            {week.label} ({dayjs(week.startDate).format("M/D")} - {dayjs(week.endDate).format("M/D")})
+                        </div>
+
+                        <table
+                            style={{
+                                width: "100%",
+                                borderCollapse: "collapse",
+                                fontSize: "10px",
+                                marginBottom: "10px",
+                            }}
+                        >
+                            <thead>
+                                <tr style={{ backgroundColor: "#f5f5f5" }}>
+                                    <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center" }}>
+                                        NAME
+                                    </th>
+                                    {week.workingDays.map((day, dayIndex) => (
+                                        <th
+                                            key={dayIndex}
+                                            style={{ border: "1px solid #000", padding: "6px", textAlign: "center" }}
+                                        >
+                                            {dayjs(day).format("ddd").toUpperCase()}
+                                        </th>
+                                    ))}
+                                    <th style={{ border: "1px solid #000", padding: "6px", textAlign: "center" }}>
+                                        TOTAL
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {employees.map((employee) => (
+                                    <tr key={employee.id}>
+                                        <td style={{ border: "1px solid #000", padding: "6px", fontWeight: "bold" }}>
+                                            {employee.name}
+                                        </td>
+                                        {week.workingDays.map((day, dayIndex) => {
+                                            const isPresent = getAttendanceStatus(employee.id, day);
+                                            const dateKey = dayjs(day).format("YYYY-MM-DD");
+                                            const record = attendanceRecords.find(
+                                                (r) => r.employeeId === employee.id && r.date === dateKey
+                                            );
+                                            const dailyRate = record?.customDailyRate || employee.defaultDailyRate;
+
+                                            return (
+                                                <td
+                                                    key={dayIndex}
+                                                    style={{
+                                                        border: "1px solid #000",
+                                                        padding: "6px",
+                                                        textAlign: "center",
+                                                    }}
+                                                >
+                                                    {isPresent ? `₱${dailyRate.toFixed(2)}` : ""}
+                                                </td>
+                                            );
+                                        })}
+                                        <td
+                                            style={{
+                                                border: "1px solid #000",
+                                                padding: "6px",
+                                                textAlign: "center",
+                                                fontWeight: "bold",
+                                            }}
+                                        >
+                                            ₱{calculateWeeklyTotal(employee.id, week.id).toFixed(2)}
+                                        </td>
+                                    </tr>
+                                ))}
+                                <tr style={{ backgroundColor: "#f5f5f5", fontWeight: "bold" }}>
+                                    <td style={{ border: "1px solid #000", padding: "6px", textAlign: "center" }}>
+                                        Total Amount Received
+                                    </td>
+                                    <td
+                                        style={{
+                                            border: "1px solid #000",
+                                            padding: "6px",
+                                            textAlign: "center",
+                                        }}
+                                        colSpan={week.workingDays.length + 1}
+                                    >
+                                        ₱
+                                        {weekPeriods
+                                            .reduce(
+                                                (sum, w) =>
+                                                    sum +
+                                                    employees.reduce(
+                                                        (empSum, emp) => empSum + calculateWeeklyTotal(emp.id, w.id),
+                                                        0
+                                                    ),
+                                                0
+                                            )
+                                            .toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                ))}
+
+                {/* Monthly Summary */}
+                <div style={{ marginTop: "30px", marginBottom: "30px" }}>
+                    <div style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "10px" }}>
+                        MONTH OF {dayjs(selectedMonth).format("MMMM YYYY").toUpperCase()}
+                    </div>
+
+                    <table
+                        style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            fontSize: "11px",
+                            marginBottom: "10px",
+                        }}
+                    >
+                        <thead>
+                            <tr style={{ backgroundColor: "#f5f5f5" }}>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>NAME</th>
+                                <th style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    TOTAL AMOUNT RECEIVED
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {employees.map((employee) => (
+                                <tr key={employee.id}>
+                                    <td style={{ border: "1px solid #000", padding: "8px", fontWeight: "bold" }}>
+                                        {employee.name}
+                                    </td>
+                                    <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                        ₱{calculateMonthlyTotal(employee.id).toFixed(2)}
+                                    </td>
+                                </tr>
+                            ))}
+                            <tr style={{ backgroundColor: "#f5f5f5", fontWeight: "bold" }}>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    Total Amount Received
+                                </td>
+                                <td style={{ border: "1px solid #000", padding: "8px", textAlign: "center" }}>
+                                    ₱{totalAmountReceived.toFixed(2)}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Signatures */}
+                <div
+                    style={{
+                        marginTop: "40px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                    }}
+                >
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "12px", marginBottom: "5px" }}>Prepared by:</div>
+                        <div
+                            style={{
+                                width: "200px",
+                                height: "60px",
+                                border: preparedBySignatureUrl ? "none" : "1px solid #ccc",
+                                marginBottom: "10px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            {preparedBySignatureUrl ? (
+                                <Image
+                                    src={preparedBySignatureUrl}
+                                    alt="Prepared by signature"
+                                    style={{ maxWidth: "100%", maxHeight: "100%" }}
+                                />
+                            ) : (
+                                <div style={{ fontSize: "10px", color: "#666" }}>Signature</div>
+                            )}
+                        </div>
+                        <div style={{ borderBottom: "1px solid #000", width: "200px", marginBottom: "5px" }}></div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold" }}>{preparedBy || "NAME"}</div>
+                        <div style={{ fontSize: "10px" }}>{preparedByPosition || "Canteen Manager"}</div>
+                    </div>
+
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "12px", marginBottom: "5px" }}>Noted:</div>
+                        <div
+                            style={{
+                                width: "200px",
+                                height: "60px",
+                                border: notedBySignatureUrl && reportStatus === "approved" ? "none" : "1px solid #ccc",
+                                marginBottom: "10px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            {notedBySignatureUrl && reportStatus === "approved" ? (
+                                <Image
+                                    src={notedBySignatureUrl}
+                                    alt="Noted by signature"
+                                    style={{ maxWidth: "100%", maxHeight: "100%" }}
+                                />
+                            ) : (
+                                <div style={{ fontSize: "10px", color: "#666" }}>Signature</div>
+                            )}
+                        </div>
+                        <div style={{ borderBottom: "1px solid #000", width: "200px", marginBottom: "5px" }}></div>
+                        <div style={{ fontSize: "12px", fontWeight: "bold" }}>
+                            {selectedNotedByUser
+                                ? `${selectedNotedByUser.nameFirst} ${selectedNotedByUser.nameLast}`.trim()
+                                : "NAME"}
+                        </div>
+                        <div style={{ fontSize: "10px" }}>{selectedNotedByUser?.position || "Principal III"}</div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const selectedWeek = weekPeriods.find((w) => w.id === selectedWeekId);
 
     return (
@@ -1115,9 +1576,14 @@ function PayrollPageContent() {
                                 Manage staff payroll
                                 {isLoadingExistingReport && " • Loading existing data..."}
                             </Text>
-                            {isReadOnly() && (
+                            {isUnderReview() && (
                                 <Badge color="orange" variant="light" size="sm" mt="xs">
                                     Read-Only Mode - Report Under Review
+                                </Badge>
+                            )}
+                            {reportStatus === "approved" && (
+                                <Badge color="green" variant="light" size="sm" mt="xs">
+                                    Report Approved
                                 </Badge>
                             )}
                         </div>
@@ -1174,6 +1640,7 @@ function PayrollPageContent() {
                             <Group gap="xs">
                                 {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
                                     <ActionIcon
+                                        disabled={isReadOnly()}
                                         key={`${day}-${index}`}
                                         size="sm"
                                         variant={workingDaysSchedule.includes(index) ? "filled" : "outline"}
@@ -1237,7 +1704,7 @@ function PayrollPageContent() {
                             </Badge>
                         </Group>
 
-                        {selectedWeekId && (
+                        {/* {selectedWeekId && (
                             <Button
                                 size="xs"
                                 variant="light"
@@ -1248,7 +1715,7 @@ function PayrollPageContent() {
                                     ? "Mark Incomplete"
                                     : "Mark Complete"}
                             </Button>
-                        )}
+                        )} */}
                     </Group>
                     <ScrollArea className="flex-1">
                         <Group gap="xs" wrap="nowrap" className="min-w-fit">
@@ -1498,6 +1965,120 @@ function PayrollPageContent() {
                         </Group>
                     </Card>
                 )}
+                {/* Signature Cards */}
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
+                    {/* Prepared By */}
+                    <Card withBorder p="md">
+                        <Stack gap="sm" align="center">
+                            <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
+                                Prepared by
+                            </Text>
+                            <Box
+                                w={200}
+                                h={80}
+                                style={{
+                                    border: "1px solid #dee2e6",
+                                    borderRadius: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "#f8f9fa",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                {preparedBySignatureUrl ? (
+                                    <Image
+                                        src={preparedBySignatureUrl}
+                                        alt="Prepared by signature"
+                                        fit="contain"
+                                        w="100%"
+                                        h="100%"
+                                    />
+                                ) : (
+                                    <Text size="xs" c="dimmed">
+                                        Signature
+                                    </Text>
+                                )}
+                            </Box>
+                            <div style={{ textAlign: "center" }}>
+                                <Text fw={600} size="sm">
+                                    {preparedBy ||
+                                        (userCtx.userInfo
+                                            ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
+                                            : "N/A")}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    {preparedByPosition || userCtx.userInfo?.position || "Position"}
+                                </Text>
+                            </div>
+                        </Stack>
+                    </Card>
+
+                    {/* Noted by */}
+                    <Card withBorder p="md">
+                        <Stack gap="sm" align="center">
+                            <Group justify="space-between" w="100%">
+                                <Text size="sm" c="dimmed" fw={500}>
+                                    Noted by
+                                </Text>
+                                <Badge
+                                    size="sm"
+                                    color={
+                                        approvalConfirmed && reportStatus === "approved"
+                                            ? "green"
+                                            : selectedNotedByUser
+                                            ? "yellow"
+                                            : "gray"
+                                    }
+                                    variant="light"
+                                >
+                                    {approvalConfirmed && reportStatus === "approved"
+                                        ? "Approved"
+                                        : selectedNotedByUser
+                                        ? "Pending Approval"
+                                        : "Not Selected"}
+                                </Badge>
+                            </Group>
+                            <Box
+                                w={200}
+                                h={80}
+                                style={{
+                                    border: "1px solid #dee2e6",
+                                    borderRadius: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "#f8f9fa",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
+                                    <Image
+                                        src={notedBySignatureUrl}
+                                        alt="Noted by signature"
+                                        fit="contain"
+                                        w="100%"
+                                        h="100%"
+                                    />
+                                ) : (
+                                    <Stack align="center" gap="xs">
+                                        <Text size="xs" c="dimmed">
+                                            {selectedNotedByUser ? "Awaiting Approval" : "Signature"}
+                                        </Text>
+                                    </Stack>
+                                )}
+                            </Box>
+                            <div style={{ textAlign: "center" }}>
+                                <Text fw={600} size="sm">
+                                    {notedBy || "NAME"}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    {selectedNotedByUser?.position || "Position"}
+                                </Text>
+                            </div>
+                        </Stack>
+                    </Card>
+                </SimpleGrid>
 
                 {/* Action Buttons */}
                 <Group justify="flex-end" gap="md">
@@ -1508,6 +2089,7 @@ function PayrollPageContent() {
                             year: selectedMonth?.getFullYear() || new Date().getFullYear(),
                             month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
                         }}
+                        disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
                         onSuccess={() => {
                             notifications.show({
                                 title: "Status Updated",
@@ -1522,149 +2104,28 @@ function PayrollPageContent() {
                         }}
                     />
                     {/* Action Buttons */}
-                    <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100">
+                    <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
                         Cancel
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setPdfModalOpened(true)}
+                        className="hide-in-pdf"
+                        leftSection={<IconFileTypePdf size={16} />}
+                    >
+                        Export PDF
                     </Button>
                     <SplitButton
                         onSubmit={handleSubmitReport}
                         onSaveDraft={handleSaveDraft}
                         onPreview={handlePreview}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-blue-600 hover:bg-blue-700 hide-in-pdf"
                         disabled={!selectedMonth || weekPeriods.length === 0 || employees.length === 0 || isReadOnly()}
                     >
                         Submit Report
                     </SplitButton>
                 </Group>
             </Stack>
-
-            {/* Signature Cards */}
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
-                {/* Prepared By */}
-                <Card withBorder p="md">
-                    <Stack gap="sm" align="center">
-                        <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
-                            Prepared by
-                        </Text>
-                        <Box
-                            w={200}
-                            h={80}
-                            style={{
-                                border: "1px solid #dee2e6",
-                                borderRadius: "8px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: "#f8f9fa",
-                                overflow: "hidden",
-                            }}
-                        >
-                            {preparedBySignatureUrl ? (
-                                <Image
-                                    src={preparedBySignatureUrl}
-                                    alt="Prepared by signature"
-                                    fit="contain"
-                                    w="100%"
-                                    h="100%"
-                                />
-                            ) : (
-                                <Text size="xs" c="dimmed">
-                                    Signature
-                                </Text>
-                            )}
-                        </Box>
-                        <div style={{ textAlign: "center" }}>
-                            <Text fw={600} size="sm">
-                                {userCtx.userInfo
-                                    ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
-                                    : "N/A"}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                                {userCtx.userInfo?.position || "Position"}
-                            </Text>
-                        </div>
-                    </Stack>
-                </Card>
-
-                {/* Noted by */}
-                <Card withBorder p="md">
-                    <Stack gap="sm" align="center">
-                        <Group justify="space-between" w="100%">
-                            <Text size="sm" c="dimmed" fw={500}>
-                                Noted by
-                            </Text>
-                            <Badge
-                                size="sm"
-                                color={
-                                    approvalConfirmed && reportStatus === "approved"
-                                        ? "green"
-                                        : selectedNotedByUser
-                                        ? "yellow"
-                                        : "gray"
-                                }
-                                variant="light"
-                            >
-                                {approvalConfirmed && reportStatus === "approved"
-                                    ? "Approved"
-                                    : selectedNotedByUser
-                                    ? "Pending Approval"
-                                    : "Not Selected"}
-                            </Badge>
-                        </Group>
-                        <Box
-                            w={200}
-                            h={80}
-                            style={{
-                                border: "1px solid #dee2e6",
-                                borderRadius: "8px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: "#f8f9fa",
-                                overflow: "hidden",
-                            }}
-                        >
-                            {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
-                                <Image
-                                    src={notedBySignatureUrl}
-                                    alt="Noted by signature"
-                                    fit="contain"
-                                    w="100%"
-                                    h="100%"
-                                />
-                            ) : (
-                                <Stack align="center" gap="xs">
-                                    <Text size="xs" c="dimmed">
-                                        {selectedNotedByUser ? "Awaiting Approval" : "Signature"}
-                                    </Text>
-                                </Stack>
-                            )}
-                        </Box>
-                        <div style={{ textAlign: "center" }}>
-                            <Text fw={600} size="sm">
-                                {notedBy || "NAME"}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                                {selectedNotedByUser?.position || "Position"}
-                            </Text>
-                            {selectedNotedByUser &&
-                                !approvalConfirmed &&
-                                selectedNotedByUser.id === userCtx.userInfo?.id && (
-                                    <Button
-                                        size="xs"
-                                        variant="light"
-                                        color="blue"
-                                        onClick={openApprovalModal}
-                                        disabled={!selectedNotedByUser.signatureUrn || isReadOnly()}
-                                        mt="xs"
-                                        mb="xs"
-                                    >
-                                        Approve Report
-                                    </Button>
-                                )}
-                        </div>
-                    </Stack>
-                </Card>
-            </SimpleGrid>
 
             {/* Employee Management Modal */}
             <Modal
@@ -1753,6 +2214,7 @@ function PayrollPageContent() {
                                                     variant="subtle"
                                                     onClick={() => openEmployeeModal(employee)}
                                                     title="Edit employee"
+                                                    disabled={isReadOnly()}
                                                 >
                                                     <IconEdit size={16} />
                                                 </ActionIcon>
@@ -1764,6 +2226,7 @@ function PayrollPageContent() {
                                                         setDeleteEmployeeModalOpened(true);
                                                     }}
                                                     title="Delete employee"
+                                                    disabled={isReadOnly()}
                                                 >
                                                     <IconTrash size={16} />
                                                 </ActionIcon>
@@ -2143,6 +2606,38 @@ function PayrollPageContent() {
                         </Button>
                         <Button onClick={handleReportApprovalConfirm} disabled={!reportApprovalCheckbox} color="green">
                             Approve & Sign
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            {/* PDF Export Modal */}
+            <Modal
+                opened={pdfModalOpened}
+                onClose={() => setPdfModalOpened(false)}
+                title={getFileName()}
+                size="90%"
+                centered
+                padding="sm"
+            >
+                <Stack gap="xs">
+                    <div
+                        style={{
+                            maxHeight: "70vh",
+                            overflowY: "auto",
+                            border: "1px solid #e0e0e0",
+                            borderRadius: "8px",
+                        }}
+                    >
+                        <PDFReportTemplate />
+                    </div>
+
+                    <Group justify="flex-end" gap="md">
+                        <Button variant="outline" onClick={() => setPdfModalOpened(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={exportToPDF} leftSection={<IconDownload size={16} />}>
+                            Download
                         </Button>
                     </Group>
                 </Stack>

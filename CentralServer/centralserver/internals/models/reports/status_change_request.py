@@ -3,7 +3,6 @@
 from typing import Dict, List
 
 from pydantic import BaseModel, Field
-from ulid import R
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 

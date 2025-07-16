@@ -1,4 +1,5 @@
 from centralserver.internals.models import (
+    ai,
     object_store,
     reports,
     role,
@@ -8,6 +9,7 @@ from centralserver.internals.models import (
 )
 
 __all__ = [
+    "ai",
     "object_store",
     "reports",
     "role",

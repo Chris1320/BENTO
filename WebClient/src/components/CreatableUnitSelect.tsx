@@ -10,6 +10,7 @@ interface CreatableUnitSelectProps {
     onAddUnit: (unit: string) => void;
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
 }
 
 export function CreatableUnitSelect({
@@ -19,6 +20,7 @@ export function CreatableUnitSelect({
     onAddUnit,
     placeholder = "Select or create unit",
     className = "w-full",
+    disabled = false,
 }: CreatableUnitSelectProps) {
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
@@ -39,6 +41,7 @@ export function CreatableUnitSelect({
 
     return (
         <Combobox
+            disabled={disabled}
             store={combobox}
             withinPortal={true}
             onOptionSubmit={(val) => {
@@ -56,6 +59,7 @@ export function CreatableUnitSelect({
         >
             <Combobox.Target>
                 <InputBase
+                    disabled={disabled}
                     className={className}
                     rightSection={<Combobox.Chevron />}
                     value={search}

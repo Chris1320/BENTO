@@ -276,6 +276,7 @@ async def create_school_payroll_report(
     if existing_payroll_report is None:
         new_payroll_report = PayrollReport(
             parent=selected_monthly_report.id,
+            schoolId=school_id,
             preparedBy=user.id,  # Required field - always set to current user
             notedBy=noted_by,  # Nullable field - can be None
         )
@@ -382,6 +383,7 @@ async def create_payroll_report_entry(
 
     new_entry = PayrollReportEntry(
         parent=payroll_report.parent,
+        schoolId=school_id,
         weekNumber=entry_data.week_number,
         employeeName=entry_data.employee_name,
         sun=entry_data.sun,
@@ -487,6 +489,7 @@ async def create_bulk_payroll_report_entries(
 
         payroll_report = PayrollReport(
             parent=datetime.date(year=year, month=month, day=1),
+            schoolId=school_id,
             preparedBy=user.id,
             notedBy=noted_by,
         )
@@ -504,8 +507,8 @@ async def create_bulk_payroll_report_entries(
     }
 
     # Create new entries, skip existing ones
-    new_entries = []
-    skipped_entries = []
+    new_entries: list[PayrollReportEntry] = []
+    skipped_entries: list[tuple[int, str]] = []
 
     for entry_data in entries:
         entry_key = (entry_data.week_number, entry_data.employee_name)
@@ -515,6 +518,7 @@ async def create_bulk_payroll_report_entries(
 
         new_entry = PayrollReportEntry(
             parent=datetime.date(year=year, month=month, day=1),
+            schoolId=school_id,
             weekNumber=entry_data.week_number,
             employeeName=entry_data.employee_name,
             sun=entry_data.sun,

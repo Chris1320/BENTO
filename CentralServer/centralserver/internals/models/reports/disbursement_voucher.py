@@ -2,6 +2,7 @@ import datetime
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import ForeignKeyConstraint
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 
@@ -17,10 +18,16 @@ class DisbursementVoucher(SQLModel, table=True):
 
     __tablename__ = "disbursementVouchers"  # type: ignore
 
-    parent: datetime.date = Field(
-        primary_key=True, index=True, foreign_key="monthlyReports.id"
+    parent: datetime.date = Field(primary_key=True, index=True)
+    date: datetime.date = Field(
+        primary_key=True,
+        description="The date of the disbursement voucher report.",
     )
-    date: datetime.date
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the disbursement voucher report.",
+    )
 
     modeOfPayment: str  # MDS Check, Commercial Check, ADA, Others
 
@@ -48,6 +55,15 @@ class DisbursementVoucher(SQLModel, table=True):
         description="The status of the report.",
     )
 
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_disbursement_voucher_monthly_report",
+        ),
+    )
+
     certified_by: list["DisbursementVoucherCertifiedBy"] = Relationship(
         back_populates="parent_report", cascade_delete=True
     )
@@ -65,11 +81,28 @@ class DisbursementVoucher(SQLModel, table=True):
 class DisbursementVoucherCertifiedBy(SQLModel, table=True):
     __tablename__ = "disbursementVoucherCertifiedBy"  # type: ignore
 
-    parent: datetime.date = Field(
-        primary_key=True, index=True, foreign_key="disbursementVouchers.parent"
+    parent: datetime.date = Field(primary_key=True, index=True)
+    date: datetime.date = Field(primary_key=True)
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the certification.",
     )
     user: str = Field(foreign_key="users.id")
     role: str | None = None  # e.g. Principal, Accountant, Cashier
+
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of disbursementVouchers
+        ForeignKeyConstraint(
+            ["parent", "date", "schoolId"],
+            [
+                "disbursementVouchers.parent",
+                "disbursementVouchers.date",
+                "disbursementVouchers.schoolId",
+            ],
+            name="fk_disbursement_voucher_certified_by",
+        ),
+    )
 
     parent_report: DisbursementVoucher = Relationship(back_populates="certified_by")
 
@@ -77,16 +110,32 @@ class DisbursementVoucherCertifiedBy(SQLModel, table=True):
 class DisbursementVoucherEntry(SQLModel, table=True):
     __tablename__ = "disbursementVoucherEntries"  # type: ignore
 
-    parent: datetime.date = Field(
-        primary_key=True, index=True, foreign_key="disbursementVouchers.parent"
-    )
+    parent: datetime.date = Field(primary_key=True, index=True)
     # to be edited for specific inputs based on the report requirements
-    date: datetime.datetime
+    date: datetime.datetime = Field(primary_key=True)
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the entry.",
+    )
     receipt: str | None
     particulars: str = Field(primary_key=True)
     unit: str
     quantity: float
     unitPrice: float
+
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of disbursementVouchers
+        ForeignKeyConstraint(
+            ["parent", "date", "schoolId"],
+            [
+                "disbursementVouchers.parent",
+                "disbursementVouchers.date",
+                "disbursementVouchers.schoolId",
+            ],
+            name="fk_disbursement_voucher_entry",
+        ),
+    )
 
     parent_report: DisbursementVoucher = Relationship(back_populates="entries")
 
@@ -94,13 +143,30 @@ class DisbursementVoucherEntry(SQLModel, table=True):
 class DisbursementVoucherAccountingEntry(SQLModel, table=True):
     __tablename__ = "disbursementVoucherAccountingEntries"  # type: ignore
 
-    parent: datetime.date = Field(
-        primary_key=True, index=True, foreign_key="disbursementVouchers.parent"
+    parent: datetime.date = Field(primary_key=True, index=True)
+    date: datetime.datetime = Field(primary_key=True)
+    schoolId: int = Field(
+        primary_key=True,
+        foreign_key="schools.id",
+        description="The ID of the school associated with the accounting entry.",
     )
     uacs_code: str
     accountTitle: str
     debit: float
     credit: float
+
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of disbursementVouchers
+        ForeignKeyConstraint(
+            ["parent", "date", "schoolId"],
+            [
+                "disbursementVouchers.parent",
+                "disbursementVouchers.date",
+                "disbursementVouchers.schoolId",
+            ],
+            name="fk_disbursement_voucher_accounting_entry",
+        ),
+    )
 
     parent_report: DisbursementVoucher = Relationship(
         back_populates="accounting_entries"

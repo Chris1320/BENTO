@@ -2,6 +2,7 @@ import datetime
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import ForeignKeyConstraint
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 
@@ -13,10 +14,13 @@ class LiquidationReportHEFund(SQLModel, table=True):
     __tablename__: str = "liquidationReportHEFund"  # type: ignore
 
     parent: datetime.date = Field(
-        primary_key=True, index=True, foreign_key="monthlyReports.id"
+        primary_key=True, index=True
     )
-    certified_by: list["LiquidationReportHEFundCertifiedBy"] = Relationship(
-        back_populates="parent_report"
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
     )
     notedBy: str = Field(foreign_key="users.id")
     preparedBy: str = Field(foreign_key="users.id")
@@ -30,6 +34,18 @@ class LiquidationReportHEFund(SQLModel, table=True):
         description="Optional memo/notes for the liquidation report.",
     )
 
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_liquidation_report_he_fund_monthly_report"
+        ),
+    )
+
+    certified_by: list["LiquidationReportHEFundCertifiedBy"] = Relationship(
+        back_populates="parent_report"
+    )
     entries: list["LiquidationReportHEFundEntry"] = Relationship(
         back_populates="parent_report", cascade_delete=True
     )
@@ -44,9 +60,23 @@ class LiquidationReportHEFundCertifiedBy(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True,
         index=True,
-        foreign_key="liquidationReportHEFund.parent",
     )
     user: str = Field(primary_key=True, foreign_key="users.id")
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
+
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportHEFund
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["liquidationReportHEFund.parent", "liquidationReportHEFund.schoolId"],
+            name="fk_lr_he_fund_certified_by"
+        ),
+    )
 
     parent_report: LiquidationReportHEFund = Relationship(back_populates="certified_by")
 
@@ -57,12 +87,17 @@ class LiquidationReportHEFundEntry(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True,
         index=True,
-        foreign_key="liquidationReportHEFund.parent",
     )
     date: datetime.datetime = Field(
         primary_key=True,
         index=True,
         description="The date of the expense entry.",
+    )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
     )
     receipt: str | None
     particulars: str = Field(primary_key=True)
@@ -72,6 +107,15 @@ class LiquidationReportHEFundEntry(SQLModel, table=True):
     receipt_attachment_urns: str | None = Field(
         default=None,
         description="JSON string containing list of receipt attachment URNs",
+    )
+
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportHEFund
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["liquidationReportHEFund.parent", "liquidationReportHEFund.schoolId"],
+            name="fk_lr_he_fund_entry"
+        ),
     )
 
     parent_report: LiquidationReportHEFund = Relationship(back_populates="entries")

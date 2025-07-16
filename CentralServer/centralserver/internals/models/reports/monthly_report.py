@@ -1,7 +1,7 @@
 import datetime
 
-from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import ForeignKeyConstraint
+from sqlmodel import Field, Relationship, SQLModel
 
 from centralserver.internals.models.reports.daily_financial_report import (
     DailyFinancialReport,
@@ -154,6 +154,14 @@ class MonthlyReport(SQLModel, table=True):
 
 class MonthlyReportAuditedBy(SQLModel, table=True):
     __tablename__: str = "monthlyReportAuditedBy"  # type: ignore
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_monthly_report_audited_by",
+        ),
+    )
 
     parent: datetime.date = Field(
         primary_key=True,
@@ -165,15 +173,6 @@ class MonthlyReportAuditedBy(SQLModel, table=True):
         index=True,
         foreign_key="schools.id",
         description="The school that submitted the report.",
-    )
-
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of monthlyReports
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
-            name="fk_monthly_report_audited_by"
-        ),
     )
 
     parent_report: MonthlyReport = Relationship(back_populates="audited_by")

@@ -1,8 +1,8 @@
 import datetime
 from typing import TYPE_CHECKING
 
-from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import ForeignKeyConstraint
+from sqlmodel import Field, Relationship, SQLModel
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 
@@ -14,10 +14,16 @@ class LiquidationReportFacultyAndStudentDevFund(SQLModel, table=True):
     """A model representing the liquidation (Faculty and Student Development Fund) reports."""
 
     __tablename__: str = "liquidationReportFacultyAndStudentDevFund"  # type: ignore
-
-    parent: datetime.date = Field(
-        primary_key=True, index=True
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_faculty_student_dev_fund_monthly_report",
+        ),
     )
+
+    parent: datetime.date = Field(primary_key=True, index=True)
     schoolId: int = Field(
         primary_key=True,
         index=True,
@@ -36,15 +42,6 @@ class LiquidationReportFacultyAndStudentDevFund(SQLModel, table=True):
         description="Optional memo/notes for the liquidation report.",
     )
 
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of monthlyReports
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
-            name="fk_faculty_student_dev_fund_monthly_report"
-        ),
-    )
-
     audited_by: list["FacultyAndStudentDevFundAuditedBy"] = Relationship(
         back_populates="parent_report", cascade_delete=True
     )
@@ -58,6 +55,17 @@ class LiquidationReportFacultyAndStudentDevFund(SQLModel, table=True):
 
 class FacultyAndStudentDevFundAuditedBy(SQLModel, table=True):
     __tablename__: str = "liquidationReportFacultyAndStudentDevFundAuditedBy"  # type: ignore
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportFacultyAndStudentDevFund
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            [
+                "liquidationReportFacultyAndStudentDevFund.parent",
+                "liquidationReportFacultyAndStudentDevFund.schoolId",
+            ],
+            name="fk_faculty_student_dev_fund_audited_by",
+        ),
+    )
 
     parent: datetime.date = Field(
         primary_key=True,
@@ -71,15 +79,6 @@ class FacultyAndStudentDevFundAuditedBy(SQLModel, table=True):
         description="The school that submitted the report.",
     )
 
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of liquidationReportFacultyAndStudentDevFund
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["liquidationReportFacultyAndStudentDevFund.parent", "liquidationReportFacultyAndStudentDevFund.schoolId"],
-            name="fk_faculty_student_dev_fund_audited_by"
-        ),
-    )
-
     parent_report: LiquidationReportFacultyAndStudentDevFund = Relationship(
         back_populates="audited_by"
     )
@@ -87,6 +86,17 @@ class FacultyAndStudentDevFundAuditedBy(SQLModel, table=True):
 
 class FacultyAndStudentDevFundEntry(SQLModel, table=True):
     __tablename__: str = "liquidationReportFacultyAndStudentDevFundEntries"  # type: ignore
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportFacultyAndStudentDevFund
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            [
+                "liquidationReportFacultyAndStudentDevFund.parent",
+                "liquidationReportFacultyAndStudentDevFund.schoolId",
+            ],
+            name="fk_faculty_student_dev_fund_entry",
+        ),
+    )
 
     parent: datetime.date = Field(
         primary_key=True,
@@ -109,14 +119,6 @@ class FacultyAndStudentDevFundEntry(SQLModel, table=True):
     quantity: float | None = Field(default=None)
     unitPrice: float
 
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of liquidationReportFacultyAndStudentDevFund
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["liquidationReportFacultyAndStudentDevFund.parent", "liquidationReportFacultyAndStudentDevFund.schoolId"],
-            name="fk_faculty_student_dev_fund_entry"
-        ),
-    )
     receipt_attachment_urns: str | None = Field(
         default=None,
         description="JSON string containing list of receipt attachment URNs",

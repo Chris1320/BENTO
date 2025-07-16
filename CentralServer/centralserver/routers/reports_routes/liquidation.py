@@ -222,13 +222,16 @@ def _calculate_total_amount(entries: list[Any], has_qty_unit: bool) -> float:
     for entry in entries:
         if has_qty_unit and hasattr(entry, "quantity") and entry.quantity:
             # For entries with quantity and unit price
-            unit_price = getattr(entry, "unitPrice", 0.0) or getattr(
-                entry, "amount", 0.0
+            # Try different field name variations for unit price
+            unit_price = (
+                getattr(entry, "unit_price", None)
+                or getattr(entry, "unitPrice", None)
+                or getattr(entry, "amount", 0.0)
             )
             total += entry.quantity * unit_price
         else:
-            # For entries with direct amount or unit price
-            amount = getattr(entry, "amount", None) or getattr(entry, "unitPrice", 0.0)
+            # For entries with direct amount
+            amount = getattr(entry, "amount", 0.0)
             total += amount
     return total
 
@@ -1089,6 +1092,9 @@ def get_liquidation_expenses_by_category(
 ) -> Dict[str, float]:
     """Get liquidation expenses by category for a specific monthly report and school.
 
+    This function directly queries the entry tables to get expenses, regardless of
+    whether the liquidation reports exist or not.
+
     Args:
         session: Database session
         monthly_report: Monthly report to get expenses for
@@ -1103,21 +1109,24 @@ def get_liquidation_expenses_by_category(
     expenses_by_category: Dict[str, float] = {}
     parent_date = monthly_report.id
 
-    # Iterate through all liquidation categories
+    # Iterate through all liquidation categories and query entries directly
     for category_key, category_config in LIQUIDATION_CATEGORIES.items():
-        # Get the report for this category
-        report = _get_liquidation_report(
-            session, category_config, parent_date, school_id
-        )
+        entry_model = category_config["entry_model"]
+        has_qty_unit = category_config["has_qty_unit"]
 
-        if report and report.entries:
-            # Calculate total amount for this category
-            total_amount = _calculate_total_amount(
-                report.entries, category_config["has_qty_unit"]
+        # Query entries directly from the entry table
+        entries = session.exec(
+            select(entry_model).where(
+                entry_model.parent == parent_date,
+                entry_model.schoolId == school_id,
             )
+        ).all()
+
+        if entries:
+            # Calculate total amount for this category
+            total_amount = _calculate_total_amount(list(entries), has_qty_unit)
             expenses_by_category[category_key] = total_amount
         else:
             expenses_by_category[category_key] = 0.0
 
-    print(expenses_by_category)
     return expenses_by_category

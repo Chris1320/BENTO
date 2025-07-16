@@ -23,10 +23,11 @@
 
 import { CreatableUnitSelect } from "@/components/CreatableUnitSelect";
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
+import { ReportAttachmentManager } from "@/components/Reports/ReportAttachmentManager";
 import { SplitButton } from "@/components/SplitButton/SplitButton";
 import { SubmitForReviewButton } from "@/components/SubmitForReview";
-import { ReportAttachmentManager } from "@/components/Reports/ReportAttachmentManager";
 import * as csclient from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { useUser } from "@/lib/providers/user";
 import {
     ActionIcon,
@@ -56,7 +57,6 @@ import { notifications } from "@mantine/notifications";
 import {
     IconCalendar,
     IconDownload,
-    IconFileText,
     IconFileTypePdf,
     IconHistory,
     IconPlus,
@@ -68,7 +68,6 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { customLogger } from "@/lib/api/customLogger";
 
 const report_type = {
     operating_expenses: "Operating Expenses",

@@ -1640,7 +1640,8 @@ function LiquidationReportContent() {
                 <Stack gap="md">
                     {/* Disbursement Voucher Button */}
                     <Group justify="flex-end">
-                        <Button
+                        {/* FIXME: Implement this */}
+                        {/* <Button
                             leftSection={<IconFileText size={16} />}
                             variant="light"
                             onClick={() => router.push(`/reports/disbursement-voucher?category=${category}`)}
@@ -1649,7 +1650,7 @@ function LiquidationReportContent() {
                             disabled={isSubmitting || isReadOnly() || !reportPeriod || !category}
                         >
                             Create Disbursement Voucher
-                        </Button>
+                        </Button> */}
                     </Group>
 
                     {/* Main Action Buttons */}

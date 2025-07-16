@@ -1693,7 +1693,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                             </Button>
                         )}
                     </Group>
-                    <Group justify="space-between" align="center">
+                    {/*                     <Group justify="space-between" align="center">
                         <Group>
                             <Box w={30} h={30}>
                                 <Image
@@ -1722,7 +1722,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 </Text>
                             </div>
                         </Group>
-                        {userInfo?.oauthLinkedMicrosoftId ? (
+                        {userInfo?.oauthLinkedFacebookId ? (
                             <Button
                                 variant="light"
                                 color="blue"
@@ -1755,7 +1755,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 Link Account
                             </Button>
                         )}
-                    </Group>
+                    </Group> */}
                     <Group justify="space-between" align="center">
                         <Group>
                             <Box w={30} h={30}>
@@ -1785,12 +1785,12 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 </Text>
                             </div>
                         </Group>
-                        {userInfo?.oauthLinkedFacebookId ? (
+                        {userInfo?.oauthLinkedMicrosoftId ? (
                             <Button
                                 variant="light"
                                 color="indigo"
                                 size="xs"
-                                disabled={!oauthSupport.facebook}
+                                disabled={!oauthSupport.microsoft}
                                 onClick={() => {
                                     notifications.show({
                                         title: "Coming Soon",
@@ -1806,7 +1806,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 variant="light"
                                 color="indigo"
                                 size="xs"
-                                disabled={!oauthSupport.facebook}
+                                disabled={!oauthSupport.microsoft}
                                 onClick={async () => {
                                     notifications.show({
                                         title: "Coming Soon",

@@ -29,6 +29,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconCircleCheck, IconCircleDashed, IconRefreshAlert } from "@tabler/icons-react";
+import dayjs from "dayjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Suspense, memo, useCallback, useEffect, useState } from "react";
@@ -348,10 +349,13 @@ const NotificationCard = memo(function NotificationCard({ notification }: { noti
                     <Avatar color={color} radius="xl">
                         <IconComponent />
                     </Avatar>
-                    <Text size="sm">{notification.content}</Text>
+                    <Stack>
+                        {notification.title && <Text size="md">{notification.title}</Text>}
+                        <Text size="sm">{notification.content}</Text>
+                    </Stack>
                 </Group>
                 <Text size="xs" c="dimmed" ta="right" mt={5}>
-                    {notification.created ? new Date(notification.created).toLocaleString() : "Unknown time"}
+                    {dayjs(notification.created).format("YYYY-MM-DD HH:mm:ss")}
                 </Text>
             </Card>
         </Link>

@@ -4,18 +4,21 @@ import { LiquidationReportModal } from "@/components/LiquidationReportCategory";
 import { MonthlyReportDetailsModal } from "@/components/MonthlyReportDetailsModal";
 import { MonthlyReportEditModal } from "@/components/MonthlyReportEditModal";
 import { ReportStatusManager } from "@/components/ReportStatusManager";
-import { GetSchoolInfo } from "@/lib/api/school";
-import { useUser } from "@/lib/providers/user";
 import {
     MonthlyReport,
     School,
-    getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet,
-    deleteSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthDelete,
     changeDailyReportStatusV1ReportsDailySchoolIdYearMonthStatusPatch,
-    changePayrollReportStatusV1ReportsPayrollSchoolIdYearMonthStatusPatch,
     changeLiquidationReportStatusV1ReportsLiquidationSchoolIdYearMonthCategoryStatusPatch,
+    changePayrollReportStatusV1ReportsPayrollSchoolIdYearMonthStatusPatch,
+    deleteSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthDelete,
+    getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet,
+    getSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGet,
 } from "@/lib/api/csclient";
 import type { ReportStatus } from "@/lib/api/csclient/types.gen";
+import { customLogger } from "@/lib/api/customLogger";
+import { GetSchoolInfo } from "@/lib/api/school";
+import { useUser } from "@/lib/providers/user";
+import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
 import {
     ActionIcon,
     Alert,
@@ -55,7 +58,6 @@ import {
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { customLogger } from "@/lib/api/customLogger";
 
 export default function ReportsPage() {
     customLogger.debug("Rendering ReportsPage");
@@ -63,6 +65,7 @@ export default function ReportsPage() {
     const router = useRouter();
     const userCtx = useUser();
     const [userAssignedToSchool, setUserAssignedToSchool] = useState<boolean>(true);
+    const [schoolData, setSchoolData] = useState<School | null>(null);
     const [search, setSearch] = useState("");
     const [selectedReports, setSelectedReports] = useState<string[]>([]);
     const [statusFilter, setStatusFilter] = useState("all");
@@ -75,30 +78,95 @@ export default function ReportsPage() {
     const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
     const [reportSubmissions, setReportSubmissions] = useState<MonthlyReport[]>([]);
     const [parsedSubmittedBySchools, setParsedSubmittedBySchools] = useState<Record<number, School>>({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalReports, setTotalReports] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const itemsPerPage = 10;
+
+    // Fetch reports with pagination
+    const fetchReports = useCallback(
+        async (page: number = 1) => {
+            if (!userCtx.userInfo?.schoolId) {
+                setUserAssignedToSchool(false);
+                return;
+            }
+
+            setLoading(true);
+            try {
+                setUserAssignedToSchool(true);
+
+                // Calculate offset for API
+                const offset = (page - 1) * itemsPerPage;
+
+                // Fetch reports for current page
+                const { data: reports } = await getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet({
+                    path: { school_id: userCtx.userInfo.schoolId },
+                    query: { offset, limit: itemsPerPage },
+                });
+
+                // Fetch total count
+                const { data: totalCount } = await getSchoolMonthlyReportQuantityV1ReportsMonthlySchoolIdQuantityGet({
+                    path: { school_id: userCtx.userInfo.schoolId },
+                });
+
+                customLogger.debug("Fetched reports:", reports);
+                customLogger.debug("Total reports count:", totalCount);
+
+                setReportSubmissions(reports || []);
+                setTotalReports(totalCount || 0);
+            } catch (error) {
+                customLogger.error("Failed to fetch reports:", error);
+                setReportSubmissions([]);
+                setTotalReports(0);
+            } finally {
+                setLoading(false);
+            }
+        },
+        [userCtx.userInfo?.schoolId]
+    );
+
+    // Fetch reports on component mount and when page changes
+    useEffect(() => {
+        fetchReports(currentPage);
+    }, [fetchReports, currentPage]);
 
     // Fetch reports on component mount
     useEffect(() => {
-        const fetchReports = async () => {
+        const fetchInitialReports = async () => {
             try {
                 if (userCtx.userInfo?.schoolId) {
-                    setUserAssignedToSchool(true);
-                    const { data: reports } = await getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet({
-                        path: { school_id: userCtx.userInfo.schoolId },
-                        query: { offset: 0, limit: 10 },
-                    });
-                    customLogger.debug("Fetched reports:", reports);
-                    setReportSubmissions(reports || []);
+                    await fetchReports(1);
                 } else {
                     setUserAssignedToSchool(false);
                     customLogger.warn("No schoolId found in user context");
                 }
             } catch (error) {
-                customLogger.error("Failed to fetch reports:", error);
+                customLogger.error("Failed to fetch initial reports:", error);
             }
         };
 
-        fetchReports();
-    }, [userCtx.userInfo]);
+        fetchInitialReports();
+    }, [userCtx.userInfo, fetchReports]);
+
+    // Fetch school data to check for assigned principal
+    useEffect(() => {
+        const fetchSchoolData = async () => {
+            try {
+                if (userCtx.userInfo?.schoolId) {
+                    const school = await GetSchoolInfo(userCtx.userInfo.schoolId);
+                    setSchoolData(school);
+                    customLogger.debug("Fetched school data:", school);
+                } else {
+                    setSchoolData(null);
+                }
+            } catch (error) {
+                customLogger.error("Failed to fetch school data:", error);
+                setSchoolData(null);
+            }
+        };
+
+        fetchSchoolData();
+    }, [userCtx.userInfo?.schoolId]);
 
     const filteredReports = reportSubmissions.filter((report) => {
         const matchesSearch = report.name?.toLowerCase().includes(search.toLowerCase());
@@ -108,6 +176,19 @@ export default function ReportsPage() {
 
         return matchesSearch && matchesStatus;
     });
+
+    // Calculate total pages based on total reports from API
+    const totalPages = Math.ceil(totalReports / itemsPerPage);
+
+    // Reset to first page when filters change and refetch
+    useEffect(() => {
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        } else {
+            fetchReports(1);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search, statusFilter, categoryFilter, fetchReports]);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -153,10 +234,10 @@ export default function ReportsPage() {
         setSelectedReport(null);
     }, []);
 
-    const handleReportUpdate = useCallback((updatedReport: MonthlyReport) => {
-        // Update the local state with the updated report
-        setReportSubmissions((prev) => prev.map((report) => (report.id === updatedReport.id ? updatedReport : report)));
-    }, []);
+    const handleReportUpdate = useCallback(async () => {
+        // Refetch the current page to get updated data
+        await fetchReports(currentPage);
+    }, [fetchReports, currentPage]);
 
     const handleDeleteReport = useCallback(async (reportId: string) => {
         setReportToDelete(reportId);
@@ -187,8 +268,8 @@ export default function ReportsPage() {
                 },
             });
 
-            // Remove from local state
-            setReportSubmissions((prev) => prev.filter((r) => r.id !== reportToDelete));
+            // Refetch the current page to get updated data
+            await fetchReports(currentPage);
 
             notifications.show({
                 title: "Success",
@@ -199,6 +280,7 @@ export default function ReportsPage() {
             // Close modal and reset state
             setDeleteConfirmModalOpened(false);
             setReportToDelete(null);
+            setSelectedReports([]);
         } catch (error) {
             customLogger.error("Failed to delete report:", error);
             notifications.show({
@@ -207,7 +289,7 @@ export default function ReportsPage() {
                 color: "red",
             });
         }
-    }, [reportToDelete, userCtx.userInfo?.schoolId]);
+    }, [reportToDelete, userCtx.userInfo?.schoolId, fetchReports, currentPage]);
 
     const cancelDeleteReport = useCallback(() => {
         setDeleteConfirmModalOpened(false);
@@ -321,18 +403,16 @@ export default function ReportsPage() {
     );
 
     const handleReportStatusChange = useCallback(
-        (reportId: string, newStatus: ReportStatus) => {
-            // Update the local state to reflect the status change
-            setReportSubmissions((prev) =>
-                prev.map((report) => (report.id === reportId ? { ...report, reportStatus: newStatus } : report))
-            );
+        async (reportId: string, newStatus: ReportStatus) => {
+            // Refetch the current page to get updated data
+            await fetchReports(currentPage);
 
             // If the status is being changed to "review", cascade to all component reports
             if (newStatus === "review" && userCtx.userInfo?.schoolId) {
                 cascadeStatusToComponentReports(reportId, newStatus, userCtx.userInfo.schoolId);
             }
         },
-        [userCtx.userInfo?.schoolId, cascadeStatusToComponentReports]
+        [userCtx.userInfo?.schoolId, cascadeStatusToComponentReports, fetchReports, currentPage]
     );
 
     // Check if user can create reports based on role
@@ -357,12 +437,19 @@ export default function ReportsPage() {
         return !!userCtx.userInfo?.schoolId;
     }, [userCtx.userInfo?.schoolId]);
 
+    const hasPrincipalAssigned = useMemo(() => {
+        return !!schoolData?.assignedNotedBy;
+    }, [schoolData?.assignedNotedBy]);
+
     const getDisabledReason = () => {
         if (!isAssignedToSchool) {
             return "Not assigned to a school";
         }
         if (!hasCompleteProfile) {
             return "Profile incomplete";
+        }
+        if (!hasPrincipalAssigned) {
+            return "No principal assigned to school";
         }
         if (!canCreateReports) {
             return "Access restricted by role";
@@ -450,13 +537,20 @@ export default function ReportsPage() {
                     <Table.Tr key={`${report.id}`}>
                         <Table.Td>
                             <Checkbox
+                                disabled={!canCreateReports}
                                 checked={selectedReports.includes(report.id)}
                                 onChange={(e) => handleSelectReport(report.id, e.currentTarget.checked)}
                             />
                         </Table.Td>
                         <Table.Td>
-                            <div style={{ cursor: "pointer" }} onClick={() => handleOpenReportDetails(report)}>
-                                <Text fw={500} size="sm">
+                            <div
+                                style={{
+                                    cursor: hasCompleteProfile ? "pointer" : "not-allowed",
+                                    opacity: hasCompleteProfile ? 1 : 0.6,
+                                }}
+                                onClick={hasCompleteProfile ? () => handleOpenReportDetails(report) : undefined}
+                            >
+                                <Text fw={500} size="sm" c={hasCompleteProfile ? undefined : "dimmed"}>
                                     {report.name}
                                 </Text>
                                 <Text size="xs" c="dimmed">
@@ -486,13 +580,13 @@ export default function ReportsPage() {
                                 </Text>
                                 {userCtx.userInfo?.schoolId && (
                                     <ReportStatusManager
+                                        disabled={!hasCompleteProfile}
                                         currentStatus={report.reportStatus || "draft"}
                                         reportType="monthly"
                                         schoolId={userCtx.userInfo.schoolId}
                                         year={parseInt(dayjs(report.id).format("YYYY"))}
                                         month={parseInt(dayjs(report.id).format("MM"))}
                                         onStatusChanged={(newStatus) => handleReportStatusChange(report.id, newStatus)}
-                                        disabled={false}
                                     />
                                 )}
                             </Group>
@@ -504,17 +598,15 @@ export default function ReportsPage() {
                         </Table.Td>
                         <Table.Td>
                             <Text size="sm" c="dimmed">
-                                {report.lastModified
-                                    ? new Date(report.lastModified).toLocaleDateString("en-US", {
-                                          month: "2-digit",
-                                          day: "2-digit",
-                                          year: "numeric",
-                                      })
-                                    : "N/A"}
+                                {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
+                                    month: "2-digit",
+                                    day: "2-digit",
+                                    year: "numeric",
+                                })}
                             </Text>
                         </Table.Td>
                         <Table.Td>
-                            <Menu withinPortal position="bottom-end" shadow="sm">
+                            <Menu disabled={!hasCompleteProfile} withinPortal position="bottom-end" shadow="sm">
                                 <Menu.Target>
                                     <ActionIcon variant="subtle" color="gray">
                                         <IconDots size={16} />
@@ -563,6 +655,7 @@ export default function ReportsPage() {
             handleOpenEditModal,
             handleReportStatusChange,
             canCreateReports,
+            hasCompleteProfile,
             userCtx.userInfo?.schoolId,
         ]
     );
@@ -599,6 +692,22 @@ export default function ReportsPage() {
         }
     }, [hasCompleteProfile, userCtx.userInfo, isAssignedToSchool]);
 
+    // Show notification for schools without assigned principal
+    useEffect(() => {
+        if (!hasPrincipalAssigned && userCtx.userInfo && isAssignedToSchool && hasCompleteProfile && schoolData) {
+            notifications.show({
+                id: "no-principal-assigned",
+                title: "No Principal Assigned",
+                message:
+                    "Your school does not have a principal assigned. Reports require a principal for approval. Please contact your administrator to assign a principal to your school.",
+                color: "orange",
+                icon: <IconAlertCircle size={16} />,
+                autoClose: false,
+                withCloseButton: true,
+            });
+        }
+    }, [hasPrincipalAssigned, userCtx.userInfo, isAssignedToSchool, hasCompleteProfile, schoolData]);
+
     return (
         <Stack gap="lg">
             {!canCreateReports && userCtx.userInfo?.roleId && (
@@ -626,7 +735,9 @@ export default function ReportsPage() {
                             icon={IconCash}
                             color="blue"
                             onClick={handleNavigateToSales}
-                            disabled={!canCreateReports || !hasCompleteProfile || !isAssignedToSchool}
+                            disabled={
+                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
+                            }
                             disabledReason={getDisabledReason()}
                         />
                     </Grid.Col>
@@ -637,7 +748,9 @@ export default function ReportsPage() {
                             icon={IconReceipt}
                             color="green"
                             onClick={() => setLiquidationModalOpened(true)}
-                            disabled={!canCreateReports || !hasCompleteProfile || !isAssignedToSchool}
+                            disabled={
+                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
+                            }
                             disabledReason={getDisabledReason()}
                         />
                     </Grid.Col>
@@ -648,7 +761,9 @@ export default function ReportsPage() {
                             icon={IconUsers}
                             color="violet"
                             onClick={handleNavigateToPayroll}
-                            disabled={!canCreateReports || !hasCompleteProfile || !isAssignedToSchool}
+                            disabled={
+                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
+                            }
                             disabledReason={getDisabledReason()}
                         />
                     </Grid.Col>
@@ -739,6 +854,7 @@ export default function ReportsPage() {
                                         selectedReports.length > 0 && selectedReports.length < filteredReports.length
                                     }
                                     onChange={(e) => handleSelectAll(e.currentTarget.checked)}
+                                    disabled={loading}
                                 />
                             </Table.Th>
                             <Table.Th>Report Name</Table.Th>
@@ -748,10 +864,20 @@ export default function ReportsPage() {
                             <Table.Th></Table.Th>
                         </Table.Tr>
                     </Table.Thead>
-                    <Table.Tbody>{rows}</Table.Tbody>
+                    <Table.Tbody style={{ opacity: loading ? 0.5 : 1 }}>
+                        {loading ? (
+                            <Table.Tr>
+                                <Table.Td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                                    <Text c="dimmed">Loading reports...</Text>
+                                </Table.Td>
+                            </Table.Tr>
+                        ) : (
+                            rows
+                        )}
+                    </Table.Tbody>
                 </Table>
 
-                {filteredReports.length === 0 && (
+                {!loading && filteredReports.length === 0 && (
                     <Paper p="xl" ta="center">
                         {userAssignedToSchool ? (
                             <Container size="xl" mt={50} style={{ textAlign: "center" }}>
@@ -781,9 +907,17 @@ export default function ReportsPage() {
             </Paper>
 
             {/* Pagination */}
-            <Group justify="center">
-                <Pagination total={Math.ceil(filteredReports.length / 10)} />
-            </Group>
+            {totalReports > 0 && (
+                <Group justify="center">
+                    <Pagination
+                        total={totalPages}
+                        value={currentPage}
+                        onChange={setCurrentPage}
+                        size="sm"
+                        disabled={loading}
+                    />
+                </Group>
+            )}
 
             {/* Liquidation Report Modal */}
             <LiquidationReportModal

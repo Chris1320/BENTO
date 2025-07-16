@@ -15,6 +15,12 @@ class LiquidationReportHEFund(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="monthlyReports.id"
     )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
     certified_by: list["LiquidationReportHEFundCertifiedBy"] = Relationship(
         back_populates="parent_report"
     )
@@ -47,6 +53,12 @@ class LiquidationReportHEFundCertifiedBy(SQLModel, table=True):
         foreign_key="liquidationReportHEFund.parent",
     )
     user: str = Field(primary_key=True, foreign_key="users.id")
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
 
     parent_report: LiquidationReportHEFund = Relationship(back_populates="certified_by")
 
@@ -63,6 +75,12 @@ class LiquidationReportHEFundEntry(SQLModel, table=True):
         primary_key=True,
         index=True,
         description="The date of the expense entry.",
+    )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
     )
     receipt: str | None
     particulars: str = Field(primary_key=True)

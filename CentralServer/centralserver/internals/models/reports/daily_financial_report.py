@@ -22,6 +22,12 @@ class DailyFinancialReport(SQLModel, table=True):
         index=True,
         foreign_key="monthlyReports.id",
     )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
     reportStatus: ReportStatus | None = Field(
         default=ReportStatus.DRAFT,
         description="The status of the report.",
@@ -49,6 +55,7 @@ class DailyFinancialReportEntry(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True, foreign_key="dailyFinancialReports.parent"
     )
+    school: int = Field(primary_key=True, foreign_key="schools.id", index=True)
     sales: float  # Positive float representing the total sales for the day
     purchases: float  # Positive float representing the total purchases for the day
 
@@ -61,3 +68,4 @@ class DailyEntryData(SQLModel):
     day: int = Field(..., ge=1, le=31, description="Day of the month (1-31)")
     sales: float = Field(..., ge=0, description="Total sales for the day")
     purchases: float = Field(..., ge=0, description="Total purchases for the day")
+    schoolId: int = Field(..., description="The school that submitted the entry")

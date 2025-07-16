@@ -66,7 +66,7 @@ export default function StatisticsPage() {
     const [error, setError] = useState<string | null>(null);
     const [statsData, setStatsData] = useState<FinancialStats | null>(null);
     const [schoolInfo, setSchoolInfo] = useState<School | null>(null);
-    const [includeDrafts, setIncludeDrafts] = useState(false);
+    const [includeDrafts, setIncludeDrafts] = useState(true);
     const [includeReviews, setIncludeReviews] = useState(true); // Default to include reviews
 
     // Determine if user can control filtering based on role

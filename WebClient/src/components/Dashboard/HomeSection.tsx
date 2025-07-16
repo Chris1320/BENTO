@@ -1,14 +1,18 @@
+import { AIChatModal } from "@/components/AI/AIChatModal";
 import * as csclient from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetSchoolInfo } from "@/lib/api/school";
+import { useAIInsights } from "@/lib/hooks/useAIInsights";
 import { useUser } from "@/lib/providers/user";
 import {
     Badge,
     Box,
+    Button,
     Card,
     Container,
     Grid,
     Group,
+    Loader,
     LoadingOverlay,
     RingProgress,
     Skeleton,
@@ -19,6 +23,7 @@ import {
 import { Calendar } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 import {
+    IconBrain,
     IconCalendarStats,
     IconCoin,
     IconConfetti,
@@ -161,6 +166,18 @@ export const HomeSection = memo(() => {
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [chatModalOpened, setChatModalOpened] = useState(false);
+
+    // AI Insights hook
+    const {
+        insights: aiInsights,
+        loading: aiLoading,
+        error: aiError,
+        isAvailable: aiAvailable,
+    } = useAIInsights({
+        schoolId: userInfo?.schoolId ?? undefined,
+        autoFetch: true,
+    });
 
     const fetchDashboardData = useCallback(async () => {
         if (!userInfo) return;
@@ -282,19 +299,30 @@ export const HomeSection = memo(() => {
     return !error ? (
         <Container size="xl" mt={50}>
             {/* Header */}
-            <Stack gap="xl" mb="xl">
-                <div>
-                    <Group gap="sm" mb="xs">
-                        <IconSchool size={28} color="var(--mantine-color-blue-6)" />
-                        <Title order={2}>Canteen Finance Overview</Title>
-                    </Group>
-                    {stats.schoolName && (
-                        <Text size="lg" c="dimmed">
-                            {stats.schoolName} • {dayjs().format("MMMM YYYY")}
-                        </Text>
-                    )}
-                </div>
-            </Stack>
+            <Group justify="space-between" align="flex-start" mb="xl">
+                <Stack gap="xl">
+                    <div>
+                        <Group gap="sm" mb="xs">
+                            <IconSchool size={28} color="var(--mantine-color-blue-6)" />
+                            <Title order={2}>Canteen Finance Overview</Title>
+                        </Group>
+                        {stats.schoolName && (
+                            <Text size="lg" c="dimmed">
+                                {stats.schoolName} • {dayjs().format("MMMM YYYY")}
+                            </Text>
+                        )}
+                    </div>
+                </Stack>
+                <Button
+                    variant="light"
+                    color="blue"
+                    leftSection={<IconBrain size={16} />}
+                    onClick={() => setChatModalOpened(true)}
+                    disabled={!aiAvailable}
+                >
+                    AI Chat
+                </Button>
+            </Group>
 
             {/* Bento Grid */}
             <Grid gutter="lg">
@@ -431,12 +459,33 @@ export const HomeSection = memo(() => {
                                                 </Text>
                                             </Stack>
                                             <Box style={{ flex: 1 }} ml="md">
-                                                <Text size="sm">
-                                                    Lorem ipsum keme keme keme 48 years nang kasi na ang katagalugan
-                                                    bakit tanders at ang mahogany waz sa otoko chopopo at bakit
-                                                    katagalugan planggana sa boyband jupang-pang kasi na ang Gino na ang
-                                                    intonses jutay ugmas.
-                                                </Text>
+                                                {aiAvailable ? (
+                                                    <>
+                                                        {aiLoading ? (
+                                                            <Group gap="sm">
+                                                                <Loader size="sm" />
+                                                                <Text size="sm" c="dimmed">
+                                                                    Generating AI insights...
+                                                                </Text>
+                                                            </Group>
+                                                        ) : aiError ? (
+                                                            <Text size="sm" c="red">
+                                                                Unable to generate AI insights: {aiError}
+                                                            </Text>
+                                                        ) : aiInsights ? (
+                                                            <Text size="sm">{aiInsights.insights}</Text>
+                                                        ) : (
+                                                            <Text size="sm" c="dimmed">
+                                                                No insights available
+                                                            </Text>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <Text size="sm" c="dimmed">
+                                                        AI insights are not available. Please configure the Gemini API
+                                                        key.
+                                                    </Text>
+                                                )}
                                             </Box>
                                         </Group>
                                     )}
@@ -446,6 +495,13 @@ export const HomeSection = memo(() => {
                     </motion.div>
                 </Grid.Col>
             </Grid>
+
+            {/* AI Chat Modal */}
+            <AIChatModal
+                opened={chatModalOpened}
+                onClose={() => setChatModalOpened(false)}
+                schoolId={userInfo?.schoolId ?? undefined}
+            />
         </Container>
     ) : (
         <Container size="xl" mt={50} style={{ textAlign: "center" }}>

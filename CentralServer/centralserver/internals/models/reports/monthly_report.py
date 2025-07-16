@@ -54,6 +54,7 @@ class MonthlyReport(SQLModel, table=True):
         description="The name of the report.",
     )
     submittedBySchool: int = Field(
+        primary_key=True,
         index=True,
         foreign_key="schools.id",
         description="The school that submitted the report.",
@@ -159,5 +160,11 @@ class MonthlyReportAuditedBy(SQLModel, table=True):
         foreign_key="monthlyReports.id",
     )
     user: str = Field(foreign_key="users.id")
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
 
     parent_report: MonthlyReport = Relationship(back_populates="audited_by")

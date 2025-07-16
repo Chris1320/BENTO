@@ -20,6 +20,12 @@ class LiquidationReportAdministrativeExpenses(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True, index=True, foreign_key="monthlyReports.id"
     )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
     notedBy: str = Field(foreign_key="users.id")
     preparedBy: str = Field(foreign_key="users.id")
     teacherInCharge: str = Field(foreign_key="users.id")
@@ -51,6 +57,12 @@ class AdministrativeExpensesCertifiedBy(SQLModel, table=True):
         index=True,
         foreign_key="liquidationReportAdministrativeExpenses.parent",
     )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
+    )
     user: str = Field(primary_key=True, foreign_key="users.id")
 
     parent_report: "LiquidationReportAdministrativeExpenses" = Relationship(
@@ -72,6 +84,12 @@ class AdministrativeExpenseEntry(SQLModel, table=True):
         primary_key=True,
         index=True,
         description="The date of the expense entry.",
+    )
+    schoolId: int = Field(
+        primary_key=True,
+        index=True,
+        foreign_key="schools.id",
+        description="The school that submitted the report.",
     )
     particulars: str = Field(
         primary_key=True,

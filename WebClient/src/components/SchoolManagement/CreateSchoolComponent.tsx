@@ -3,11 +3,11 @@
 import { getAllUsersEndpointV1UsersAllGet, School, UserPublic } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { CreateSchool } from "@/lib/api/school";
-import { Button, Modal, Select, Stack, TextInput } from "@mantine/core";
+import { Button, Modal, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconBuildingPlus, IconCheck, IconSendOff, IconTrash, IconUserExclamation } from "@tabler/icons-react";
+import { IconBuildingPlus, IconCheck, IconSendOff, IconUserExclamation } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 
 interface CreateSchoolComponentProps {
@@ -129,39 +129,6 @@ export function CreateSchoolComponent({ modalOpen, setModalOpen, onSchoolCreate 
                     <TextInput label="Phone Number" {...form.getInputProps("phone")} />
                     <TextInput label="Email Address" type="email" {...form.getInputProps("email")} />
                     <TextInput label="Website" {...form.getInputProps("website")} />
-
-                    <Select
-                        label="Assigned Report Approver"
-                        placeholder={loadingUsers ? "Loading principals..." : "Select a principal to approve reports"}
-                        data={users.map((user) => ({
-                            value: user.id,
-                            label:
-                                `${user.nameFirst || ""} ${user.nameMiddle || ""} ${user.nameLast || ""}`.trim() ||
-                                user.id,
-                        }))}
-                        {...form.getInputProps("assignedNotedBy")}
-                        searchable
-                        clearable
-                        disabled={loadingUsers}
-                        description="This principal will automatically approve all reports created by this school"
-                        rightSection={
-                            form.values.assignedNotedBy ? (
-                                <IconTrash
-                                    size={16}
-                                    color="red"
-                                    onClick={() => form.setFieldValue("assignedNotedBy", "")}
-                                    style={{
-                                        opacity: 0,
-                                        cursor: "pointer",
-                                        transition: "opacity 0.2s ease",
-                                    }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
-                                />
-                            ) : null
-                        }
-                    />
-
                     <Button type="submit" loading={buttonLoading} rightSection={<IconBuildingPlus />}>
                         Create School
                     </Button>

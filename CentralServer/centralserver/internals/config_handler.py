@@ -18,6 +18,44 @@ from centralserver.internals.adapters.config import (
 from centralserver.internals.models.oauth import OAuthConfigs
 
 
+class AI:
+    """The AI configuration."""
+
+    __exportable_fields = ["enabled", "gemini_api_key", "gemini_model"]
+
+    def __init__(
+        self,
+        enabled: bool = True,
+        gemini_api_key: str | None = None,
+        gemini_model: str | None = None,
+    ):
+        """Create a configuration object for AI.
+
+        Args:
+            enabled: If True, enable AI operations. (Default: True)
+            gemini_api_key: The API key for Google Gemini API. (Optional)
+            gemini_model: The model to use for AI operations. (Optional)
+        """
+
+        self.enabled: bool = enabled
+        if enabled and (gemini_api_key is None or gemini_model is None):
+            raise ValueError(
+                "AI is enabled, but required values are not set in the configuration file."
+            )
+
+        self.gemini_api_key: str | None = gemini_api_key
+        self.gemini_model: str | None = gemini_model
+
+    def export(self) -> dict[str, Any]:
+        """Export the AI configuration as a dictionary."""
+
+        return {
+            field: getattr(self, field)
+            for field in AI.__exportable_fields
+            if hasattr(self, field)
+        }
+
+
 class Debug:
     """The debugging configuration."""
 
@@ -57,14 +95,13 @@ class Debug:
 class Connection:
     """The connection configuration."""
 
-    __exportable_fields = ["host", "port", "base_url", "gemini_api_key"]
+    __exportable_fields = ["host", "port", "base_url"]
 
     def __init__(
         self,
         host: str | None = None,
         port: int | None = None,
         base_url: str | None = None,
-        gemini_api_key: str | None = None,
     ):
         """Create a configuration object for the connection.
 
@@ -75,13 +112,11 @@ class Connection:
             host: Where to listen for incoming connections.
             port: Which port to listen on for incoming connections.
             base_url: The base URL of the web client.
-            gemini_api_key: The API key for Google Gemini API. (Optional)
         """
 
         self.host: str = host or "localhost"
         self.port: int = port or 8081
         self.base_url: str = base_url or "http://localhost:8080"
-        self.gemini_api_key: str | None = gemini_api_key
 
     def export(self) -> dict[str, Any]:
         """Export the connection configuration as a dictionary."""
@@ -393,6 +428,7 @@ class AppConfig:
         self,
         fp: str | Path,
         enc: str,
+        ai: AI | None = None,
         debug: Debug | None = None,
         connection: Connection | None = None,
         logging: Logging | None = None,
@@ -407,6 +443,7 @@ class AppConfig:
         Args:
             fp: The file path to the configuration file.
             enc: The encoding of the configuration file.
+            ai: AI configuration. (Optional)
             debug: Debugging configuration.
             connection: Connection configuration.
             logging: Logging configuration.
@@ -421,6 +458,7 @@ class AppConfig:
         self.__filepath: str | Path = fp
         self.__enc: str = enc
         self.run_internal: bool = False  # Indicates if app is running using __main__
+        self.ai: AI = ai or AI()
         self.debug: Debug = debug or Debug()
         self.connection: Connection = connection or Connection()
         self.logging: Logging = logging or Logging()
@@ -492,6 +530,7 @@ def read_config(
         A new AppConfig object.
     """
 
+    ai_config = config.get("ai", {})
     debug_config = config.get("debug", {})
     connection_config = config.get("connection", {})
     logging_config = config.get("logging", {})
@@ -607,6 +646,11 @@ def read_config(
     return AppConfig(
         fp,
         enc,
+        ai=AI(
+            enabled=ai_config.get("enabled", True),
+            gemini_api_key=ai_config.get("gemini_api_key", None),
+            gemini_model=ai_config.get("gemini_model", None),
+        ),
         debug=Debug(
             enabled=debug_config.get("enabled", None),
             logenv_optout=debug_config.get("logenv_optout", None),
@@ -617,7 +661,6 @@ def read_config(
             host=host or connection_config.get("host", None),
             port=port or connection_config.get("port", None),
             base_url=connection_config.get("base_url", None),
-            gemini_api_key=connection_config.get("gemini_api_key", None),
         ),
         logging=Logging(
             file_logging_enabled=logging_config.get("file_logging_enabled", None),

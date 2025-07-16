@@ -41,6 +41,67 @@ router = APIRouter(prefix="/monthly")
 logged_in_dep = Annotated[DecodedJWTToken, Depends(verify_access_token)]
 
 
+@router.get("/{school_id}/quantity")
+async def get_school_monthly_report_quantity(
+    token: logged_in_dep,
+    session: Annotated[Session, Depends(get_db_session)],
+    school_id: int,
+) -> int:
+    """Get the quantity of monthly reports for a school.
+
+    Args:
+        token: The decoded JWT token of the logged-in user.
+        session: The database session.
+        school_id: The ID of the school to get reports for.
+
+    Returns:
+        The number of monthly reports for the specified school that the user can view based on their role.
+    """
+
+    user = await get_user(token.id, session, by_id=True)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found.",
+        )
+
+    required_permission = (
+        "reports:local:read" if user.schoolId == school_id else "reports:global:read"
+    )
+    if not await verify_user_permission(required_permission, session, token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view monthly reports.",
+        )
+
+    # Get the statuses that this user role can view
+    viewable_statuses = ReportStatusManager.get_viewable_reports_filter(user)
+
+    logger.debug(
+        "user `%s` (role %s) requesting monthly report quantity of school %s. Viewable statuses: %s",
+        token.id,
+        user.roleId,
+        school_id,
+        [status.value for status in viewable_statuses],
+    )
+
+    # If no viewable statuses, return 0
+    if not viewable_statuses:
+        return 0
+
+    # Filter reports by viewable statuses
+    filtered_reports_count = len(
+        session.exec(
+            select(MonthlyReport).where(
+                MonthlyReport.submittedBySchool == school_id,
+                MonthlyReport.reportStatus.in_(viewable_statuses),
+            )
+        ).all()
+    )
+
+    return filtered_reports_count
+
+
 @router.get("/{school_id}")
 async def get_all_school_monthly_reports(
     token: logged_in_dep,

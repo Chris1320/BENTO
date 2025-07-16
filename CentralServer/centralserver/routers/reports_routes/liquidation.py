@@ -1082,3 +1082,42 @@ async def get_liquidation_valid_status_transitions(
 
     # Get valid transitions for this user role and current status
     return ReportStatusManager.get_valid_transitions_response(user, liquidation_report)
+
+
+def get_liquidation_expenses_by_category(
+    session: Session, monthly_report: MonthlyReport | None, school_id: int
+) -> Dict[str, float]:
+    """Get liquidation expenses by category for a specific monthly report and school.
+
+    Args:
+        session: Database session
+        monthly_report: Monthly report to get expenses for
+        school_id: School ID to filter by
+
+    Returns:
+        Dictionary with category names as keys and total amounts as values
+    """
+    if not monthly_report:
+        return {}
+
+    expenses_by_category: Dict[str, float] = {}
+    parent_date = monthly_report.id
+
+    # Iterate through all liquidation categories
+    for category_key, category_config in LIQUIDATION_CATEGORIES.items():
+        # Get the report for this category
+        report = _get_liquidation_report(
+            session, category_config, parent_date, school_id
+        )
+
+        if report and report.entries:
+            # Calculate total amount for this category
+            total_amount = _calculate_total_amount(
+                report.entries, category_config["has_qty_unit"]
+            )
+            expenses_by_category[category_key] = total_amount
+        else:
+            expenses_by_category[category_key] = 0.0
+
+    print(expenses_by_category)
+    return expenses_by_category

@@ -19,45 +19,15 @@ from centralserver.internals.models.ai import (
     ChatResponse,
 )
 from centralserver.internals.models.reports.daily_financial_report import (
-    DailyFinancialReport,
     DailyFinancialReportEntry,
 )
 from centralserver.internals.models.reports.monthly_report import MonthlyReport
-from centralserver.internals.models.reports.lr_operating_expenses import (
-    LiquidationReportOperatingExpenses,
-    OperatingExpenseEntry,
-)
-from centralserver.internals.models.reports.lr_administrative_expenses import (
-    LiquidationReportAdministrativeExpenses,
-    AdministrativeExpenseEntry,
-)
-from centralserver.internals.models.reports.lr_supplementary_feeding_fund import (
-    LiquidationReportSupplementaryFeedingFund,
-    SupplementaryFeedingFundEntry,
-)
-from centralserver.internals.models.reports.lr_clinic_fund import (
-    LiquidationReportClinicFund,
-    LiquidationReportClinicFundEntry,
-)
-from centralserver.internals.models.reports.lr_faculty_stud_dev_fund import (
-    LiquidationReportFacultyAndStudentDevFund,
-    FacultyAndStudentDevFundEntry,
-)
-from centralserver.internals.models.reports.lr_he_fund import (
-    LiquidationReportHEFund,
-    LiquidationReportHEFundEntry,
-)
-from centralserver.internals.models.reports.lr_school_operation_fund import (
-    LiquidationReportSchoolOperationFund,
-    SchoolOperationFundEntry,
-)
-from centralserver.internals.models.reports.lr_revolving_fund import (
-    LiquidationReportRevolvingFund,
-    RevolvingFundEntry,
-)
 from centralserver.internals.models.school import School
 from centralserver.internals.models.token import DecodedJWTToken
 from centralserver.internals.models.user import User
+from centralserver.routers.reports_routes.liquidation import (
+    get_liquidation_expenses_by_category,
+)
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -85,14 +55,14 @@ async def get_llm_model():
             model = llm.get_model(app_config.ai.gemini_model)
             model.key = gemini_api_key
             return model
-        except Exception as e:
+        except (ValueError, AttributeError, ImportError) as e:
             logger.error("Failed to get Gemini model: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="AI service is not available",
             ) from e
 
-    except Exception as e:
+    except (ValueError, AttributeError, ImportError) as e:
         logger.error("AI service error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -106,23 +76,20 @@ async def get_financial_data(
     """Get financial data for a specific school and time period."""
 
     try:
-        # Create the monthly report ID (format: YYYY-MM-DD)
-        monthly_report_id = f"{year}-{month:02d}-01"
-
         # Get monthly report for the school
         monthly_report = session.exec(
             select(MonthlyReport)
-            .where(MonthlyReport.id == monthly_report_id)
+            .where(MonthlyReport.id == datetime.date(year=year, month=month, day=1))
             .where(MonthlyReport.submittedBySchool == school_id)
         ).first()
 
         # Get daily financial entries for this month
         daily_entries = session.exec(
-            select(DailyFinancialReportEntry)
-            .join(DailyFinancialReport)
-            .where(DailyFinancialReport.parent == monthly_report_id)
-            .join(MonthlyReport)
-            .where(MonthlyReport.submittedBySchool == school_id)
+            select(DailyFinancialReportEntry).where(
+                DailyFinancialReportEntry.parent
+                == datetime.date(year=year, month=month, day=1),
+                DailyFinancialReportEntry.school == school_id,
+            )
         ).all()
 
         total_sales = sum(entry.sales for entry in daily_entries)
@@ -131,20 +98,19 @@ async def get_financial_data(
 
         # Get liquidation report expenses for this month
         liquidation_expenses = await get_liquidation_expenses(
-            session, monthly_report_id, school_id
+            session, monthly_report, school_id
         )
 
         # Get previous month for comparison
         prev_month = month - 1 if month > 1 else 12
         prev_year = year if month > 1 else year - 1
-        prev_monthly_report_id = f"{prev_year}-{prev_month:02d}-01"
 
         prev_daily_entries = session.exec(
-            select(DailyFinancialReportEntry)
-            .join(DailyFinancialReport)
-            .where(DailyFinancialReport.parent == prev_monthly_report_id)
-            .join(MonthlyReport)
-            .where(MonthlyReport.submittedBySchool == school_id)
+            select(DailyFinancialReportEntry).where(
+                DailyFinancialReportEntry.parent
+                == datetime.date(year=prev_year, month=prev_month, day=1),
+                DailyFinancialReportEntry.school == school_id,
+            )
         ).all()
 
         prev_total_sales = sum(entry.sales for entry in prev_daily_entries)
@@ -152,8 +118,17 @@ async def get_financial_data(
         prev_net_income = prev_total_sales - prev_total_purchases
 
         # Get previous month liquidation expenses
+        prev_monthly_report = session.exec(
+            select(MonthlyReport)
+            .where(
+                MonthlyReport.id
+                == datetime.date(year=prev_year, month=prev_month, day=1)
+            )
+            .where(MonthlyReport.submittedBySchool == school_id)
+        ).first()
+
         prev_liquidation_expenses = await get_liquidation_expenses(
-            session, prev_monthly_report_id, school_id
+            session, prev_monthly_report, school_id
         )
 
         return {
@@ -182,7 +157,7 @@ async def get_financial_data(
                 - prev_liquidation_expenses["total"],
             },
         }
-    except Exception as e:
+    except (HTTPException, ValueError, AttributeError) as e:
         logger.error("Error getting financial data: %s", e)
 
         return {
@@ -355,6 +330,8 @@ async def generate_financial_insights(
     Do not use markdown syntax, only plaintext output is supported by the display.
     """
 
+    logger.debug("Generated AI prompt: %s", prompt)
+
     try:
         response = model.prompt(prompt)  # type: ignore
         insights_text = response.text().strip()
@@ -368,7 +345,7 @@ async def generate_financial_insights(
             insights=insights_text, school_name=school.name, period=period
         )
 
-    except Exception as e:
+    except (ValueError, AttributeError, ImportError) as e:
         logger.error("Error generating insights: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -486,6 +463,8 @@ async def chat_with_ai(
     Do not use markdown syntax, only plaintext output is supported by the display.
     """
 
+    logger.debug("Generated AI system prompt: %s", system_prompt)
+
     # Build conversation history
     conversation_messages: list[str] = []
     for msg in request.conversation_history:
@@ -510,7 +489,7 @@ async def chat_with_ai(
 
         return ChatResponse(response=response_text, school_name=school.name)
 
-    except Exception as e:
+    except (ValueError, AttributeError, ImportError) as e:
         logger.error("Error in chat: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -519,10 +498,7 @@ async def chat_with_ai(
 
 
 @router.get("/status")
-async def get_ai_status(
-    token: logged_in_dep,
-    session: Annotated[Session, Depends(get_db_session)],
-) -> Dict[str, Any]:
+async def get_ai_status() -> Dict[str, Any]:
     """Get AI service status."""
 
     try:
@@ -548,7 +524,7 @@ async def get_ai_status(
             "features": {"insights": True, "chat": True},
         }
 
-    except Exception as e:
+    except (HTTPException, ValueError, AttributeError) as e:
         logger.error("AI status check failed: %s", e)
         return {
             "status": "error",
@@ -558,179 +534,31 @@ async def get_ai_status(
 
 
 async def get_liquidation_expenses(
-    session: Session, monthly_report_id: str, school_id: int
+    session: Session, monthly_report: MonthlyReport | None, school_id: int
 ) -> Dict[str, Any]:
     """Get liquidation expenses for a specific monthly report."""
 
     try:
-        # Convert monthly_report_id string to date
-        report_date = datetime.datetime.strptime(monthly_report_id, "%Y-%m-%d").date()
+        if not monthly_report:
+            return {
+                "total": 0.0,
+                "by_category": {},
+            }
 
-        expenses_by_category = {}
-        total_expenses = 0.0
+        # Use the liquidation helper function to get expenses by category
+        expenses_by_category = get_liquidation_expenses_by_category(
+            session, monthly_report, school_id
+        )
 
-        # Operating Expenses
-        operating_report = session.exec(
-            select(LiquidationReportOperatingExpenses).where(
-                LiquidationReportOperatingExpenses.parent == report_date,
-                LiquidationReportOperatingExpenses.schoolId == school_id,
-            )
-        ).first()
-        if operating_report:
-            operating_entries = session.exec(
-                select(OperatingExpenseEntry).where(
-                    OperatingExpenseEntry.parent == report_date,
-                    OperatingExpenseEntry.schoolId == school_id,
-                )
-            ).all()
-            operating_total = sum(
-                (entry.quantity or 1) * entry.unit_price for entry in operating_entries
-            )
-            expenses_by_category["operating_expenses"] = operating_total
-            total_expenses += operating_total
-
-        # Administrative Expenses
-        admin_report = session.exec(
-            select(LiquidationReportAdministrativeExpenses).where(
-                LiquidationReportAdministrativeExpenses.parent == report_date,
-                LiquidationReportAdministrativeExpenses.schoolId == school_id,
-            )
-        ).first()
-        if admin_report:
-            admin_entries = session.exec(
-                select(AdministrativeExpenseEntry).where(
-                    AdministrativeExpenseEntry.parent == report_date,
-                    AdministrativeExpenseEntry.schoolId == school_id,
-                )
-            ).all()
-            admin_total = sum(
-                (entry.quantity or 1) * entry.unit_price for entry in admin_entries
-            )
-            expenses_by_category["administrative_expenses"] = admin_total
-            total_expenses += admin_total
-
-        # Supplementary Feeding Fund
-        feeding_report = session.exec(
-            select(LiquidationReportSupplementaryFeedingFund).where(
-                LiquidationReportSupplementaryFeedingFund.parent == report_date,
-                LiquidationReportSupplementaryFeedingFund.schoolId == school_id,
-            )
-        ).first()
-        if feeding_report:
-            feeding_entries = session.exec(
-                select(SupplementaryFeedingFundEntry).where(
-                    SupplementaryFeedingFundEntry.parent == report_date,
-                    SupplementaryFeedingFundEntry.schoolId == school_id,
-                )
-            ).all()
-            feeding_total = sum(entry.amount for entry in feeding_entries)
-            expenses_by_category["supplementary_feeding_fund"] = feeding_total
-            total_expenses += feeding_total
-
-        # Clinic Fund
-        clinic_report = session.exec(
-            select(LiquidationReportClinicFund).where(
-                LiquidationReportClinicFund.parent == report_date,
-                LiquidationReportClinicFund.schoolId == school_id,
-            )
-        ).first()
-        if clinic_report:
-            clinic_entries = session.exec(
-                select(LiquidationReportClinicFundEntry).where(
-                    LiquidationReportClinicFundEntry.parent == report_date,
-                    LiquidationReportClinicFundEntry.schoolId == school_id,
-                )
-            ).all()
-            clinic_total = sum(entry.amount for entry in clinic_entries)
-            expenses_by_category["clinic_fund"] = clinic_total
-            total_expenses += clinic_total
-
-        # Faculty and Student Development Fund
-        faculty_report = session.exec(
-            select(LiquidationReportFacultyAndStudentDevFund).where(
-                LiquidationReportFacultyAndStudentDevFund.parent == report_date,
-                LiquidationReportFacultyAndStudentDevFund.schoolId == school_id,
-            )
-        ).first()
-        if faculty_report:
-            faculty_entries = session.exec(
-                select(FacultyAndStudentDevFundEntry).where(
-                    FacultyAndStudentDevFundEntry.parent == report_date,
-                    FacultyAndStudentDevFundEntry.schoolId == school_id,
-                )
-            ).all()
-            faculty_total = sum(
-                (entry.quantity or 1) * entry.unitPrice for entry in faculty_entries
-            )
-            expenses_by_category["faculty_stud_dev_fund"] = faculty_total
-            total_expenses += faculty_total
-
-        # HE Fund
-        he_report = session.exec(
-            select(LiquidationReportHEFund).where(
-                LiquidationReportHEFund.parent == report_date,
-                LiquidationReportHEFund.schoolId == school_id,
-            )
-        ).first()
-        if he_report:
-            he_entries = session.exec(
-                select(LiquidationReportHEFundEntry).where(
-                    LiquidationReportHEFundEntry.parent == report_date,
-                    LiquidationReportHEFundEntry.schoolId == school_id,
-                )
-            ).all()
-            he_total = sum(
-                (entry.quantity or 1) * entry.unit_price for entry in he_entries
-            )
-            expenses_by_category["he_fund"] = he_total
-            total_expenses += he_total
-
-        # School Operation Fund
-        school_report = session.exec(
-            select(LiquidationReportSchoolOperationFund).where(
-                LiquidationReportSchoolOperationFund.parent == report_date,
-                LiquidationReportSchoolOperationFund.schoolId == school_id,
-            )
-        ).first()
-        if school_report:
-            school_entries = session.exec(
-                select(SchoolOperationFundEntry).where(
-                    SchoolOperationFundEntry.parent == report_date,
-                    SchoolOperationFundEntry.schoolId == school_id,
-                )
-            ).all()
-            school_total = sum(
-                (entry.quantity or 1) * entry.unitPrice for entry in school_entries
-            )
-            expenses_by_category["school_operations_fund"] = school_total
-            total_expenses += school_total
-
-        # Revolving Fund
-        revolving_report = session.exec(
-            select(LiquidationReportRevolvingFund).where(
-                LiquidationReportRevolvingFund.parent == report_date,
-                LiquidationReportRevolvingFund.schoolId == school_id,
-            )
-        ).first()
-        if revolving_report:
-            revolving_entries = session.exec(
-                select(RevolvingFundEntry).where(
-                    RevolvingFundEntry.parent == report_date,
-                    RevolvingFundEntry.schoolId == school_id,
-                )
-            ).all()
-            revolving_total = sum(
-                (entry.quantity or 1) * entry.unitPrice for entry in revolving_entries
-            )
-            expenses_by_category["revolving_fund"] = revolving_total
-            total_expenses += revolving_total
+        # Calculate total expenses
+        total_expenses = sum(expenses_by_category.values())
 
         return {
             "total": total_expenses,
             "by_category": expenses_by_category,
         }
 
-    except Exception as e:
+    except (HTTPException, ValueError, AttributeError) as e:
         logger.error("Error getting liquidation expenses: %s", e)
         return {
             "total": 0.0,

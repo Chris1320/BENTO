@@ -41,6 +41,7 @@ import {
     Group,
     Image,
     Modal,
+    MultiSelect,
     NumberInput,
     ScrollArea,
     SimpleGrid,
@@ -153,9 +154,19 @@ function LiquidationReportContent() {
     const [schoolUsers, setSchoolUsers] = useState<csclient.UserSimple[]>([]);
     const [selectedNotedByUser, setSelectedNotedByUser] = useState<csclient.UserSimple | null>(null);
 
+    // Certified by state management (for multiple users)
+    const [selectedCertifiedByUsers, setSelectedCertifiedByUsers] = useState<csclient.UserSimple[]>([]);
+    const [certifiedBySignatures, setCertifiedBySignatures] = useState<{ [userId: string]: string }>({});
+    const [certifiedByStatus, setCertifiedByStatus] = useState<{ [userId: string]: boolean }>({});
+
     // Approval state management
     const [approvalModalOpened, setApprovalModalOpened] = useState(false);
     const [approvalCheckbox, setApprovalCheckbox] = useState(false);
+
+    // Certification modal state management
+    const [certificationModalOpened, setCertificationModalOpened] = useState(false);
+    const [certificationCheckbox, setCertificationCheckbox] = useState(false);
+    const [certifyingUser, setCertifyingUser] = useState<csclient.UserSimple | null>(null);
 
     // Report status tracking
     const [reportStatus, setReportStatus] = useState<string | null>(null);
@@ -165,10 +176,33 @@ function LiquidationReportContent() {
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [pdfModalOpened, setPdfModalOpened] = useState(false);
 
+    // Helper function to check if the current user is a certifier
+    const isCurrentUserCertifier = useCallback(() => {
+        return selectedCertifiedByUsers.some((user) => user.id === userCtx.userInfo?.id);
+    }, [selectedCertifiedByUsers, userCtx.userInfo?.id]);
+
+    // Helper function to check if the current user is the report creator/preparer
+    const isCurrentUserPreparer = useCallback(() => {
+        return preparedById === userCtx.userInfo?.id;
+    }, [preparedById, userCtx.userInfo?.id]);
+
     // Helper function to check if the report is read-only
     const isReadOnly = useCallback(() => {
-        return reportStatus === "review" || reportStatus === "approved";
-    }, [reportStatus]);
+        // Report is read-only if:
+        // 1. It's under review or approved
+        // 2. OR the current user is only a certifier (not the preparer)
+        return (
+            reportStatus === "review" ||
+            reportStatus === "approved" ||
+            (isCurrentUserCertifier() && !isCurrentUserPreparer())
+        );
+    }, [reportStatus, isCurrentUserCertifier, isCurrentUserPreparer]);
+
+    // Helper function to check if the current user can modify certifiers
+    const canModifyCertifiers = useCallback(() => {
+        // Only the preparer can modify the certifier list, and only if report is not under review/approved
+        return isCurrentUserPreparer() && reportStatus !== "review" && reportStatus !== "approved";
+    }, [isCurrentUserPreparer, reportStatus]);
 
     const hasQtyUnit = QTY_FIELDS_REQUIRED.includes(category || "");
     const hasReceiptVoucher = RECEIPT_FIELDS_REQUIRED.includes(category || "");
@@ -244,6 +278,13 @@ function LiquidationReportContent() {
                         setNotedBy(report.notedBy);
                         // Store the noted by ID so we can match it with a user later
                         // The signature will be loaded in the effect after school users are loaded
+                    }
+
+                    // Load certified by information
+                    if (report.certifiedBy && report.certifiedBy.length > 0) {
+                        // certifiedBy is an array of user IDs, we'll load the full user details later
+                        // when school users are available, and load signatures if report is approved
+                        // For now, just store that we have certified by users
                     }
 
                     // Load memo field
@@ -416,6 +457,69 @@ function LiquidationReportContent() {
         loadNotedBySignature();
     }, [notedBy, selectedNotedByUser, schoolUsers, reportStatus]);
 
+    // Effect to load certified by users from existing report data
+    useEffect(() => {
+        const loadCertifiedByUsers = async () => {
+            if (!userCtx.userInfo?.schoolId || !reportPeriod || !category || schoolUsers.length === 0) return;
+
+            try {
+                const year = reportPeriod.getFullYear();
+                const month = reportPeriod.getMonth() + 1;
+
+                const response = await csclient.getLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryGet({
+                    path: {
+                        school_id: userCtx.userInfo.schoolId,
+                        year,
+                        month,
+                        category,
+                    },
+                });
+
+                if (response.data && response.data.certifiedBy && response.data.certifiedBy.length > 0) {
+                    // Find the users from schoolUsers that match the certified by IDs
+                    const certifiedUsers = schoolUsers.filter((user) => response.data.certifiedBy!.includes(user.id));
+
+                    setSelectedCertifiedByUsers(certifiedUsers);
+
+                    // Load signatures if report is approved
+                    if (reportStatus === "approved") {
+                        const signatures: { [userId: string]: string } = {};
+                        const statuses: { [userId: string]: boolean } = {};
+
+                        for (const user of certifiedUsers) {
+                            statuses[user.id] = true; // Mark as approved since report status is approved
+
+                            if (user.signatureUrn) {
+                                try {
+                                    const sigResponse = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                                        query: { fn: user.signatureUrn },
+                                    });
+
+                                    if (sigResponse.data) {
+                                        const signatureUrl = URL.createObjectURL(sigResponse.data as Blob);
+                                        signatures[user.id] = signatureUrl;
+                                    }
+                                } catch (error) {
+                                    customLogger.error(
+                                        `Failed to load signature for certified by user ${user.id}:`,
+                                        error
+                                    );
+                                }
+                            }
+                        }
+
+                        setCertifiedBySignatures(signatures);
+                        setCertifiedByStatus(statuses);
+                    }
+                }
+            } catch {
+                customLogger.log("No existing certified by data found or report doesn't exist");
+            }
+        };
+
+        loadCertifiedByUsers();
+    }, [userCtx.userInfo?.schoolId, reportPeriod, category, schoolUsers, reportStatus]);
+
     // Effect to handle report status changes - clear signatures if not approved
     useEffect(() => {
         if (reportStatus && reportStatus !== "approved") {
@@ -424,8 +528,15 @@ function LiquidationReportContent() {
                 URL.revokeObjectURL(notedBySignatureUrl);
                 setNotedBySignatureUrl(null);
             }
+
+            // Clear certified by signatures if report is not approved
+            if (Object.keys(certifiedBySignatures).length > 0) {
+                Object.values(certifiedBySignatures).forEach((sigUrl) => URL.revokeObjectURL(sigUrl));
+                setCertifiedBySignatures({});
+                setCertifiedByStatus({});
+            }
         }
-    }, [reportStatus, notedBySignatureUrl]);
+    }, [reportStatus, notedBySignatureUrl, certifiedBySignatures]);
 
     // Load school data and automatically assign principal
     useEffect(() => {
@@ -594,6 +705,100 @@ function LiquidationReportContent() {
         setApprovalModalOpened(false);
     };
 
+    const handleCertificationConfirm = async () => {
+        if (!certificationCheckbox || !certifyingUser?.signatureUrn) {
+            console.log("Early return - missing checkbox or signature URN:", {
+                certificationCheckbox,
+                signatureUrn: certifyingUser?.signatureUrn,
+            });
+            return;
+        }
+
+        try {
+            // Load the user's signature
+            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                query: { fn: certifyingUser.signatureUrn },
+            });
+
+            if (response.data) {
+                const signatureUrl = URL.createObjectURL(response.data as Blob);
+                console.log("Signature loaded successfully for user:", certifyingUser.id, signatureUrl);
+
+                // Update local state - first set signature, then status
+                setCertifiedBySignatures((prev) => {
+                    const updated = {
+                        ...prev,
+                        [certifyingUser.id]: signatureUrl,
+                    };
+                    console.log("Updated signatures state:", updated);
+                    return updated;
+                });
+
+                setCertifiedByStatus((prev) => {
+                    const updated = {
+                        ...prev,
+                        [certifyingUser.id]: true,
+                    };
+                    console.log("Updated status state:", updated);
+                    return updated;
+                });
+
+                // Save certification to backend by updating the report with the current certified by status
+                if (userCtx.userInfo?.schoolId && reportPeriod && category) {
+                    const year = reportPeriod.getFullYear();
+                    const month = reportPeriod.getMonth() + 1;
+
+                    // First get the current report data
+                    const reportResponse =
+                        await csclient.getLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryGet({
+                            path: {
+                                school_id: userCtx.userInfo.schoolId,
+                                year,
+                                month,
+                                category,
+                            },
+                        });
+
+                    if (reportResponse.data) {
+                        // Update the report with current certification data
+                        const reportData: csclient.LiquidationReportCreateRequest = {
+                            schoolId: userCtx.userInfo.schoolId,
+                            entries: reportResponse.data.entries || [],
+                            notedBy: reportResponse.data.notedBy || null,
+                            preparedBy: reportResponse.data.preparedBy || null,
+                            teacherInCharge: reportResponse.data.teacherInCharge || userCtx.userInfo.id,
+                            certifiedBy: selectedCertifiedByUsers.map((user) => user.id),
+                            memo: reportResponse.data.memo || null,
+                        };
+
+                        await csclient.createOrUpdateLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryPatch(
+                            {
+                                path: {
+                                    school_id: userCtx.userInfo.schoolId,
+                                    year,
+                                    month,
+                                    category,
+                                },
+                                body: reportData,
+                            }
+                        );
+                    }
+                }
+            }
+        } catch (error) {
+            customLogger.error("Failed to certify liquidation report:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to certify the report. Please try again.",
+                color: "red",
+            });
+        }
+
+        setCertificationModalOpened(false);
+        setCertifyingUser(null);
+        setCertificationCheckbox(false);
+    };
+
     const addNewItem = () => {
         const newItem: ExpenseDetails = {
             id: new Date(),
@@ -712,7 +917,7 @@ function LiquidationReportContent() {
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
                 preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
                 teacherInCharge: userCtx.userInfo.id, // Current user ID
-                certifiedBy: [], // Can be set later
+                certifiedBy: selectedCertifiedByUsers.map((user) => user.id), // Array of certified by user IDs
                 memo: notes || null, // Add memo field
             };
 
@@ -799,7 +1004,7 @@ function LiquidationReportContent() {
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
                 preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
                 teacherInCharge: userCtx.userInfo.id,
-                certifiedBy: [],
+                certifiedBy: selectedCertifiedByUsers.map((user) => user.id), // Array of certified by user IDs
                 memo: notes || null, // Add memo field
             };
 
@@ -1224,6 +1429,67 @@ function LiquidationReportContent() {
                         <div style={{ fontSize: "10px" }}>{selectedNotedByUser?.position || "Position"}</div>
                     </div>
                 </div>
+
+                {/* Certified By Signatures */}
+                {selectedCertifiedByUsers.length > 0 && (
+                    <div style={{ marginTop: "30px", textAlign: "center" }}>
+                        <div style={{ fontSize: "12px", marginBottom: "5px" }}>
+                            Certified: Correctness of the above data
+                        </div>
+                        <div
+                            style={{
+                                height: "60px",
+                                display: "flex",
+                                justifyContent: selectedCertifiedByUsers.length <= 2 ? "space-around" : "space-between",
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            {selectedCertifiedByUsers.map((user) => (
+                                <div key={user.id} style={{ textAlign: "center", minWidth: "150px" }}>
+                                    <div
+                                        style={{
+                                            width: "200px",
+                                            height: "60px",
+                                            border:
+                                                certifiedBySignatures[user.id] && certifiedByStatus[user.id]
+                                                    ? "none"
+                                                    : "1px solid #ccc",
+                                            marginBottom: "10px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            marginLeft: "auto",
+                                            marginRight: "auto",
+                                        }}
+                                    >
+                                        {certifiedBySignatures[user.id] && certifiedByStatus[user.id] ? (
+                                            <Image
+                                                src={certifiedBySignatures[user.id]}
+                                                alt={`${user.nameFirst} ${user.nameLast} signature`}
+                                                style={{ maxWidth: "100%", maxHeight: "100%" }}
+                                            />
+                                        ) : (
+                                            <div style={{ fontSize: "10px", color: "#666" }}>Signature</div>
+                                        )}
+                                    </div>
+                                    <div
+                                        style={{
+                                            borderBottom: "1px solid #000",
+                                            width: "200px",
+                                            marginBottom: "5px",
+                                            marginLeft: "auto",
+                                            marginRight: "auto",
+                                        }}
+                                    ></div>
+                                    <div style={{ fontSize: "12px", fontWeight: "bold" }}>
+                                        {`${user.nameFirst} ${user.nameLast}`.trim()}
+                                    </div>
+                                    <div style={{ fontSize: "10px" }}>{user.position || "Position"}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -1284,6 +1550,11 @@ function LiquidationReportContent() {
                                 {isReadOnly() && (
                                     <Badge color="blue" variant="light" size="sm">
                                         {reportStatus === "approved" ? "Approved" : "Under Review"}
+                                    </Badge>
+                                )}
+                                {isCurrentUserCertifier() && !isCurrentUserPreparer() && (
+                                    <Badge color="orange" variant="light" size="sm">
+                                        Certifier View
                                     </Badge>
                                 )}
                             </Group>
@@ -1635,6 +1906,205 @@ function LiquidationReportContent() {
                     </Card>
                 </SimpleGrid>
 
+                {/* Certified By Section */}
+                <Card withBorder p="md" mt="lg">
+                    <Stack gap="md">
+                        <Group justify="space-between" align="center">
+                            <Text size="sm" c="dimmed" fw={500}>
+                                Certified: Correctness of the above data
+                            </Text>
+                            <Badge
+                                size="sm"
+                                color={
+                                    selectedCertifiedByUsers.length === 0
+                                        ? "gray"
+                                        : Object.keys(certifiedByStatus).length === selectedCertifiedByUsers.length &&
+                                          Object.values(certifiedByStatus).every((status) => status)
+                                        ? "green"
+                                        : "yellow"
+                                }
+                                variant="light"
+                            >
+                                {selectedCertifiedByUsers.length === 0
+                                    ? "Not Assigned"
+                                    : Object.keys(certifiedByStatus).length === selectedCertifiedByUsers.length &&
+                                      Object.values(certifiedByStatus).every((status) => status)
+                                    ? "All Approved"
+                                    : `${Object.values(certifiedByStatus).filter((status) => status).length}/${
+                                          selectedCertifiedByUsers.length
+                                      } Approved`}
+                            </Badge>
+                        </Group>
+
+                        {/* User Selection - Only show for report preparers/canteen managers */}
+                        {canModifyCertifiers() && (
+                            <MultiSelect
+                                placeholder="Choose users from your school"
+                                data={schoolUsers.map((user) => ({
+                                    value: user.id,
+                                    label: `${user.nameFirst} ${user.nameLast} - ${user.position || "No Position"}`,
+                                }))}
+                                value={selectedCertifiedByUsers.map((user) => user.id)}
+                                onChange={(values) => {
+                                    const selectedUsers = schoolUsers.filter((user) => values.includes(user.id));
+                                    setSelectedCertifiedByUsers(selectedUsers);
+
+                                    // Clear status for removed users
+                                    const newStatus = { ...certifiedByStatus };
+                                    const newSignatures = { ...certifiedBySignatures };
+
+                                    Object.keys(newStatus).forEach((userId) => {
+                                        if (!values.includes(userId)) {
+                                            delete newStatus[userId];
+                                            if (newSignatures[userId]) {
+                                                URL.revokeObjectURL(newSignatures[userId]);
+                                                delete newSignatures[userId];
+                                            }
+                                        }
+                                    });
+
+                                    setCertifiedByStatus(newStatus);
+                                    setCertifiedBySignatures(newSignatures);
+                                }}
+                                searchable
+                                clearable
+                            />
+                        )}
+
+                        {/* Message for certifiers */}
+                        {isCurrentUserCertifier() && !canModifyCertifiers() && (
+                            <div
+                                style={{
+                                    background: "#e7f5ff",
+                                    border: "1px solid #339af0",
+                                    borderRadius: "8px",
+                                    padding: "12px",
+                                    marginTop: "8px",
+                                }}
+                            >
+                                <Text size="sm" c="blue" fw={500} mb={4}>
+                                    You are assigned as a certifier for this report
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    Please review the report and click &quot;Certify Report&quot; to approve it with
+                                    your signature.
+                                </Text>
+                            </div>
+                        )}
+
+                        {/* Selected Users Display */}
+                        {selectedCertifiedByUsers.length > 0 && (
+                            <div>
+                                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                                    {selectedCertifiedByUsers.map((user) => (
+                                        <Card key={user.id} withBorder p="sm" style={{ position: "relative" }}>
+                                            <Stack gap="xs" align="center">
+                                                <Group justify="space-between" w="100%" align="center">
+                                                    <Text size="sm" c="dimmed" fw={500}>
+                                                        Certified by
+                                                    </Text>
+                                                    <Badge
+                                                        size="xs"
+                                                        color={certifiedByStatus[user.id] ? "green" : "gray"}
+                                                        variant="light"
+                                                    >
+                                                        {certifiedByStatus[user.id] ? "Certified" : "Pending"}
+                                                    </Badge>
+                                                </Group>
+
+                                                <Box
+                                                    w={200}
+                                                    h={80}
+                                                    style={{
+                                                        border: "1px solid #dee2e6",
+                                                        borderRadius: "8px",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        backgroundColor: "#f8f9fa",
+                                                        overflow: "hidden",
+                                                    }}
+                                                >
+                                                    {(() => {
+                                                        const hasSignature = certifiedBySignatures[user.id];
+                                                        const hasStatus = certifiedByStatus[user.id];
+                                                        console.log(`User ${user.id} signature display:`, {
+                                                            hasSignature: !!hasSignature,
+                                                            hasStatus,
+                                                            signatureUrl: hasSignature,
+                                                        });
+
+                                                        return hasSignature && hasStatus ? (
+                                                            <Image
+                                                                src={certifiedBySignatures[user.id]}
+                                                                alt={`${user.nameFirst} ${user.nameLast} signature`}
+                                                                fit="contain"
+                                                                w="100%"
+                                                                h="100%"
+                                                            />
+                                                        ) : (
+                                                            <Text size="xs" c="dimmed">
+                                                                Signature
+                                                            </Text>
+                                                        );
+                                                    })()}
+                                                </Box>
+
+                                                <div style={{ textAlign: "center" }}>
+                                                    <Text fw={600} size="sm">
+                                                        {`${user.nameFirst} ${user.nameLast}`.trim()}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {user.position || "Position"}
+                                                    </Text>
+                                                </div>
+
+                                                {/* Certification Button for current user */}
+                                                {userCtx.userInfo?.id === user.id && !certifiedByStatus[user.id] && (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="light"
+                                                        color="green"
+                                                        onClick={() => {
+                                                            if (user.signatureUrn) {
+                                                                setCertifyingUser(user);
+                                                                setCertificationModalOpened(true);
+                                                                setCertificationCheckbox(false);
+                                                            } else {
+                                                                notifications.show({
+                                                                    title: "No Signature",
+                                                                    message:
+                                                                        "Please add your signature in your profile before certifying reports.",
+                                                                    color: "orange",
+                                                                });
+                                                            }
+                                                        }}
+                                                    >
+                                                        Certify Report
+                                                    </Button>
+                                                )}
+                                            </Stack>
+                                        </Card>
+                                    ))}
+                                </SimpleGrid>
+                            </div>
+                        )}
+
+                        {selectedCertifiedByUsers.length === 0 && canModifyCertifiers() && (
+                            <Text size="sm" c="dimmed" ta="center" py="xl">
+                                No certifiers selected. Use the dropdown above to select users who should certify this
+                                report.
+                            </Text>
+                        )}
+
+                        {selectedCertifiedByUsers.length === 0 && !canModifyCertifiers() && (
+                            <Text size="sm" c="dimmed" ta="center" py="xl">
+                                No certifiers have been assigned to this report yet.
+                            </Text>
+                        )}
+                    </Stack>
+                </Card>
+
                 {/* Action Buttons */}
                 <Stack gap="md">
                     {/* Disbursement Voucher Button */}
@@ -1746,6 +2216,71 @@ function LiquidationReportContent() {
                             </Button>
                             <Button onClick={handleApprovalConfirm} disabled={!approvalCheckbox} color="green">
                                 Confirm Approval
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+
+                {/* Certification Modal */}
+                <Modal
+                    opened={certificationModalOpened}
+                    onClose={() => {
+                        setCertificationModalOpened(false);
+                        setCertifyingUser(null);
+                        setCertificationCheckbox(false);
+                    }}
+                    title="Confirm Report Certification"
+                    centered
+                    size="md"
+                >
+                    <Stack gap="md">
+                        <Text size="sm">
+                            Are you sure you want to certify the correctness of this liquidation report as{" "}
+                            <strong>
+                                {certifyingUser?.nameFirst} {certifyingUser?.nameLast}
+                            </strong>
+                            ?
+                        </Text>
+
+                        <div
+                            style={{
+                                background: "#e7f5ff",
+                                border: "1px solid #339af0",
+                                borderRadius: "6px",
+                                padding: "12px",
+                            }}
+                        >
+                            <Text size="sm" c="dimmed">
+                                This action will add your digital signature to the report, confirming that you have
+                                reviewed and verified the accuracy of the data presented.
+                            </Text>
+                        </div>
+
+                        <Checkbox
+                            label="I confirm that I have thoroughly reviewed this report and certify its accuracy"
+                            checked={certificationCheckbox}
+                            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                                setCertificationCheckbox(event.currentTarget.checked)
+                            }
+                        />
+
+                        <Group justify="flex-end" mt="md">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setCertificationModalOpened(false);
+                                    setCertifyingUser(null);
+                                    setCertificationCheckbox(false);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleCertificationConfirm}
+                                disabled={!certificationCheckbox}
+                                color="green"
+                            >
+                                Certify Report
                             </Button>
                         </Group>
                     </Stack>

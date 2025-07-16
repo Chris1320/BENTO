@@ -2,6 +2,7 @@ import datetime
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import ForeignKeyConstraint
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 
@@ -20,7 +21,6 @@ class DailyFinancialReport(SQLModel, table=True):
     parent: datetime.date = Field(
         primary_key=True,
         index=True,
-        foreign_key="monthlyReports.id",
     )
     schoolId: int = Field(
         primary_key=True,
@@ -34,6 +34,15 @@ class DailyFinancialReport(SQLModel, table=True):
     )
     preparedBy: str = Field(foreign_key="users.id")
     notedBy: str | None = Field(default=None, foreign_key="users.id")
+    
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_daily_financial_report_monthly_report"
+        ),
+    )
 
     parent_report: "MonthlyReport" = Relationship(
         back_populates="daily_financial_report"
@@ -53,11 +62,20 @@ class DailyFinancialReportEntry(SQLModel, table=True):
         index=True,
     )
     parent: datetime.date = Field(
-        primary_key=True, foreign_key="dailyFinancialReports.parent"
+        primary_key=True
     )
     school: int = Field(primary_key=True, foreign_key="schools.id", index=True)
     sales: float  # Positive float representing the total sales for the day
     purchases: float  # Positive float representing the total purchases for the day
+
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of dailyFinancialReports
+        ForeignKeyConstraint(
+            ["parent", "school"],
+            ["dailyFinancialReports.parent", "dailyFinancialReports.schoolId"],
+            name="fk_daily_financial_report_entry_daily_report"
+        ),
+    )
 
     parent_report: DailyFinancialReport = Relationship(back_populates="entries")
 

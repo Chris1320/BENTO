@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import ForeignKeyConstraint
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 
@@ -16,7 +17,7 @@ class PayrollReport(SQLModel, table=True):
     __tablename__: str = "payrollReports"  # type: ignore
 
     parent: datetime.date = Field(
-        primary_key=True, index=True, foreign_key="monthlyReports.id"
+        primary_key=True, index=True
     )
     schoolId: int = Field(
         primary_key=True,
@@ -33,6 +34,15 @@ class PayrollReport(SQLModel, table=True):
         description="The status of the report.",
     )
 
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_payroll_report_monthly_report"
+        ),
+    )
+
     entries: list["PayrollReportEntry"] = Relationship(
         back_populates="parent_report", cascade_delete=True
     )
@@ -45,7 +55,7 @@ class PayrollReportEntry(SQLModel, table=True):
     __tablename__: str = "payrollReportEntries"  # type: ignore
 
     parent: datetime.date = Field(
-        primary_key=True, index=True, foreign_key="payrollReports.parent"
+        primary_key=True, index=True
     )
     schoolId: int = Field(
         primary_key=True,
@@ -68,6 +78,15 @@ class PayrollReportEntry(SQLModel, table=True):
     receipt_attachment_urns: str | None = Field(
         default=None,
         description="JSON string containing list of receipt attachment URNs",
+    )
+
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of payrollReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["payrollReports.parent", "payrollReports.schoolId"],
+            name="fk_payroll_report_entry"
+        ),
     )
 
     parent_report: PayrollReport = Relationship(back_populates="entries")

@@ -100,6 +100,14 @@ def log_app_info(logger: logging.Logger):
     stats["Running via __main__"] = "Yes" if app_config.run_internal else "No"
 
     if app_config.debug.enabled:
+        stats["AI Enabled"] = str(app_config.ai.enabled)
+        stats["AI API Key"] = (
+            f"{'*' * 8}{app_config.ai.gemini_api_key[-4:]}"
+            if app_config.ai.gemini_api_key
+            else "Not set"
+        )
+        stats["AI Model"] = app_config.ai.gemini_model or "Not set"
+
         # Debug
         stats["Log Environment Variables"] = (
             "Opted out" if app_config.debug.logenv_optout else "Enabled"

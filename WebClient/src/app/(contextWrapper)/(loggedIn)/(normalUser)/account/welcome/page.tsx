@@ -51,18 +51,13 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     const router = useRouter();
     const userCtx = useUser();
     const [active, setActive] = useState(0);
-    const [pwValue, setPwValue] = useState("");
-    const [pwConfValue, setPwConfValue] = useState("");
     const [pwVisible, { toggle: pwVisibilityToggle }] = useDisclosure(false);
-    const checks = requirements.map((requirement, index) => (
-        <PasswordRequirement key={index} label={requirement.label} meets={requirement.re.test(pwValue)} />
-    ));
-    const pwStrength = getStrength(pwValue);
-    const meterColor = pwStrength === 100 ? "teal" : pwStrength > 50 ? "yellow" : "red";
+    const [, forceUpdate] = useState({});
     const [nextLabel, setNextLabel] = useState("Get Started");
     const [buttonLoading, buttonLoadingHandler] = useDisclosure(false);
     const logoControls = useAnimation();
     const userChange = useForm({
+        mode: "uncontrolled",
         initialValues: {
             nameFirst: userInfo?.nameFirst || "",
             nameMiddle: userInfo?.nameMiddle || "",
@@ -70,8 +65,23 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
             username: userInfo?.username || "",
             position: userInfo?.position || "",
             email: userInfo?.email || "",
+            password: "",
+            confirmPassword: "",
+        },
+        onValuesChange: (values) => {
+            // Force re-evaluation of password strength when password changes
+            if (values.password !== undefined) {
+                // Trigger re-render to update password strength indicators
+                forceUpdate({});
+            }
         },
     });
+    const getCurrentPassword = () => userChange.getValues().password || "";
+    const checks = requirements.map((requirement, index) => (
+        <PasswordRequirement key={index} label={requirement.label} meets={requirement.re.test(getCurrentPassword())} />
+    ));
+    const pwStrength = getStrength(getCurrentPassword());
+    const meterColor = pwStrength === 100 ? "teal" : pwStrength > 50 ? "yellow" : "red";
     const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
         google: false,
         // TODO: OAuth adapters below are not implemented yet.
@@ -201,7 +211,10 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         // Password step
         if (userPermissions?.includes("users:self:modify:password")) {
             if (step === currentStepIndex) {
-                return !!(pwValue.trim() && pwConfValue.trim() && pwValue === pwConfValue && pwStrength >= 70);
+                const password = values.password?.trim() || "";
+                const confirmPassword = values.confirmPassword?.trim() || "";
+                const passwordStrength = getStrength(password);
+                return !!(password && confirmPassword && password === confirmPassword && passwordStrength >= 70);
             }
             currentStepIndex++;
         }
@@ -256,7 +269,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         customLogger.debug("Submitting form values:", userChange.getValues());
 
         // Validate password match if password is being updated
-        if (userPermissions?.includes("users:self:modify:password") && pwValue !== pwConfValue) {
+        const formValues = userChange.getValues();
+        if (
+            userPermissions?.includes("users:self:modify:password") &&
+            formValues.password !== formValues.confirmPassword
+        ) {
             notifications.show({
                 id: "password-mismatch",
                 title: "Password Mismatch",
@@ -308,8 +325,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         }
 
         if (userPermissions?.includes("users:self:modify:password")) {
-            if (pwValue.trim()) {
-                updateData.password = pwValue;
+            if (formValues.password?.trim()) {
+                updateData.password = formValues.password;
             }
         }
 
@@ -376,15 +393,14 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     useEffect(() => {
         if (userInfo) {
             const new_values = {
-                id: userInfo.id,
-                username: userInfo.username || "",
                 nameFirst: userInfo.nameFirst || "",
                 nameMiddle: userInfo.nameMiddle || "",
                 nameLast: userInfo.nameLast || "",
+                username: userInfo.username || "",
                 position: userInfo.position || "",
                 email: userInfo.email || "",
-                deactivated: userInfo.deactivated,
-                forceUpdateInfo: userInfo.forceUpdateInfo,
+                password: "",
+                confirmPassword: "",
             };
             customLogger.debug("Setting form values:", new_values);
             userChange.setValues(new_values);
@@ -596,7 +612,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             mt="md"
                                             label="Position"
                                             placeholder="Enter your position"
-                                            defaultValue={userInfo?.position || ""}
                                             key={userChange.key("position")}
                                             {...userChange.getInputProps("position")}
                                         />
@@ -621,7 +636,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             mt="md"
                                             label="Email"
                                             placeholder="Enter your email"
-                                            defaultValue={userInfo?.email || ""}
                                             required
                                             key={userChange.key("email")}
                                             {...userChange.getInputProps("email")}
@@ -654,19 +668,15 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                         <PasswordInput
                                             withAsterisk
                                             label="New Password"
-                                            value={pwValue}
                                             placeholder="Your new password"
                                             key={userChange.key("password")}
                                             {...userChange.getInputProps("password")}
                                             mt="md"
-                                            onChange={(event) => {
-                                                setPwValue(event.currentTarget.value);
-                                                userChange.setFieldValue("password", event.currentTarget.value);
-                                            }}
                                             onVisibilityChange={pwVisibilityToggle}
                                             error={
                                                 getCurrentStepType(active) === "password" &&
-                                                (!pwValue.trim() || pwStrength < 70)
+                                                (!userChange.getValues().password?.trim() ||
+                                                    getStrength(userChange.getValues().password || "") < 70)
                                                     ? "Strong password is required"
                                                     : null
                                             }
@@ -675,16 +685,15 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             withAsterisk
                                             type={pwVisible ? "text" : "password"}
                                             label="Confirm Password"
-                                            value={pwConfValue}
                                             placeholder="Confirm your new password"
+                                            key={userChange.key("confirmPassword")}
+                                            {...userChange.getInputProps("confirmPassword")}
                                             mt="md"
-                                            onChange={(event) => {
-                                                setPwConfValue(event.currentTarget.value);
-                                            }}
                                             error={
                                                 getCurrentStepType(active) === "password" &&
-                                                pwValue !== pwConfValue &&
-                                                pwConfValue.length > 0
+                                                userChange.getValues().password !==
+                                                    userChange.getValues().confirmPassword &&
+                                                (userChange.getValues().confirmPassword?.length || 0) > 0
                                                     ? "Passwords do not match"
                                                     : null
                                             }
@@ -970,7 +979,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 Your name
                                             </Table.Td>
                                             <Table.Td>
-                                                {" "}
                                                 {userChange.getValues().nameFirst} {userChange.getValues().nameMiddle}{" "}
                                                 {userChange.getValues().nameLast}
                                             </Table.Td>

@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from urllib.parse import urljoin
 
 import httpx
+from faker import Faker
+
+f = Faker()
 
 
 @dataclass
@@ -14,6 +17,18 @@ class School:
     phone: str | None = None
     email: str | None = None
     website: str | None = None
+
+
+@dataclass
+class UserData:
+    username: str
+    role_id: int
+    password: str
+    email: str | None = None
+    name_first: str | None = None
+    name_middle: str | None = None
+    name_last: str | None = None
+    school_id: int | None = None
 
 
 SCHOOLS: list[School] = [
@@ -251,6 +266,81 @@ def get_token(
     return auth_response.json().get("access_token")
 
 
+async def create_school_users(
+    school_id: int, school_name: str, endpoint: str, token: str
+) -> bool:
+    """Create a principal and canteen manager for a specific school."""
+    headers = {"Authorization": f"Bearer {token}"}
+    add_user_endpoint = urljoin(endpoint, "v1/auth/create")
+    update_user_endpoint = urljoin(endpoint, "v1/users/")
+
+    # Create users for this school
+    users_to_create = [
+        UserData(
+            username=f"principal_{school_id}",
+            role_id=4,  # Principal role
+            password="Password123",
+            email=f"principal_{school_id}@school.edu",
+            name_first=f.first_name(),
+            name_last=f.last_name(),
+            school_id=school_id,
+        ),
+        UserData(
+            username=f"canteen_{school_id}",
+            role_id=5,  # Canteen manager role
+            password="Password123",
+            email=f"canteen_{school_id}@school.edu",
+            name_first=f.first_name(),
+            name_last=f.last_name(),
+            school_id=school_id,
+        ),
+    ]
+
+    async with httpx.AsyncClient() as client:
+        for user_data in users_to_create:
+            role_name = "Principal" if user_data.role_id == 4 else "Canteen Manager"
+            print(f"  Creating {role_name} for '{school_name}'...")
+
+            # Create user
+            create_response = await client.post(
+                add_user_endpoint,
+                json={
+                    "username": user_data.username,
+                    "roleId": user_data.role_id,
+                    "password": user_data.password,
+                },
+                headers=headers,
+            )
+            if create_response.status_code != 201:
+                print(
+                    f"  Error creating {role_name}: {create_response.status_code} - {create_response.text}"
+                )
+                return False
+
+            # Update user with additional details
+            update_response = await client.patch(
+                update_user_endpoint,
+                json={
+                    "id": create_response.json()["id"],
+                    "email": user_data.email,
+                    "nameFirst": user_data.name_first,
+                    "nameMiddle": user_data.name_middle,
+                    "nameLast": user_data.name_last,
+                    "schoolId": user_data.school_id,
+                },
+                headers=headers,
+            )
+            if update_response.status_code != 200:
+                print(
+                    f"  Error updating {role_name}: {update_response.status_code} - {update_response.text}"
+                )
+                return False
+
+            print(f"  {role_name} '{user_data.username}' created successfully.")
+
+    return True
+
+
 async def main(endpoint: str) -> int:
     exit_code = 0
     print("Enter your credentials to obtain an access token.")
@@ -265,6 +355,8 @@ async def main(endpoint: str) -> int:
 
     print("Access token obtained successfully.")
     print("Creating schools...")
+    school_ids: dict[str, int] = {}  # To store school names and their IDs
+
     async with httpx.AsyncClient() as client:
         for school in SCHOOLS:
             response = await client.post(
@@ -279,7 +371,9 @@ async def main(endpoint: str) -> int:
                 },
             )
             if response.status_code == 201:
-                print(f"School '{school.name}' created successfully.")
+                school_id = response.json()["id"]
+                school_ids[school.name] = school_id
+                print(f"School '{school.name}' created successfully (ID: {school_id}).")
             else:
                 print(
                     f"Failed to create school '{school.name}': {response.status_code} - {response.text}"
@@ -287,6 +381,19 @@ async def main(endpoint: str) -> int:
                 exit_code += 1
 
     print("All schools processed.")
+
+    if school_ids:
+        print("\nCreating users for each school...")
+        for school_name, school_id in school_ids.items():
+            success = await create_school_users(
+                school_id, school_name, endpoint, school_creation_token
+            )
+            if not success:
+                print(f"Failed to create users for school '{school_name}'.")
+                exit_code += 1
+
+        print("All users processed.")
+
     return exit_code
 
 

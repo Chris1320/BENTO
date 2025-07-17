@@ -341,7 +341,7 @@ async def create_payroll_report_entry(
         year,
         month,
         entry_data.week_number,
-        entry_data.employee_name,
+        "*" * len(entry_data.employee_name),
     )
 
     # Ensure the payroll report exists
@@ -541,10 +541,9 @@ async def create_bulk_payroll_report_entries(
 
     if skipped_entries:
         logger.info(
-            "Skipped %d existing entries for user %s: %s",
+            "Skipped %d existing entries for user %s",
             len(skipped_entries),
             token.id,
-            skipped_entries,
         )
 
     return new_entries
@@ -603,7 +602,7 @@ async def update_payroll_report_entry(
         year,
         month,
         week_number,
-        employee_name,
+        "*" * len(employee_name),
     )
 
     # Find the existing entry
@@ -717,7 +716,7 @@ async def delete_payroll_report_entry(
         year,
         month,
         week_number,
-        employee_name,
+        "*" * len(employee_name),
     )
 
     # Find the existing entry

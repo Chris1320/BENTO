@@ -747,7 +747,9 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                     disabled={!oauthSupport.google}
                                                     onClick={async () => {
                                                         try {
-                                                            const { unlinkGoogleAccountPopup } = await import("@/lib/utils/oauth-popup");
+                                                            const { unlinkGoogleAccountPopup } = await import(
+                                                                "@/lib/utils/oauth-popup"
+                                                            );
                                                             await unlinkGoogleAccountPopup();
 
                                                             notifications.show({
@@ -760,7 +762,10 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                             // Refresh user data to update the UI
                                                             await refetchUserProfile();
                                                         } catch (error) {
-                                                            customLogger.error("Failed to unlink Google account:", error);
+                                                            customLogger.error(
+                                                                "Failed to unlink Google account:",
+                                                                error
+                                                            );
                                                             notifications.show({
                                                                 title: "Unlink Failed",
                                                                 message:

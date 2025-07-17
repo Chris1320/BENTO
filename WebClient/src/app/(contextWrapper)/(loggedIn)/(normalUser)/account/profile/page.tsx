@@ -1653,14 +1653,17 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                             message: "Your Google account has been unlinked successfully.",
                                             color: "green",
                                         });
-                                        
+
                                         // Refresh the page to update user data
                                         window.location.reload();
                                     } catch (error) {
                                         customLogger.error("Failed to unlink Google account:", error);
                                         notifications.show({
                                             title: "Unlink Failed",
-                                            message: error instanceof Error ? error.message : "Failed to unlink your Google account. Please try again later.",
+                                            message:
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : "Failed to unlink your Google account. Please try again later.",
                                             color: "red",
                                         });
                                     }

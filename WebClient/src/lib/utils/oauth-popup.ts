@@ -103,19 +103,18 @@ export async function linkGoogleAccountPopup(): Promise<void> {
  * @returns Promise that resolves when the unlinking is complete
  */
 export async function unlinkGoogleAccountPopup(): Promise<void> {
-    const response = await fetch(
-        `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/unlink`,
-        {
-            method: 'GET',
-            headers: { 
-                'Authorization': GetAccessTokenHeader(),
-                'Content-Type': 'application/json'
-            }
-        }
-    );
-    
+    const response = await fetch(`${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/unlink`, {
+        method: "GET",
+        headers: {
+            Authorization: GetAccessTokenHeader(),
+            "Content-Type": "application/json",
+        },
+    });
+
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Failed to unlink Google account: ${response.status} ${response.statusText}`);
+        throw new Error(
+            errorData.detail || `Failed to unlink Google account: ${response.status} ${response.statusText}`
+        );
     }
 }

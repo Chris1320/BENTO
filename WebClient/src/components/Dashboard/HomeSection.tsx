@@ -313,15 +313,17 @@ export const HomeSection = memo(() => {
                         )}
                     </div>
                 </Stack>
-                <Button
-                    variant="light"
-                    color="blue"
-                    leftSection={<IconBrain size={16} />}
-                    onClick={() => setChatModalOpened(true)}
-                    disabled={!aiAvailable}
-                >
-                    AI Chat
-                </Button>
+                {!aiAvailable && (
+                    <Button
+                        variant="light"
+                        color="blue"
+                        leftSection={<IconBrain size={16} />}
+                        onClick={() => setChatModalOpened(true)}
+                        disabled={!aiAvailable}
+                    >
+                        AI Chat
+                    </Button>
+                )}
             </Group>
 
             {/* Bento Grid */}

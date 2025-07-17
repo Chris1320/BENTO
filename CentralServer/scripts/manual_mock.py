@@ -90,20 +90,20 @@ SCHOOLS: list[School] = [
     ),
     School(  # https://sites.google.com/deped.gov.ph/jacintoponceelementaryschool/home
         name="Jacinto Ponce Elementary School",
-        address="L. Pile St., Tangos, Baliuag, Bulacan",
+        address="L. Pile St., Tangos, Baliwag, Bulacan",
         email="104743@deped.gov.ph",
         website="https://sites.google.com/deped.gov.ph/jacintoponceelementaryschool/home",
     ),
     # District IV
     School(  # https://sites.google.com/deped.gov.ph/104752cones/home
         name="Concepcion Elementary School",
-        address="R.E. Chico St, Concepcion, Baliuag, Bulacan",
+        address="R.E. Chico St, Concepcion, Baliwag, Bulacan",
         email="104752@deped.gov.ph",
         website="https://sites.google.com/deped.gov.ph/104752cones/home",
     ),
     School(  # https://www.facebook.com/104760VirgenDelasFloresES/
         name="Virgen Delas Flores Elementary School",
-        address="Alido Subd Phase II, Virgen Delas Flores, Baliuag, Bulacan 3006",
+        address="Alido Subd Phase II, Virgen Delas Flores, Baliwag, Bulacan 3006",
         email="104760@deped.gov.ph",
         website="https://www.facebook.com/104760VirgenDelasFloresES/",
     ),
@@ -117,7 +117,7 @@ SCHOOLS: list[School] = [
     # District V
     School(  # https://sites.google.com/deped.gov.ph/104759tiaongelementaryschool/home
         name="Tiaong Elementary School",
-        address="Segismundo St, Tiaong, Baliuag, Bulacan",
+        address="Segismundo St, Tiaong, Baliwag, Bulacan",
         email="104759@deped.gov.ph",
         website="https://sites.google.com/deped.gov.ph/104759tiaongelementaryschool/home",
     ),
@@ -228,7 +228,7 @@ SCHOOLS: list[School] = [
     ),
     School(  # https://sites.google.com/view/104755pinagbarilanelemschool/home
         name="Pinagbarilan Elementary School",
-        address="Sta. Lucia St, Pinagbarilan, Baliuag, Bulacan 3006",
+        address="Sta. Lucia St, Pinagbarilan, Baliwag, Bulacan 3006",
         email="104755@deped.gov.ph",
         website="https://sites.google.com/view/104755pinagbarilanelemschool/home",
     ),

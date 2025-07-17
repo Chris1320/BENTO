@@ -460,18 +460,40 @@ async def oauth_google_link(
         return False
 
     user_data = user_info.json()
+    google_id = user_data.get("id", None)
+    if not google_id:
+        logger.error("Invalid Google user data received")
+        return False
+
+    # Check if this Google ID is already linked to another user
+    existing_user = session.exec(
+        select(User).where(User.oauthLinkedGoogleId == google_id)
+    ).first()
+    if existing_user and existing_user.id != user_id:
+        logger.error(
+            "Google ID %s is already linked to another user (%s)",
+            google_id,
+            existing_user.id,
+        )
+        return False
+
     user = session.exec(select(User).where(User.id == user_id)).one_or_none()
     if user is None:
         logger.error("User with ID %s not found", user_id)
         return False
 
-    user.oauthLinkedGoogleId = user_data.get("id", None)
+    user.oauthLinkedGoogleId = google_id
     session.add(user)
-    session.commit()
-    session.refresh(user)
 
-    logger.info("User %s linked their Google account successfully", user.username)
-    return True
+    try:
+        session.commit()
+        session.refresh(user)
+        logger.info("User %s linked their Google account successfully", user.username)
+        return True
+    except Exception as e:
+        session.rollback()
+        logger.error("Failed to link Google account for user %s: %s", user_id, str(e))
+        return False
 
 
 async def oauth_google_authenticate(
@@ -513,14 +535,34 @@ async def oauth_google_authenticate(
         )
 
     user_data = user_info.json()
-    user = session.exec(
-        select(User).where(User.oauthLinkedGoogleId == user_data.get("id", None))
-    ).one_or_none()
-    if user is None:
+    google_id = user_data.get("id", None)
+    if not google_id:
+        return (
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid Google user data received.",
+        )
+
+    # Get all users with this Google ID (should be at most 1 due to unique constraint)
+    users = session.exec(
+        select(User).where(User.oauthLinkedGoogleId == google_id)
+    ).all()
+
+    if len(users) == 0:
         return (
             status.HTTP_404_NOT_FOUND,
             "User not found. Please login first and link your Google account.",
         )
+    elif len(users) > 1:
+        logger.error(
+            "Multiple users found with Google ID %s. This indicates a data integrity issue.",
+            google_id,
+        )
+        return (
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Multiple accounts found with this Google ID. Please contact support.",
+        )
+
+    user = users[0]
 
     user.lastLoggedInTime = datetime.datetime.now(datetime.timezone.utc)
     user.lastLoggedInIp = request.client.host if request.client else None

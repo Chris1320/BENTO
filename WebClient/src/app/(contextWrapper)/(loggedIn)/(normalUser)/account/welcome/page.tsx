@@ -7,7 +7,6 @@ import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import {
     getOauthConfigV1AuthConfigOauthGet,
     getUserProfileEndpointV1UsersMeGet,
-    oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet,
     updateUserEndpointV1UsersPatch,
     UserPublic,
     UserUpdate,
@@ -79,6 +78,26 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         microsoft: false,
         facebook: false,
     });
+
+    // Helper function to refetch user profile
+    const refetchUserProfile = async () => {
+        try {
+            const newResult = await getUserProfileEndpointV1UsersMeGet({
+                headers: { Authorization: GetAccessTokenHeader() },
+            });
+
+            if (newResult.error || !newResult.data) {
+                throw new Error(
+                    `Failed to fetch updated user profile: ${newResult.response.status} ${newResult.response.statusText}`
+                );
+            }
+
+            userCtx.updateUserInfo(newResult.data[0], newResult.data[1]);
+        } catch (error) {
+            customLogger.error("Error refetching user profile:", error);
+            throw error;
+        }
+    };
 
     const welcomeSteps: [string, boolean | undefined][] = [
         ["Set your name", userPermissions?.includes("users:self:modify:name")],
@@ -728,16 +747,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                     disabled={!oauthSupport.google}
                                                     onClick={async () => {
                                                         try {
-                                                            const result =
-                                                                await oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet({
-                                                                    headers: { Authorization: GetAccessTokenHeader() },
-                                                                });
-
-                                                            if (result.error) {
-                                                                throw new Error(
-                                                                    `Failed to unlink Google account: ${result.response.status} ${result.response.statusText}`
-                                                                );
-                                                            }
+                                                            const { unlinkGoogleAccountPopup } = await import("@/lib/utils/oauth-popup");
+                                                            await unlinkGoogleAccountPopup();
 
                                                             notifications.show({
                                                                 title: "Unlink Successful",
@@ -745,15 +756,17 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                                     "Your Google account has been unlinked successfully.",
                                                                 color: "green",
                                                             });
+
+                                                            // Refresh user data to update the UI
+                                                            await refetchUserProfile();
                                                         } catch (error) {
-                                                            customLogger.error(
-                                                                "Failed to unlink Google account:",
-                                                                error
-                                                            );
+                                                            customLogger.error("Failed to unlink Google account:", error);
                                                             notifications.show({
                                                                 title: "Unlink Failed",
                                                                 message:
-                                                                    "Failed to unlink your Google account. Please try again later.",
+                                                                    error instanceof Error
+                                                                        ? error.message
+                                                                        : "Failed to unlink your Google account. Please try again later.",
                                                                 color: "red",
                                                             });
                                                         }
@@ -768,12 +781,31 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                     size="xs"
                                                     disabled={!oauthSupport.google}
                                                     onClick={async () => {
-                                                        const response = await fetch(
-                                                            `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/login`
-                                                        );
-                                                        const data = await response.json();
-                                                        if (data.url) {
-                                                            window.location.href = data.url;
+                                                        try {
+                                                            const { linkGoogleAccountPopup } = await import(
+                                                                "@/lib/utils/oauth-popup"
+                                                            );
+                                                            await linkGoogleAccountPopup();
+
+                                                            notifications.show({
+                                                                title: "Link Successful",
+                                                                message:
+                                                                    "Your Google account has been linked successfully.",
+                                                                color: "green",
+                                                            });
+
+                                                            // Refresh user data to update the UI
+                                                            await refetchUserProfile();
+                                                        } catch (error) {
+                                                            customLogger.error("Failed to link Google account:", error);
+                                                            notifications.show({
+                                                                title: "Link Failed",
+                                                                message:
+                                                                    error instanceof Error
+                                                                        ? error.message
+                                                                        : "Failed to link your Google account. Please try again later.",
+                                                                color: "red",
+                                                            });
                                                         }
                                                     }}
                                                 >

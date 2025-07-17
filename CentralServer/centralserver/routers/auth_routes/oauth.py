@@ -37,6 +37,27 @@ async def google_oauth_login():
     return await google_oauth_adapter.get_authorization_url()
 
 
+@router.get("/google/login/link")
+async def google_oauth_login_link():
+    """Handle Google OAuth login specifically for account linking."""
+    if google_oauth_adapter is None:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google OAuth is not configured.",
+        )
+
+    # Create a custom redirect URI for linking flow
+    original_redirect_uri = google_oauth_adapter.config.redirect_uri
+    # Replace the login path with the account oauth-callback path
+    link_redirect_uri = original_redirect_uri.replace(
+        "/login/oauth/google", "/account/oauth-callback"
+    )
+
+    return await google_oauth_adapter.get_authorization_url(
+        redirect_uri=link_redirect_uri
+    )
+
+
 @router.get("/google/callback")
 async def google_oauth_callback(
     code: str,
@@ -79,6 +100,7 @@ async def oauth_link_google(
     code: str,
     token: logged_in_dep,
     session: Annotated[Session, Depends(get_db_session)],
+    redirect_uri: str | None = None,
 ) -> dict[str, str]:
     """Link a Google account for OAuth."""
 
@@ -88,11 +110,18 @@ async def oauth_link_google(
             detail="Google OAuth is not configured.",
         )
 
+    # If no redirect_uri provided, try to determine if this is a popup flow
+    actual_redirect_uri = redirect_uri
+    if not actual_redirect_uri:
+        # Default to the configured redirect URI for backward compatibility
+        actual_redirect_uri = google_oauth_adapter.config.redirect_uri
+
     if await oauth_google_link(
         code=code,
         user_id=token.id,
         google_oauth_adapter=google_oauth_adapter,
         session=session,
+        redirect_uri=actual_redirect_uri,
     ):
         logger.info("Google OAuth linking successful for user: %s", token.id)
         return {"message": "Google account linked successfully."}

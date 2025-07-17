@@ -16,7 +16,6 @@ import {
     getUserAvatarEndpointV1UsersAvatarGet,
     getUserProfileEndpointV1UsersMeGet,
     getUserSignatureEndpointV1UsersSignatureGet,
-    oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet,
     OtpToken,
     requestVerificationEmailV1AuthEmailRequestPost,
     Role,
@@ -1646,26 +1645,22 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 disabled={!oauthSupport.google}
                                 onClick={async () => {
                                     try {
-                                        const result = await oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet({
-                                            headers: { Authorization: GetAccessTokenHeader() },
-                                        });
-
-                                        if (result.error) {
-                                            throw new Error(
-                                                `Failed to unlink Google account: ${result.response.status} ${result.response.statusText}`
-                                            );
-                                        }
+                                        const { unlinkGoogleAccountPopup } = await import("@/lib/utils/oauth-popup");
+                                        await unlinkGoogleAccountPopup();
 
                                         notifications.show({
                                             title: "Unlink Successful",
                                             message: "Your Google account has been unlinked successfully.",
                                             color: "green",
                                         });
+                                        
+                                        // Refresh the page to update user data
+                                        window.location.reload();
                                     } catch (error) {
                                         customLogger.error("Failed to unlink Google account:", error);
                                         notifications.show({
                                             title: "Unlink Failed",
-                                            message: "Failed to unlink your Google account. Please try again later.",
+                                            message: error instanceof Error ? error.message : "Failed to unlink your Google account. Please try again later.",
                                             color: "red",
                                         });
                                     }
@@ -1680,12 +1675,28 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 size="xs"
                                 disabled={!oauthSupport.google}
                                 onClick={async () => {
-                                    const response = await fetch(
-                                        `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/login`
-                                    );
-                                    const data = await response.json();
-                                    if (data.url) {
-                                        window.location.href = data.url;
+                                    try {
+                                        const { linkGoogleAccountPopup } = await import("@/lib/utils/oauth-popup");
+                                        await linkGoogleAccountPopup();
+
+                                        notifications.show({
+                                            title: "Link Successful",
+                                            message: "Your Google account has been linked successfully.",
+                                            color: "green",
+                                        });
+
+                                        // Refresh the page to update user data
+                                        window.location.reload();
+                                    } catch (error) {
+                                        customLogger.error("Failed to link Google account:", error);
+                                        notifications.show({
+                                            title: "Link Failed",
+                                            message:
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : "Failed to link your Google account. Please try again later.",
+                                            color: "red",
+                                        });
                                     }
                                 }}
                             >

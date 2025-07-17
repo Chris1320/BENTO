@@ -417,6 +417,7 @@ async def oauth_google_link(
     user_id: str,
     google_oauth_adapter: GoogleOAuthAdapter,
     session: Session,
+    redirect_uri: str | None = None,
 ) -> bool:
     """Link a Google account to a user.
 
@@ -425,17 +426,19 @@ async def oauth_google_link(
         user_id: The ID of the user to link the Google account to.
         google_oauth_adapter: The Google OAuth adapter instance.
         session: The database session to use.
+        redirect_uri: Optional custom redirect URI for the OAuth flow.
 
     Returns:
         True if the Google account was linked successfully, False otherwise.
     """
 
     token_url = "https://accounts.google.com/o/oauth2/token"
+    uri = redirect_uri or google_oauth_adapter.config.redirect_uri
     data: dict[str, str] = {
         "code": code,
         "client_id": google_oauth_adapter.config.client_id,
         "client_secret": google_oauth_adapter.config.client_secret,
-        "redirect_uri": google_oauth_adapter.config.redirect_uri,
+        "redirect_uri": uri,
         "grant_type": "authorization_code",
     }
     response = httpx.post(token_url, data=data)

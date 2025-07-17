@@ -56,12 +56,12 @@ import {
     IconX,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import html2canvas from "html2canvas";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-import jsPDF from "jspdf";
 import weekOfYear from "dayjs/plugin/weekOfYear";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
@@ -1699,23 +1699,7 @@ function PayrollPageContent() {
                         <Group gap="sm">
                             <IconCalendarWeek size={20} />
                             <Text fw={500}>Weekly Periods</Text>
-                            <Badge variant="light" size="sm">
-                                {weekPeriods.filter((w) => w.isCompleted).length}/{weekPeriods.length} completed
-                            </Badge>
                         </Group>
-
-                        {/* {selectedWeekId && (
-                            <Button
-                                size="xs"
-                                variant="light"
-                                color={weekPeriods.find((w) => w.id === selectedWeekId)?.isCompleted ? "green" : "blue"}
-                                onClick={() => toggleWeekCompletion(selectedWeekId)}
-                            >
-                                {weekPeriods.find((w) => w.id === selectedWeekId)?.isCompleted
-                                    ? "Mark Incomplete"
-                                    : "Mark Complete"}
-                            </Button>
-                        )} */}
                     </Group>
                     <ScrollArea className="flex-1">
                         <Group gap="xs" wrap="nowrap" className="min-w-fit">
@@ -1727,7 +1711,6 @@ function PayrollPageContent() {
                                     size="sm"
                                     onClick={() => setSelectedWeekId(week.id)}
                                     className="whitespace-nowrap flex-shrink-0"
-                                    leftSection={week.isCompleted ? <IconCheck size={14} /> : null}
                                 >
                                     {week.label.replace("WEEK ", "W").split(" /")[0]}
                                 </Button>
@@ -1742,11 +1725,6 @@ function PayrollPageContent() {
                         <Group justify="space-between" className="mb-4">
                             <Group gap="sm">
                                 <Text fw={500}>{selectedWeek.label}</Text>
-                                {selectedWeek.isCompleted && (
-                                    <Badge color="green" variant="light" size="sm">
-                                        Completed
-                                    </Badge>
-                                )}
                             </Group>
                             <Text className="text-right">
                                 <Text component="span" size="sm" c="dimmed">
@@ -1827,9 +1805,7 @@ function PayrollPageContent() {
                                                                     className="w-16"
                                                                     disabled={selectedWeek.isCompleted || isReadOnly()}
                                                                     title={
-                                                                        selectedWeek.isCompleted
-                                                                            ? "Week is completed"
-                                                                            : "Left click: Mark attendance \nRight click: Set custom rate"
+                                                                        "Left click: Mark attendance \nRight click: Set custom rate"
                                                                     }
                                                                 >
                                                                     {isPresent ? `₱${displayRate}` : " - "}

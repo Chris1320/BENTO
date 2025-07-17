@@ -7,10 +7,11 @@ import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import {
     getOauthConfigV1AuthConfigOauthGet,
     getUserProfileEndpointV1UsersMeGet,
-    oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet,
     updateUserEndpointV1UsersPatch,
+    deleteUserInfoEndpointV1UsersDelete,
     UserPublic,
     UserUpdate,
+    UserDelete,
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { Program } from "@/lib/info";
@@ -52,18 +53,13 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     const router = useRouter();
     const userCtx = useUser();
     const [active, setActive] = useState(0);
-    const [pwValue, setPwValue] = useState("");
-    const [pwConfValue, setPwConfValue] = useState("");
     const [pwVisible, { toggle: pwVisibilityToggle }] = useDisclosure(false);
-    const checks = requirements.map((requirement, index) => (
-        <PasswordRequirement key={index} label={requirement.label} meets={requirement.re.test(pwValue)} />
-    ));
-    const pwStrength = getStrength(pwValue);
-    const meterColor = pwStrength === 100 ? "teal" : pwStrength > 50 ? "yellow" : "red";
+    const [, forceUpdate] = useState({});
     const [nextLabel, setNextLabel] = useState("Get Started");
     const [buttonLoading, buttonLoadingHandler] = useDisclosure(false);
     const logoControls = useAnimation();
     const userChange = useForm({
+        mode: "uncontrolled",
         initialValues: {
             nameFirst: userInfo?.nameFirst || "",
             nameMiddle: userInfo?.nameMiddle || "",
@@ -71,14 +67,49 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
             username: userInfo?.username || "",
             position: userInfo?.position || "",
             email: userInfo?.email || "",
+            password: "",
+            confirmPassword: "",
+        },
+        onValuesChange: (values) => {
+            // Force re-evaluation of password strength when password changes
+            if (values.password !== undefined) {
+                // Trigger re-render to update password strength indicators
+                forceUpdate({});
+            }
         },
     });
+    const getCurrentPassword = () => userChange.getValues().password || "";
+    const checks = requirements.map((requirement, index) => (
+        <PasswordRequirement key={index} label={requirement.label} meets={requirement.re.test(getCurrentPassword())} />
+    ));
+    const pwStrength = getStrength(getCurrentPassword());
+    const meterColor = pwStrength === 100 ? "teal" : pwStrength > 50 ? "yellow" : "red";
     const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
         google: false,
         // TODO: OAuth adapters below are not implemented yet.
         microsoft: false,
         facebook: false,
     });
+
+    // Helper function to refetch user profile
+    const refetchUserProfile = async () => {
+        try {
+            const newResult = await getUserProfileEndpointV1UsersMeGet({
+                headers: { Authorization: GetAccessTokenHeader() },
+            });
+
+            if (newResult.error || !newResult.data) {
+                throw new Error(
+                    `Failed to fetch updated user profile: ${newResult.response.status} ${newResult.response.statusText}`
+                );
+            }
+
+            userCtx.updateUserInfo(newResult.data[0], newResult.data[1]);
+        } catch (error) {
+            customLogger.error("Error refetching user profile:", error);
+            throw error;
+        }
+    };
 
     const welcomeSteps: [string, boolean | undefined][] = [
         ["Set your name", userPermissions?.includes("users:self:modify:name")],
@@ -151,7 +182,16 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         // Name step
         if (userPermissions?.includes("users:self:modify:name")) {
             if (step === currentStepIndex) {
-                return !!(values.nameFirst?.trim() && values.nameLast?.trim());
+                const firstName = values.nameFirst?.trim() || "";
+                const lastName = values.nameLast?.trim() || "";
+                const middleName = values.nameMiddle?.trim() || "";
+                return !!(
+                    firstName &&
+                    lastName &&
+                    firstName.length <= 60 &&
+                    lastName.length <= 60 &&
+                    middleName.length <= 60
+                );
             }
             currentStepIndex++;
         }
@@ -159,7 +199,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         // Username step
         if (userPermissions?.includes("users:self:modify:username")) {
             if (step === currentStepIndex) {
-                return !!values.username?.trim();
+                const username = values.username?.trim() || "";
+                return username.length >= 3 && username.length <= 22;
             }
             currentStepIndex++;
         }
@@ -182,7 +223,10 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         // Password step
         if (userPermissions?.includes("users:self:modify:password")) {
             if (step === currentStepIndex) {
-                return !!(pwValue.trim() && pwConfValue.trim() && pwValue === pwConfValue && pwStrength >= 70);
+                const password = values.password?.trim() || "";
+                const confirmPassword = values.confirmPassword?.trim() || "";
+                const passwordStrength = getStrength(password);
+                return !!(password && confirmPassword && password === confirmPassword && passwordStrength >= 70);
             }
             currentStepIndex++;
         }
@@ -237,7 +281,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         customLogger.debug("Submitting form values:", userChange.getValues());
 
         // Validate password match if password is being updated
-        if (userPermissions?.includes("users:self:modify:password") && pwValue !== pwConfValue) {
+        const formValues = userChange.getValues();
+        if (
+            userPermissions?.includes("users:self:modify:password") &&
+            formValues.password !== formValues.confirmPassword
+        ) {
             notifications.show({
                 id: "password-mismatch",
                 title: "Password Mismatch",
@@ -289,18 +337,87 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         }
 
         if (userPermissions?.includes("users:self:modify:password")) {
-            if (pwValue.trim()) {
-                updateData.password = pwValue;
+            if (formValues.password?.trim()) {
+                updateData.password = formValues.password;
             }
         }
 
+        // Check for fields that were cleared (set to null/empty) and need to be deleted
+        const fieldsToDelete: UserDelete = {
+            id: userInfo?.id || "",
+            email: false,
+            nameFirst: false,
+            nameMiddle: false,
+            nameLast: false,
+            position: false,
+            schoolId: false,
+        };
+
+        // Check each field for deletion only if user has permission to modify it
+        if (userPermissions?.includes("users:self:modify:email")) {
+            fieldsToDelete.email =
+                (currentValues.email === "" || currentValues.email === null) && userInfo?.email !== null;
+        }
+
+        if (userPermissions?.includes("users:self:modify:name")) {
+            fieldsToDelete.nameFirst =
+                (currentValues.nameFirst === "" || currentValues.nameFirst === null) && userInfo?.nameFirst !== null;
+            fieldsToDelete.nameMiddle =
+                (currentValues.nameMiddle === "" || currentValues.nameMiddle === null) && userInfo?.nameMiddle !== null;
+            fieldsToDelete.nameLast =
+                (currentValues.nameLast === "" || currentValues.nameLast === null) && userInfo?.nameLast !== null;
+        }
+
+        if (userPermissions?.includes("users:self:modify:position")) {
+            fieldsToDelete.position =
+                (currentValues.position === "" || currentValues.position === null) && userInfo?.position !== null;
+        }
+
+        const hasFieldsToDelete = Object.values(fieldsToDelete).some(
+            (field, index) => index > 0 && field === true // Skip the id field at index 0
+        );
+
         updateData.forceUpdateInfo = false;
         customLogger.debug("Sending only modified fields:", updateData);
+        customLogger.debug("Fields to delete:", fieldsToDelete);
+        customLogger.debug("Has fields to delete:", hasFieldsToDelete);
 
         try {
-            // Call the API to update user information
+            // First handle field deletions if any
+            if (hasFieldsToDelete) {
+                const deleteResult = await deleteUserInfoEndpointV1UsersDelete({
+                    body: fieldsToDelete,
+                    headers: { Authorization: GetAccessTokenHeader() },
+                });
+
+                if (deleteResult.error) {
+                    customLogger.error(
+                        `Failed to delete user fields: ${deleteResult.response.status} ${deleteResult.response.statusText}`
+                    );
+                    notifications.show({
+                        id: "user-delete-error",
+                        title: "Delete Failed",
+                        message: "Failed to clear some profile fields. Please try again.",
+                        color: "red",
+                        icon: <IconX />,
+                    });
+                    buttonLoadingHandler.close();
+                    return;
+                }
+                customLogger.debug("Successfully deleted user fields");
+            }
+
+            // Filter out fields that were deleted from the update object to avoid conflicts
+            const filteredUpdateData: UserUpdate = { ...updateData };
+            if (fieldsToDelete.email) filteredUpdateData.email = undefined;
+            if (fieldsToDelete.nameFirst) filteredUpdateData.nameFirst = undefined;
+            if (fieldsToDelete.nameMiddle) filteredUpdateData.nameMiddle = undefined;
+            if (fieldsToDelete.nameLast) filteredUpdateData.nameLast = undefined;
+            if (fieldsToDelete.position) filteredUpdateData.position = undefined;
+
+            // Then handle regular updates
             const result = await updateUserEndpointV1UsersPatch({
-                body: updateData,
+                body: filteredUpdateData,
                 headers: { Authorization: GetAccessTokenHeader() },
             });
 
@@ -355,19 +472,20 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     };
 
     useEffect(() => {
-        if (userInfo) {
+        // Only initialize form values once when userInfo is first available
+        // Don't reset if form has already been initialized to preserve user input
+        if (userInfo && !userChange.isDirty()) {
             const new_values = {
-                id: userInfo.id,
-                username: userInfo.username || "",
                 nameFirst: userInfo.nameFirst || "",
                 nameMiddle: userInfo.nameMiddle || "",
                 nameLast: userInfo.nameLast || "",
+                username: userInfo.username || "",
                 position: userInfo.position || "",
                 email: userInfo.email || "",
-                deactivated: userInfo.deactivated,
-                forceUpdateInfo: userInfo.forceUpdateInfo,
+                password: "",
+                confirmPassword: "",
             };
-            customLogger.debug("Setting form values:", new_values);
+            customLogger.debug("Setting initial form values:", new_values);
             userChange.setValues(new_values);
         }
     }, [userInfo]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -499,9 +617,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 {...userChange.getInputProps("nameFirst")}
                                                 error={
                                                     getCurrentStepType(active) === "name" &&
-                                                    !userChange.getValues().nameFirst?.trim()
+                                                    (!userChange.getValues().nameFirst?.trim()
                                                         ? "First name is required"
-                                                        : null
+                                                        : (userChange.getValues().nameFirst?.trim().length || 0) > 60
+                                                        ? "First name must be 60 characters or less"
+                                                        : null)
                                                 }
                                             />
                                             <TextInput
@@ -509,6 +629,12 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 label="Middle"
                                                 key={userChange.key("nameMiddle")}
                                                 {...userChange.getInputProps("nameMiddle")}
+                                                error={
+                                                    getCurrentStepType(active) === "name" &&
+                                                    (userChange.getValues().nameMiddle?.trim().length || 0) > 60
+                                                        ? "Middle name must be 60 characters or less"
+                                                        : null
+                                                }
                                             />
                                             <TextInput
                                                 required
@@ -518,9 +644,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 {...userChange.getInputProps("nameLast")}
                                                 error={
                                                     getCurrentStepType(active) === "name" &&
-                                                    !userChange.getValues().nameLast?.trim()
+                                                    (!userChange.getValues().nameLast?.trim()
                                                         ? "Last name is required"
-                                                        : null
+                                                        : (userChange.getValues().nameLast?.trim().length || 0) > 60
+                                                        ? "Last name must be 60 characters or less"
+                                                        : null)
                                                 }
                                             />
                                         </Flex>
@@ -552,9 +680,15 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             {...userChange.getInputProps("username")}
                                             error={
                                                 getCurrentStepType(active) === "username" &&
-                                                !userChange.getValues().username?.trim()
-                                                    ? "Username is required"
-                                                    : null
+                                                (() => {
+                                                    const username = userChange.getValues().username?.trim() || "";
+                                                    if (!username) return "Username is required";
+                                                    if (username.length < 3)
+                                                        return "Username must be at least 3 characters";
+                                                    if (username.length > 22)
+                                                        return "Username must be 22 characters or less";
+                                                    return null;
+                                                })()
                                             }
                                         />
                                     </Container>
@@ -577,7 +711,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             mt="md"
                                             label="Position"
                                             placeholder="Enter your position"
-                                            defaultValue={userInfo?.position || ""}
                                             key={userChange.key("position")}
                                             {...userChange.getInputProps("position")}
                                         />
@@ -602,7 +735,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             mt="md"
                                             label="Email"
                                             placeholder="Enter your email"
-                                            defaultValue={userInfo?.email || ""}
                                             required
                                             key={userChange.key("email")}
                                             {...userChange.getInputProps("email")}
@@ -635,19 +767,15 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                         <PasswordInput
                                             withAsterisk
                                             label="New Password"
-                                            value={pwValue}
                                             placeholder="Your new password"
                                             key={userChange.key("password")}
                                             {...userChange.getInputProps("password")}
                                             mt="md"
-                                            onChange={(event) => {
-                                                setPwValue(event.currentTarget.value);
-                                                userChange.setFieldValue("password", event.currentTarget.value);
-                                            }}
                                             onVisibilityChange={pwVisibilityToggle}
                                             error={
                                                 getCurrentStepType(active) === "password" &&
-                                                (!pwValue.trim() || pwStrength < 70)
+                                                (!userChange.getValues().password?.trim() ||
+                                                    getStrength(userChange.getValues().password || "") < 70)
                                                     ? "Strong password is required"
                                                     : null
                                             }
@@ -656,16 +784,15 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             withAsterisk
                                             type={pwVisible ? "text" : "password"}
                                             label="Confirm Password"
-                                            value={pwConfValue}
                                             placeholder="Confirm your new password"
+                                            key={userChange.key("confirmPassword")}
+                                            {...userChange.getInputProps("confirmPassword")}
                                             mt="md"
-                                            onChange={(event) => {
-                                                setPwConfValue(event.currentTarget.value);
-                                            }}
                                             error={
                                                 getCurrentStepType(active) === "password" &&
-                                                pwValue !== pwConfValue &&
-                                                pwConfValue.length > 0
+                                                userChange.getValues().password !==
+                                                    userChange.getValues().confirmPassword &&
+                                                (userChange.getValues().confirmPassword?.length || 0) > 0
                                                     ? "Passwords do not match"
                                                     : null
                                             }
@@ -728,16 +855,10 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                     disabled={!oauthSupport.google}
                                                     onClick={async () => {
                                                         try {
-                                                            const result =
-                                                                await oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet({
-                                                                    headers: { Authorization: GetAccessTokenHeader() },
-                                                                });
-
-                                                            if (result.error) {
-                                                                throw new Error(
-                                                                    `Failed to unlink Google account: ${result.response.status} ${result.response.statusText}`
-                                                                );
-                                                            }
+                                                            const { unlinkGoogleAccountPopup } = await import(
+                                                                "@/lib/utils/oauth-popup"
+                                                            );
+                                                            await unlinkGoogleAccountPopup();
 
                                                             notifications.show({
                                                                 title: "Unlink Successful",
@@ -745,6 +866,9 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                                     "Your Google account has been unlinked successfully.",
                                                                 color: "green",
                                                             });
+
+                                                            // Refresh user data to update the UI
+                                                            await refetchUserProfile();
                                                         } catch (error) {
                                                             customLogger.error(
                                                                 "Failed to unlink Google account:",
@@ -753,7 +877,9 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                             notifications.show({
                                                                 title: "Unlink Failed",
                                                                 message:
-                                                                    "Failed to unlink your Google account. Please try again later.",
+                                                                    error instanceof Error
+                                                                        ? error.message
+                                                                        : "Failed to unlink your Google account. Please try again later.",
                                                                 color: "red",
                                                             });
                                                         }
@@ -768,12 +894,31 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                     size="xs"
                                                     disabled={!oauthSupport.google}
                                                     onClick={async () => {
-                                                        const response = await fetch(
-                                                            `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/login`
-                                                        );
-                                                        const data = await response.json();
-                                                        if (data.url) {
-                                                            window.location.href = data.url;
+                                                        try {
+                                                            const { linkGoogleAccountPopup } = await import(
+                                                                "@/lib/utils/oauth-popup"
+                                                            );
+                                                            await linkGoogleAccountPopup();
+
+                                                            notifications.show({
+                                                                title: "Link Successful",
+                                                                message:
+                                                                    "Your Google account has been linked successfully.",
+                                                                color: "green",
+                                                            });
+
+                                                            // Refresh user data to update the UI
+                                                            await refetchUserProfile();
+                                                        } catch (error) {
+                                                            customLogger.error("Failed to link Google account:", error);
+                                                            notifications.show({
+                                                                title: "Link Failed",
+                                                                message:
+                                                                    error instanceof Error
+                                                                        ? error.message
+                                                                        : "Failed to link your Google account. Please try again later.",
+                                                                color: "red",
+                                                            });
                                                         }
                                                     }}
                                                 >
@@ -933,7 +1078,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 Your name
                                             </Table.Td>
                                             <Table.Td>
-                                                {" "}
                                                 {userChange.getValues().nameFirst} {userChange.getValues().nameMiddle}{" "}
                                                 {userChange.getValues().nameLast}
                                             </Table.Td>

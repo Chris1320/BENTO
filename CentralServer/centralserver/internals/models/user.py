@@ -140,14 +140,17 @@ class User(SQLModel, table=True):
 
     oauthLinkedGoogleId: str | None = Field(
         default=None,
+        unique=True,
         description="The Google ID linked to the user's OAuth account.",
     )
     oauthLinkedMicrosoftId: str | None = Field(
         default=None,
+        unique=True,
         description="The Microsoft ID linked to the user's OAuth account.",
     )
     oauthLinkedFacebookId: str | None = Field(
         default=None,
+        unique=True,
         description="The Facebook ID linked to the user's OAuth account.",
     )
 

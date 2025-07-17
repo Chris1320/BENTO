@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -41,7 +41,7 @@ class Notification(SQLModel, table=True):
         description="The unique identifier for the notification.",
     )
     created: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(timezone.utc),
         index=True,
         description="The timestamp for when the notification was created.",
     )

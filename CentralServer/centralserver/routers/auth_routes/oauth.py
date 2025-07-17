@@ -116,20 +116,22 @@ async def oauth_link_google(
         # Default to the configured redirect URI for backward compatibility
         actual_redirect_uri = google_oauth_adapter.config.redirect_uri
 
-    if await oauth_google_link(
+    success, message = await oauth_google_link(
         code=code,
         user_id=token.id,
         google_oauth_adapter=google_oauth_adapter,
         session=session,
         redirect_uri=actual_redirect_uri,
-    ):
-        logger.info("Google OAuth linking successful for user: %s", token.id)
-        return {"message": "Google account linked successfully."}
+    )
 
-    logger.error("Google OAuth linking failed for user: %s", token.id)
+    if success:
+        logger.info("Google OAuth linking successful for user: %s", token.id)
+        return {"message": message}
+
+    logger.error("Google OAuth linking failed for user: %s - %s", token.id, message)
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Failed to link Google account. Please try again.",
+        detail=message,
     )
 
 

@@ -8,6 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwe, jwt
 from jose.exceptions import JWEError
 from passlib.context import CryptContext
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from centralserver import info
@@ -418,7 +419,7 @@ async def oauth_google_link(
     google_oauth_adapter: GoogleOAuthAdapter,
     session: Session,
     redirect_uri: str | None = None,
-) -> bool:
+) -> tuple[bool, str]:
     """Link a Google account to a user.
 
     Args:
@@ -429,7 +430,9 @@ async def oauth_google_link(
         redirect_uri: Optional custom redirect URI for the OAuth flow.
 
     Returns:
-        True if the Google account was linked successfully, False otherwise.
+        A tuple containing (success: bool, message: str).
+        If success is True, message contains a success message.
+        If success is False, message contains the specific error reason.
     """
 
     token_url = "https://accounts.google.com/o/oauth2/token"
@@ -443,10 +446,9 @@ async def oauth_google_link(
     }
     response = httpx.post(token_url, data=data)
     if response.status_code != 200:
-        logger.error(
-            "Failed to exchange authorization code for access token: %s", response.text
-        )
-        return False
+        error_msg = "Failed to exchange authorization code for access token."
+        logger.error("%s: %s", error_msg, response.text)
+        return (False, error_msg)
 
     access_token = response.json().get("access_token")
     user_info = httpx.get(
@@ -454,33 +456,35 @@ async def oauth_google_link(
         headers={"Authorization": f"Bearer {access_token}"},
     )
     if user_info.status_code != 200:
-        logger.error(
-            "Failed to retrieve user information from Google: %s", user_info.text
-        )
-        return False
+        error_msg = "Failed to retrieve user information from Google."
+        logger.error("%s: %s", error_msg, user_info.text)
+        return (False, error_msg)
 
     user_data = user_info.json()
     google_id = user_data.get("id", None)
     if not google_id:
-        logger.error("Invalid Google user data received")
-        return False
+        error_msg = "Invalid Google user data received - missing Google ID."
+        logger.error(error_msg)
+        return (False, error_msg)
 
     # Check if this Google ID is already linked to another user
     existing_user = session.exec(
         select(User).where(User.oauthLinkedGoogleId == google_id)
     ).first()
     if existing_user and existing_user.id != user_id:
+        error_msg = "This Google account is already linked to another user."
         logger.error(
             "Google ID %s is already linked to another user (%s)",
             google_id,
             existing_user.id,
         )
-        return False
+        return (False, error_msg)
 
     user = session.exec(select(User).where(User.id == user_id)).one_or_none()
     if user is None:
+        error_msg = f"User with ID {user_id} not found."
         logger.error("User with ID %s not found", user_id)
-        return False
+        return (False, error_msg)
 
     user.oauthLinkedGoogleId = google_id
     session.add(user)
@@ -488,12 +492,14 @@ async def oauth_google_link(
     try:
         session.commit()
         session.refresh(user)
+        success_msg = f"Google account linked successfully to user {user.username}."
         logger.info("User %s linked their Google account successfully", user.username)
-        return True
-    except Exception as e:
+        return (True, success_msg)
+    except SQLAlchemyError as e:
         session.rollback()
+        error_msg = f"Database error while linking Google account: {str(e)}"
         logger.error("Failed to link Google account for user %s: %s", user_id, str(e))
-        return False
+        return (False, error_msg)
 
 
 async def oauth_google_authenticate(

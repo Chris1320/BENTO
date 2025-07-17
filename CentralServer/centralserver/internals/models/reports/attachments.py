@@ -1,11 +1,7 @@
 import datetime
-from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
-
-if TYPE_CHECKING:
-    pass
 
 
 class ReportAttachment(SQLModel, table=True):

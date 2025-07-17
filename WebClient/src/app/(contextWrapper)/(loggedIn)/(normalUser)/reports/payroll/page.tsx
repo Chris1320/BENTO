@@ -56,12 +56,12 @@ import {
     IconX,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import html2canvas from "html2canvas";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-import jsPDF from "jspdf";
 import weekOfYear from "dayjs/plugin/weekOfYear";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 

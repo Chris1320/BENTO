@@ -8,8 +8,10 @@ import {
     getOauthConfigV1AuthConfigOauthGet,
     getUserProfileEndpointV1UsersMeGet,
     updateUserEndpointV1UsersPatch,
+    deleteUserInfoEndpointV1UsersDelete,
     UserPublic,
     UserUpdate,
+    UserDelete,
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { Program } from "@/lib/info";
@@ -330,13 +332,82 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
             }
         }
 
+        // Check for fields that were cleared (set to null/empty) and need to be deleted
+        const fieldsToDelete: UserDelete = {
+            id: userInfo?.id || "",
+            email: false,
+            nameFirst: false,
+            nameMiddle: false,
+            nameLast: false,
+            position: false,
+            schoolId: false,
+        };
+
+        // Check each field for deletion only if user has permission to modify it
+        if (userPermissions?.includes("users:self:modify:email")) {
+            fieldsToDelete.email =
+                (currentValues.email === "" || currentValues.email === null) && userInfo?.email !== null;
+        }
+
+        if (userPermissions?.includes("users:self:modify:name")) {
+            fieldsToDelete.nameFirst =
+                (currentValues.nameFirst === "" || currentValues.nameFirst === null) && userInfo?.nameFirst !== null;
+            fieldsToDelete.nameMiddle =
+                (currentValues.nameMiddle === "" || currentValues.nameMiddle === null) && userInfo?.nameMiddle !== null;
+            fieldsToDelete.nameLast =
+                (currentValues.nameLast === "" || currentValues.nameLast === null) && userInfo?.nameLast !== null;
+        }
+
+        if (userPermissions?.includes("users:self:modify:position")) {
+            fieldsToDelete.position =
+                (currentValues.position === "" || currentValues.position === null) && userInfo?.position !== null;
+        }
+
+        const hasFieldsToDelete = Object.values(fieldsToDelete).some(
+            (field, index) => index > 0 && field === true // Skip the id field at index 0
+        );
+
         updateData.forceUpdateInfo = false;
         customLogger.debug("Sending only modified fields:", updateData);
+        customLogger.debug("Fields to delete:", fieldsToDelete);
+        customLogger.debug("Has fields to delete:", hasFieldsToDelete);
 
         try {
-            // Call the API to update user information
+            // First handle field deletions if any
+            if (hasFieldsToDelete) {
+                const deleteResult = await deleteUserInfoEndpointV1UsersDelete({
+                    body: fieldsToDelete,
+                    headers: { Authorization: GetAccessTokenHeader() },
+                });
+
+                if (deleteResult.error) {
+                    customLogger.error(
+                        `Failed to delete user fields: ${deleteResult.response.status} ${deleteResult.response.statusText}`
+                    );
+                    notifications.show({
+                        id: "user-delete-error",
+                        title: "Delete Failed",
+                        message: "Failed to clear some profile fields. Please try again.",
+                        color: "red",
+                        icon: <IconX />,
+                    });
+                    buttonLoadingHandler.close();
+                    return;
+                }
+                customLogger.debug("Successfully deleted user fields");
+            }
+
+            // Filter out fields that were deleted from the update object to avoid conflicts
+            const filteredUpdateData: UserUpdate = { ...updateData };
+            if (fieldsToDelete.email) filteredUpdateData.email = undefined;
+            if (fieldsToDelete.nameFirst) filteredUpdateData.nameFirst = undefined;
+            if (fieldsToDelete.nameMiddle) filteredUpdateData.nameMiddle = undefined;
+            if (fieldsToDelete.nameLast) filteredUpdateData.nameLast = undefined;
+            if (fieldsToDelete.position) filteredUpdateData.position = undefined;
+
+            // Then handle regular updates
             const result = await updateUserEndpointV1UsersPatch({
-                body: updateData,
+                body: filteredUpdateData,
                 headers: { Authorization: GetAccessTokenHeader() },
             });
 
@@ -391,7 +462,9 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     };
 
     useEffect(() => {
-        if (userInfo) {
+        // Only initialize form values once when userInfo is first available
+        // Don't reset if form has already been initialized to preserve user input
+        if (userInfo && !userChange.isDirty()) {
             const new_values = {
                 nameFirst: userInfo.nameFirst || "",
                 nameMiddle: userInfo.nameMiddle || "",
@@ -402,7 +475,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                 password: "",
                 confirmPassword: "",
             };
-            customLogger.debug("Setting form values:", new_values);
+            customLogger.debug("Setting initial form values:", new_values);
             userChange.setValues(new_values);
         }
     }, [userInfo]); // eslint-disable-line react-hooks/exhaustive-deps

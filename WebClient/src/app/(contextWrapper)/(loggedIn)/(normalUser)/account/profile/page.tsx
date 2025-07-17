@@ -112,6 +112,26 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     const { setColorScheme, colorScheme } = useMantineColorScheme();
     const { userPreferences, updatePreference } = useThemeContext();
 
+    // Helper function to refetch user profile
+    const refetchUserProfile = async () => {
+        try {
+            const newResult = await getUserProfileEndpointV1UsersMeGet({
+                headers: { Authorization: GetAccessTokenHeader() },
+            });
+
+            if (newResult.error || !newResult.data) {
+                throw new Error(
+                    `Failed to fetch updated user profile: ${newResult.response.status} ${newResult.response.statusText}`
+                );
+            }
+
+            userCtx.updateUserInfo(newResult.data[0], newResult.data[1]);
+        } catch (error) {
+            customLogger.error("Error refetching user profile:", error);
+            throw error;
+        }
+    };
+
     // Local state for preferences that will be saved when Save button is clicked
     const [localPreferences, setLocalPreferences] = useState({
         accentColor: userPreferences.accentColor,
@@ -826,24 +846,28 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 });
             }
 
-            const new_values = {
-                id: userInfo.id,
-                username: userInfo.username || "",
-                nameFirst: userInfo.nameFirst || "",
-                nameMiddle: userInfo.nameMiddle || "",
-                nameLast: userInfo.nameLast || "",
-                position: userInfo.position || "",
-                email: userInfo.email || "",
-                school: availableSchools.find((school) => school.startsWith(`[${userInfo.schoolId}]`)),
-                role: availableRoles.find((role) => role.startsWith(`[${userInfo.roleId}]`)),
-                deactivated: userInfo.deactivated,
-                forceUpdateInfo: userInfo.forceUpdateInfo,
-            };
-            customLogger.debug("Setting form values:", new_values);
-            form.setValues(new_values);
-            setHasUnsavedChanges(false); // Reset unsaved changes when form is initialized
+            // Only reset form values if there are no unsaved changes
+            // This prevents losing user input when OAuth operations refresh userInfo
+            if (!hasUnsavedChanges) {
+                const new_values = {
+                    id: userInfo.id,
+                    username: userInfo.username || "",
+                    nameFirst: userInfo.nameFirst || "",
+                    nameMiddle: userInfo.nameMiddle || "",
+                    nameLast: userInfo.nameLast || "",
+                    position: userInfo.position || "",
+                    email: userInfo.email || "",
+                    school: availableSchools.find((school) => school.startsWith(`[${userInfo.schoolId}]`)),
+                    role: availableRoles.find((role) => role.startsWith(`[${userInfo.roleId}]`)),
+                    deactivated: userInfo.deactivated,
+                    forceUpdateInfo: userInfo.forceUpdateInfo,
+                };
+                customLogger.debug("Setting form values:", new_values);
+                form.setValues(new_values);
+                setHasUnsavedChanges(false); // Reset unsaved changes when form is initialized
+            }
         }
-    }, [userInfo, availableRoles, availableSchools]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userInfo, availableRoles, availableSchools, hasUnsavedChanges]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Track form changes to show unsaved changes indicator
     useEffect(() => {
@@ -1655,7 +1679,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                         });
 
                                         // Refresh the page to update user data
-                                        window.location.reload();
+                                        await refetchUserProfile();
                                     } catch (error) {
                                         customLogger.error("Failed to unlink Google account:", error);
                                         notifications.show({
@@ -1689,7 +1713,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                         });
 
                                         // Refresh the page to update user data
-                                        window.location.reload();
+                                        await refetchUserProfile();
                                     } catch (error) {
                                         customLogger.error("Failed to link Google account:", error);
                                         notifications.show({

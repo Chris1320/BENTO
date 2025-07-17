@@ -520,7 +520,7 @@ async def get_ai_status() -> Dict[str, Any]:
         return {
             "status": "available",
             "message": "AI service is operational",
-            "model": "gemini-1.5-flash-latest",
+            "model": app_config.ai.gemini_model,
             "features": {"insights": True, "chat": True},
         }
 
@@ -528,7 +528,7 @@ async def get_ai_status() -> Dict[str, Any]:
         logger.error("AI status check failed: %s", e)
         return {
             "status": "error",
-            "message": f"AI service error: {str(e)}",
+            "message": f"AI service error",
             "features": {"insights": False, "chat": False},
         }
 

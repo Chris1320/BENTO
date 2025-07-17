@@ -16,7 +16,6 @@ import {
     getUserAvatarEndpointV1UsersAvatarGet,
     getUserProfileEndpointV1UsersMeGet,
     getUserSignatureEndpointV1UsersSignatureGet,
-    oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet,
     OtpToken,
     requestVerificationEmailV1AuthEmailRequestPost,
     Role,
@@ -112,6 +111,26 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     const { SVG } = useQRCode();
     const { setColorScheme, colorScheme } = useMantineColorScheme();
     const { userPreferences, updatePreference } = useThemeContext();
+
+    // Helper function to refetch user profile
+    const refetchUserProfile = async () => {
+        try {
+            const newResult = await getUserProfileEndpointV1UsersMeGet({
+                headers: { Authorization: GetAccessTokenHeader() },
+            });
+
+            if (newResult.error || !newResult.data) {
+                throw new Error(
+                    `Failed to fetch updated user profile: ${newResult.response.status} ${newResult.response.statusText}`
+                );
+            }
+
+            userCtx.updateUserInfo(newResult.data[0], newResult.data[1]);
+        } catch (error) {
+            customLogger.error("Error refetching user profile:", error);
+            throw error;
+        }
+    };
 
     // Local state for preferences that will be saved when Save button is clicked
     const [localPreferences, setLocalPreferences] = useState({
@@ -827,24 +846,28 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 });
             }
 
-            const new_values = {
-                id: userInfo.id,
-                username: userInfo.username || "",
-                nameFirst: userInfo.nameFirst || "",
-                nameMiddle: userInfo.nameMiddle || "",
-                nameLast: userInfo.nameLast || "",
-                position: userInfo.position || "",
-                email: userInfo.email || "",
-                school: availableSchools.find((school) => school.startsWith(`[${userInfo.schoolId}]`)),
-                role: availableRoles.find((role) => role.startsWith(`[${userInfo.roleId}]`)),
-                deactivated: userInfo.deactivated,
-                forceUpdateInfo: userInfo.forceUpdateInfo,
-            };
-            customLogger.debug("Setting form values:", new_values);
-            form.setValues(new_values);
-            setHasUnsavedChanges(false); // Reset unsaved changes when form is initialized
+            // Only reset form values if there are no unsaved changes
+            // This prevents losing user input when OAuth operations refresh userInfo
+            if (!hasUnsavedChanges) {
+                const new_values = {
+                    id: userInfo.id,
+                    username: userInfo.username || "",
+                    nameFirst: userInfo.nameFirst || "",
+                    nameMiddle: userInfo.nameMiddle || "",
+                    nameLast: userInfo.nameLast || "",
+                    position: userInfo.position || "",
+                    email: userInfo.email || "",
+                    school: availableSchools.find((school) => school.startsWith(`[${userInfo.schoolId}]`)),
+                    role: availableRoles.find((role) => role.startsWith(`[${userInfo.roleId}]`)),
+                    deactivated: userInfo.deactivated,
+                    forceUpdateInfo: userInfo.forceUpdateInfo,
+                };
+                customLogger.debug("Setting form values:", new_values);
+                form.setValues(new_values);
+                setHasUnsavedChanges(false); // Reset unsaved changes when form is initialized
+            }
         }
-    }, [userInfo, availableRoles, availableSchools]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userInfo, availableRoles, availableSchools, hasUnsavedChanges]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Track form changes to show unsaved changes indicator
     useEffect(() => {
@@ -1646,26 +1669,25 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 disabled={!oauthSupport.google}
                                 onClick={async () => {
                                     try {
-                                        const result = await oauthUnlinkGoogleV1AuthOauthGoogleUnlinkGet({
-                                            headers: { Authorization: GetAccessTokenHeader() },
-                                        });
-
-                                        if (result.error) {
-                                            throw new Error(
-                                                `Failed to unlink Google account: ${result.response.status} ${result.response.statusText}`
-                                            );
-                                        }
+                                        const { unlinkGoogleAccountPopup } = await import("@/lib/utils/oauth-popup");
+                                        await unlinkGoogleAccountPopup();
 
                                         notifications.show({
                                             title: "Unlink Successful",
                                             message: "Your Google account has been unlinked successfully.",
                                             color: "green",
                                         });
+
+                                        // Refresh the page to update user data
+                                        await refetchUserProfile();
                                     } catch (error) {
                                         customLogger.error("Failed to unlink Google account:", error);
                                         notifications.show({
                                             title: "Unlink Failed",
-                                            message: "Failed to unlink your Google account. Please try again later.",
+                                            message:
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : "Failed to unlink your Google account. Please try again later.",
                                             color: "red",
                                         });
                                     }
@@ -1680,12 +1702,28 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 size="xs"
                                 disabled={!oauthSupport.google}
                                 onClick={async () => {
-                                    const response = await fetch(
-                                        `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/login`
-                                    );
-                                    const data = await response.json();
-                                    if (data.url) {
-                                        window.location.href = data.url;
+                                    try {
+                                        const { linkGoogleAccountPopup } = await import("@/lib/utils/oauth-popup");
+                                        await linkGoogleAccountPopup();
+
+                                        notifications.show({
+                                            title: "Link Successful",
+                                            message: "Your Google account has been linked successfully.",
+                                            color: "green",
+                                        });
+
+                                        // Refresh the page to update user data
+                                        await refetchUserProfile();
+                                    } catch (error) {
+                                        customLogger.error("Failed to link Google account:", error);
+                                        notifications.show({
+                                            title: "Link Failed",
+                                            message:
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : "Failed to link your Google account. Please try again later.",
+                                            color: "red",
+                                        });
                                     }
                                 }}
                             >

@@ -19,19 +19,27 @@ class GoogleOAuthAdapter(OAuthAdapter):
     def __init__(self, config: GoogleOAuthAdapterConfig):
         self.config: GoogleOAuthAdapterConfig = config
 
-    async def get_authorization_url(self) -> dict[str, str]:
+    async def get_authorization_url(
+        self, redirect_uri: str | None = None
+    ) -> dict[str, str]:
+        """Get authorization URL with optional custom redirect URI."""
+        uri = redirect_uri or self.config.redirect_uri
         return {
-            "url": f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={self.config.client_id}&redirect_uri={self.config.redirect_uri}&scope=openid%20profile%20email&access_type=offline"
+            "url": f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id={self.config.client_id}&redirect_uri={uri}&scope=openid%20profile%20email&access_type=offline"
         }
 
-    async def exchange_code_for_token(self, code: str) -> dict[str, str]:
+    async def exchange_code_for_token(
+        self, code: str, redirect_uri: str | None = None
+    ) -> dict[str, str]:
+        """Exchange code for token with optional custom redirect URI."""
         token_url = "https://accounts.google.com/o/oauth2/token"
+        uri = redirect_uri or self.config.redirect_uri
 
         data = {
             "code": code,
             "client_id": self.config.client_id,
             "client_secret": self.config.client_secret,
-            "redirect_uri": self.config.redirect_uri,
+            "redirect_uri": uri,
             "grant_type": "authorization_code",
         }
         response = httpx.post(token_url, data=data)

@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 
-export default function OAuthCallbackPage() {
+function OAuthCallbackContent() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
@@ -92,5 +92,13 @@ export default function OAuthCallbackPage() {
             <h3>Processing OAuth...</h3>
             <p>Please wait while we link your account.</p>
         </div>
+    );
+}
+
+export default function OAuthCallbackPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <OAuthCallbackContent />
+        </Suspense>
     );
 }

@@ -122,8 +122,8 @@ export function isToday(utcDateString: string | null | undefined): boolean {
  * @returns A relative time string in the user's local timezone
  */
 export function getRelativeTime(utcDateString: string | null | undefined): string {
-    // const localDate = utcToLocal(utcDateString);
-    const localDate = dayjs(utcDateString);
+    const localDate = utcToLocal(utcDateString);
+    // const localDate = dayjs(utcDateString);
     if (!localDate) return "N/A";
 
     return localDate.fromNow();

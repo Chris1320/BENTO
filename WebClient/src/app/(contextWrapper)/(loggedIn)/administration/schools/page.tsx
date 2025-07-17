@@ -330,7 +330,7 @@ export default function SchoolsPage(): JSX.Element {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        {school.website}
+                                        {school.website.replace(/^https?:\/\//, "").split("/")[0]}
                                     </Anchor>
                                 ) : (
                                     <Text size="sm">N/A</Text>

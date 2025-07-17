@@ -182,7 +182,16 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         // Name step
         if (userPermissions?.includes("users:self:modify:name")) {
             if (step === currentStepIndex) {
-                return !!(values.nameFirst?.trim() && values.nameLast?.trim());
+                const firstName = values.nameFirst?.trim() || "";
+                const lastName = values.nameLast?.trim() || "";
+                const middleName = values.nameMiddle?.trim() || "";
+                return !!(
+                    firstName &&
+                    lastName &&
+                    firstName.length <= 60 &&
+                    lastName.length <= 60 &&
+                    middleName.length <= 60
+                );
             }
             currentStepIndex++;
         }
@@ -190,7 +199,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         // Username step
         if (userPermissions?.includes("users:self:modify:username")) {
             if (step === currentStepIndex) {
-                return !!values.username?.trim();
+                const username = values.username?.trim() || "";
+                return username.length >= 3 && username.length <= 22;
             }
             currentStepIndex++;
         }
@@ -607,9 +617,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 {...userChange.getInputProps("nameFirst")}
                                                 error={
                                                     getCurrentStepType(active) === "name" &&
-                                                    !userChange.getValues().nameFirst?.trim()
+                                                    (!userChange.getValues().nameFirst?.trim()
                                                         ? "First name is required"
-                                                        : null
+                                                        : (userChange.getValues().nameFirst?.trim().length || 0) > 60
+                                                        ? "First name must be 60 characters or less"
+                                                        : null)
                                                 }
                                             />
                                             <TextInput
@@ -617,6 +629,12 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 label="Middle"
                                                 key={userChange.key("nameMiddle")}
                                                 {...userChange.getInputProps("nameMiddle")}
+                                                error={
+                                                    getCurrentStepType(active) === "name" &&
+                                                    (userChange.getValues().nameMiddle?.trim().length || 0) > 60
+                                                        ? "Middle name must be 60 characters or less"
+                                                        : null
+                                                }
                                             />
                                             <TextInput
                                                 required
@@ -626,9 +644,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 {...userChange.getInputProps("nameLast")}
                                                 error={
                                                     getCurrentStepType(active) === "name" &&
-                                                    !userChange.getValues().nameLast?.trim()
+                                                    (!userChange.getValues().nameLast?.trim()
                                                         ? "Last name is required"
-                                                        : null
+                                                        : (userChange.getValues().nameLast?.trim().length || 0) > 60
+                                                        ? "Last name must be 60 characters or less"
+                                                        : null)
                                                 }
                                             />
                                         </Flex>
@@ -660,9 +680,15 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             {...userChange.getInputProps("username")}
                                             error={
                                                 getCurrentStepType(active) === "username" &&
-                                                !userChange.getValues().username?.trim()
-                                                    ? "Username is required"
-                                                    : null
+                                                (() => {
+                                                    const username = userChange.getValues().username?.trim() || "";
+                                                    if (!username) return "Username is required";
+                                                    if (username.length < 3)
+                                                        return "Username must be at least 3 characters";
+                                                    if (username.length > 22)
+                                                        return "Username must be 22 characters or less";
+                                                    return null;
+                                                })()
                                             }
                                         />
                                     </Container>

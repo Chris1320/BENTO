@@ -1,8 +1,8 @@
 import datetime
 from typing import TYPE_CHECKING
 
-from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import ForeignKeyConstraint
+from sqlmodel import Field, Relationship, SQLModel
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 
@@ -17,10 +17,16 @@ class LiquidationReportAdministrativeExpenses(SQLModel, table=True):
     """
 
     __tablename__: str = "liquidationReportAdministrativeExpenses"  # type: ignore
-
-    parent: datetime.date = Field(
-        primary_key=True, index=True
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_lr_administrative_expenses_monthly_report",
+        ),
     )
+
+    parent: datetime.date = Field(primary_key=True, index=True)
     schoolId: int = Field(
         primary_key=True,
         index=True,
@@ -39,15 +45,6 @@ class LiquidationReportAdministrativeExpenses(SQLModel, table=True):
         description="Optional memo/notes for the liquidation report.",
     )
 
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of monthlyReports
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
-            name="fk_lr_administrative_expenses_monthly_report"
-        ),
-    )
-
     parent_report: "MonthlyReport" = Relationship(
         back_populates="administrative_expenses_report"
     )
@@ -61,6 +58,17 @@ class LiquidationReportAdministrativeExpenses(SQLModel, table=True):
 
 class AdministrativeExpensesCertifiedBy(SQLModel, table=True):
     __tablename__: str = "liquidationReportAdministrativeExpensesCertifiedBy"  # type: ignore
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportAdministrativeExpenses
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            [
+                "liquidationReportAdministrativeExpenses.parent",
+                "liquidationReportAdministrativeExpenses.schoolId",
+            ],
+            name="fk_lr_administrative_expenses_certified_by",
+        ),
+    )
 
     parent: datetime.date = Field(
         primary_key=True,
@@ -74,15 +82,6 @@ class AdministrativeExpensesCertifiedBy(SQLModel, table=True):
     )
     user: str = Field(primary_key=True, foreign_key="users.id")
 
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of liquidationReportAdministrativeExpenses
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["liquidationReportAdministrativeExpenses.parent", "liquidationReportAdministrativeExpenses.schoolId"],
-            name="fk_lr_administrative_expenses_certified_by"
-        ),
-    )
-
     parent_report: "LiquidationReportAdministrativeExpenses" = Relationship(
         back_populates="certified_by"
     )
@@ -92,6 +91,17 @@ class AdministrativeExpenseEntry(SQLModel, table=True):
     """A model representing an entry in the administrative expenses report."""
 
     __tablename__: str = "liquidationReportAdministrativeExpensesEntries"  # type: ignore
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportAdministrativeExpenses
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            [
+                "liquidationReportAdministrativeExpenses.parent",
+                "liquidationReportAdministrativeExpenses.schoolId",
+            ],
+            name="fk_lr_administrative_expenses_entry",
+        ),
+    )
 
     parent: datetime.date = Field(
         primary_key=True,
@@ -115,15 +125,6 @@ class AdministrativeExpenseEntry(SQLModel, table=True):
     unit: str
     quantity: float
     unit_price: float
-
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of liquidationReportAdministrativeExpenses
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["liquidationReportAdministrativeExpenses.parent", "liquidationReportAdministrativeExpenses.schoolId"],
-            name="fk_lr_administrative_expenses_entry"
-        ),
-    )
 
     parent_report: LiquidationReportAdministrativeExpenses = Relationship(
         back_populates="entries"

@@ -1,8 +1,8 @@
 import datetime
 from typing import TYPE_CHECKING
 
-from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy import ForeignKeyConstraint
+from sqlmodel import Field, Relationship, SQLModel
 
 from centralserver.internals.models.reports.report_status import ReportStatus
 
@@ -17,10 +17,16 @@ class LiquidationReportClinicFund(SQLModel, table=True):
     """
 
     __tablename__: str = "liquidationReportClinicFund"  # type: ignore
-
-    parent: datetime.date = Field(
-        primary_key=True, index=True
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of monthlyReports
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
+            name="fk_liquidation_report_clinic_fund_monthly_report",
+        ),
     )
+
+    parent: datetime.date = Field(primary_key=True, index=True)
     schoolId: int = Field(
         primary_key=True,
         index=True,
@@ -39,15 +45,6 @@ class LiquidationReportClinicFund(SQLModel, table=True):
         description="Optional memo/notes for the liquidation report.",
     )
 
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of monthlyReports
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["monthlyReports.id", "monthlyReports.submittedBySchool"],
-            name="fk_liquidation_report_clinic_fund_monthly_report"
-        ),
-    )
-
     parent_report: "MonthlyReport" = Relationship(back_populates="clinic_fund_report")
     certified_by: list["LiquidationReportClinicFundCertifiedBy"] = Relationship(
         back_populates="parent_report", cascade_delete=True
@@ -59,6 +56,17 @@ class LiquidationReportClinicFund(SQLModel, table=True):
 
 class LiquidationReportClinicFundCertifiedBy(SQLModel, table=True):
     __tablename__: str = "liquidationReportClinicFundCertifiedBy"  # type: ignore
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportClinicFund
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            [
+                "liquidationReportClinicFund.parent",
+                "liquidationReportClinicFund.schoolId",
+            ],
+            name="fk_lr_clinic_fund_certified_by",
+        ),
+    )
 
     parent: datetime.date = Field(
         primary_key=True,
@@ -72,15 +80,6 @@ class LiquidationReportClinicFundCertifiedBy(SQLModel, table=True):
         description="The school that submitted the report.",
     )
 
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of liquidationReportClinicFund
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["liquidationReportClinicFund.parent", "liquidationReportClinicFund.schoolId"],
-            name="fk_lr_clinic_fund_certified_by"
-        ),
-    )
-
     parent_report: LiquidationReportClinicFund = Relationship(
         back_populates="certified_by"
     )
@@ -88,6 +87,17 @@ class LiquidationReportClinicFundCertifiedBy(SQLModel, table=True):
 
 class LiquidationReportClinicFundEntry(SQLModel, table=True):
     __tablename__: str = "liquidationReportClinicFundEntries"  # type: ignore
+    __table_args__ = (
+        # Composite foreign key to reference the composite primary key of liquidationReportClinicFund
+        ForeignKeyConstraint(
+            ["parent", "schoolId"],
+            [
+                "liquidationReportClinicFund.parent",
+                "liquidationReportClinicFund.schoolId",
+            ],
+            name="fk_lr_clinic_fund_entry",
+        ),
+    )
 
     parent: datetime.date = Field(
         primary_key=True,
@@ -107,14 +117,5 @@ class LiquidationReportClinicFundEntry(SQLModel, table=True):
     receiptNumber: str | None = Field(description="Receipt or voucher number.")
     particulars: str = Field(primary_key=True, description="Item description.")
     amount: float = Field(description="Amount of the expense.")
-
-    __table_args__ = (
-        # Composite foreign key to reference the composite primary key of liquidationReportClinicFund
-        ForeignKeyConstraint(
-            ["parent", "schoolId"],
-            ["liquidationReportClinicFund.parent", "liquidationReportClinicFund.schoolId"],
-            name="fk_lr_clinic_fund_entry"
-        ),
-    )
 
     parent_report: LiquidationReportClinicFund = Relationship(back_populates="entries")

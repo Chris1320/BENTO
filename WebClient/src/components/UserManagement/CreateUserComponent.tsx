@@ -89,7 +89,7 @@ export function CreateUserComponent({
                     throw new Error(`Failed to create user: ${result.response.status} ${result.response.statusText}`);
                 }
                 const newUser = result.data;
-                
+
                 notifications.show({
                     id: "create-user-success",
                     title: "Success",

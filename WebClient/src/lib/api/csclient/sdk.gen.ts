@@ -343,6 +343,7 @@ export const disableMfaOtpV1AuthMfaOtpDisablePost = <ThrowOnError extends boolea
  * new_user: The new user's information.
  * token: The decoded JWT token of the logged-in user.
  * session: The database session.
+ * background_tasks: Background tasks to run after the request is processed.
  *
  * Returns:
  * A newly created user object.

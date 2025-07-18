@@ -1032,7 +1032,6 @@ export default function UsersPage(): JSX.Element {
                         setModalOpen={setOpenCreateUserModal}
                         availableSchools={availableSchools}
                         availableRoles={availableRoles}
-                        UpdateUserInfo={UpdateUserInfo}
                         onUserCreate={(newUser) => {
                             setAllUsers((prev) => [newUser, ...prev]);
                         }}

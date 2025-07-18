@@ -1416,6 +1416,30 @@ export type UserCreate = {
      * Password
      */
     password: string;
+    /**
+     * Email
+     */
+    email?: string | null;
+    /**
+     * Namefirst
+     */
+    nameFirst?: string | null;
+    /**
+     * Namemiddle
+     */
+    nameMiddle?: string | null;
+    /**
+     * Namelast
+     */
+    nameLast?: string | null;
+    /**
+     * Position
+     */
+    position?: string | null;
+    /**
+     * Schoolid
+     */
+    schoolId?: number | null;
 };
 
 /**

@@ -32,7 +32,7 @@ import { IconAlertCircle, IconCalendar, IconDownload, IconFileTypePdf, IconHisto
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 interface DailyEntry {
@@ -45,7 +45,26 @@ interface DailyEntry {
 
 function SalesandPurchasesContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const userCtx = useUser();
+
+    // Get school ID from URL parameters if user is admin/superintendent, otherwise use user's school
+    const getEffectiveSchoolId = useCallback(() => {
+        const userRoleId = userCtx.userInfo?.roleId;
+        const isAdminOrSuperintendent = userRoleId === 2 || userRoleId === 3; // Superintendent or Administrator
+        
+        if (isAdminOrSuperintendent) {
+            // For admin/superintendent, get school ID from URL parameter
+            const schoolIdParam = searchParams.get("schoolId");
+            return schoolIdParam ? parseInt(schoolIdParam, 10) : null;
+        } else {
+            // For regular users (principals, canteen managers), use their assigned school
+            return userCtx.userInfo?.schoolId || null;
+        }
+    }, [userCtx.userInfo?.roleId, userCtx.userInfo?.schoolId, searchParams]);
+
+    const effectiveSchoolId = getEffectiveSchoolId();
+    
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([]);
@@ -91,11 +110,11 @@ function SalesandPurchasesContent() {
     // Fetch entries for the current month
     useEffect(() => {
         const fetchEntries = async () => {
-            if (userCtx.userInfo?.schoolId) {
+            if (effectiveSchoolId) {
                 try {
                     const res = await csclient.getSchoolDailyReportEntriesV1ReportsDailySchoolIdYearMonthEntriesGet({
                         path: {
-                            school_id: userCtx.userInfo.schoolId,
+                            school_id: effectiveSchoolId,
                             year: currentMonth.getFullYear(),
                             month: currentMonth.getMonth() + 1,
                         },
@@ -125,17 +144,17 @@ function SalesandPurchasesContent() {
             }
         };
         fetchEntries();
-    }, [currentMonth, userCtx.userInfo?.schoolId]);
+    }, [currentMonth, effectiveSchoolId]);
 
     // Load daily report data after school users are loaded
     useEffect(() => {
         const loadDailyReportData = async () => {
-            if (!userCtx.userInfo?.schoolId) return;
+            if (!effectiveSchoolId) return;
 
             try {
                 const reportRes = await csclient.getSchoolDailyReportV1ReportsDailySchoolIdYearMonthGet({
                     path: {
-                        school_id: userCtx.userInfo.schoolId,
+                        school_id: effectiveSchoolId,
                         year: currentMonth.getFullYear(),
                         month: currentMonth.getMonth() + 1,
                     },
@@ -243,7 +262,7 @@ function SalesandPurchasesContent() {
         loadDailyReportData();
     }, [
         currentMonth,
-        userCtx.userInfo?.schoolId,
+        effectiveSchoolId,
         userCtx.userInfo?.id,
         userCtx.userInfo?.nameFirst,
         userCtx.userInfo?.nameLast,
@@ -296,13 +315,13 @@ function SalesandPurchasesContent() {
 
     useEffect(() => {
         const loadSchoolData = async () => {
-            if (!userCtx.userInfo?.schoolId) return;
+            if (!effectiveSchoolId) return;
 
             try {
                 // Get school details using the school ID
                 const schoolResponse = await csclient.getSchoolEndpointV1SchoolsGet({
                     query: {
-                        school_id: userCtx.userInfo.schoolId,
+                        school_id: effectiveSchoolId,
                     },
                 });
                 if (schoolResponse.data) {
@@ -373,7 +392,7 @@ function SalesandPurchasesContent() {
         };
 
         loadSchoolData();
-    }, [userCtx.userInfo?.schoolId, notedBy, selectedNotedByUser]);
+    }, [effectiveSchoolId, notedBy, selectedNotedByUser]);
 
     const handleClose = () => {
         router.push("/reports");
@@ -442,7 +461,7 @@ function SalesandPurchasesContent() {
 
     const handleSaveEntry = async () => {
         if (!editingEntry) return;
-        if (!userCtx.userInfo?.schoolId) {
+        if (!effectiveSchoolId) {
             notifications.show({
                 title: "Error",
                 message: "You are not yet assigned to a school.",
@@ -456,7 +475,7 @@ function SalesandPurchasesContent() {
                 // Update existing entry in backend
                 await csclient.updateDailySalesAndPurchasesEntryV1ReportsDailySchoolIdYearMonthEntriesDayPut({
                     path: {
-                        school_id: userCtx.userInfo.schoolId,
+                        school_id: effectiveSchoolId,
                         year: dayjs(editingEntry.date).year(),
                         month: dayjs(editingEntry.date).month() + 1,
                         day: editingEntry.day,
@@ -470,7 +489,7 @@ function SalesandPurchasesContent() {
                 // Create new entry in backend
                 await csclient.createBulkDailySalesAndPurchasesEntriesV1ReportsDailySchoolIdYearMonthEntriesBulkPost({
                     path: {
-                        school_id: userCtx.userInfo.schoolId,
+                        school_id: effectiveSchoolId,
                         year: dayjs(editingEntry.date).year(),
                         month: dayjs(editingEntry.date).month() + 1,
                     },
@@ -479,7 +498,7 @@ function SalesandPurchasesContent() {
                             day: editingEntry.day,
                             sales: modalSales,
                             purchases: modalPurchases,
-                            schoolId: userCtx.userInfo?.schoolId || 0,
+                            schoolId: effectiveSchoolId || 0,
                         },
                     ],
                 });
@@ -487,7 +506,7 @@ function SalesandPurchasesContent() {
             // Re-fetch entries after save
             const res = await csclient.getSchoolDailyReportEntriesV1ReportsDailySchoolIdYearMonthEntriesGet({
                 path: {
-                    school_id: userCtx.userInfo.schoolId,
+                    school_id: effectiveSchoolId,
                     year: dayjs(editingEntry.date).year(),
                     month: dayjs(editingEntry.date).month() + 1,
                 },
@@ -522,7 +541,7 @@ function SalesandPurchasesContent() {
     };
 
     const handleDeleteEntry = async (entry: DailyEntry) => {
-        if (!userCtx.userInfo?.schoolId) {
+        if (!effectiveSchoolId) {
             notifications.show({
                 title: "Error",
                 message: "You are not yet assigned to a school.",
@@ -533,7 +552,7 @@ function SalesandPurchasesContent() {
         try {
             await csclient.deleteDailySalesAndPurchasesEntryV1ReportsDailySchoolIdYearMonthEntriesDayDelete({
                 path: {
-                    school_id: userCtx.userInfo.schoolId,
+                    school_id: effectiveSchoolId,
                     year: dayjs(entry.date).year(),
                     month: dayjs(entry.date).month() + 1,
                     day: entry.day,
@@ -542,7 +561,7 @@ function SalesandPurchasesContent() {
             // Re-fetch entries after delete
             const res = await csclient.getSchoolDailyReportEntriesV1ReportsDailySchoolIdYearMonthEntriesGet({
                 path: {
-                    school_id: userCtx.userInfo.schoolId,
+                    school_id: effectiveSchoolId,
                     year: dayjs(entry.date).year(),
                     month: dayjs(entry.date).month() + 1,
                 },
@@ -637,7 +656,7 @@ function SalesandPurchasesContent() {
                         day: entry.day,
                         sales: entry.sales,
                         purchases: entry.purchases,
-                        schoolId: userCtx.userInfo?.schoolId || 0,
+                        schoolId: effectiveSchoolId || 0,
                     })),
                 });
             }
@@ -745,7 +764,7 @@ function SalesandPurchasesContent() {
 
     const getFileName = () => {
         const monthYear = dayjs(currentMonth).format("MMMM-YYYY");
-        const schoolName = schoolData?.name || userCtx.userInfo?.schoolId || "School";
+        const schoolName = schoolData?.name || "School";
         return `Financial-Report-${schoolName}-${monthYear}.pdf`;
     };
 
@@ -789,7 +808,7 @@ function SalesandPurchasesContent() {
             }
 
             const monthYear = dayjs(currentMonth).format("MMMM-YYYY");
-            const schoolName = userCtx.userInfo?.schoolId || "School";
+            const schoolName = schoolData?.name || "School";
             pdf.save(`Financial-Report-${schoolName}-${monthYear}.pdf`);
 
             // Show action buttons again
@@ -1178,7 +1197,7 @@ function SalesandPurchasesContent() {
                     </ActionIcon>
                 </Flex>
 
-                {!userCtx.userInfo?.schoolId && (
+                {!effectiveSchoolId && (
                     <Alert
                         variant="light"
                         color="yellow"
@@ -1463,7 +1482,7 @@ function SalesandPurchasesContent() {
                     <SubmitForReviewButton
                         reportType="daily"
                         reportPeriod={{
-                            schoolId: userCtx.userInfo?.schoolId || 0,
+                            schoolId: effectiveSchoolId || 0,
                             year: currentMonth.getFullYear(),
                             month: currentMonth.getMonth() + 1,
                         }}

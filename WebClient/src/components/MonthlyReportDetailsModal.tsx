@@ -13,6 +13,7 @@ import {
     School,
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
+import { useUser } from "@/lib/providers/user";
 import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
 import { ActionIcon, Alert, Badge, Button, Group, Image, Modal, Stack, Table, Text, Title } from "@mantine/core";
 import { IconAlertCircle, IconCalendar, IconCash, IconExternalLink, IconReceipt, IconUsers } from "@tabler/icons-react";
@@ -77,6 +78,7 @@ const liquidationCategories = [
 
 export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }: MonthlyReportDetailsModalProps) {
     const router = useRouter();
+    const userCtx = useUser();
     const [linkedReports, setLinkedReports] = useState<LinkedReport[]>([]);
     const [loading, setLoading] = useState(false);
     const [financialData, setFinancialData] = useState<FinancialData | null>(null);
@@ -424,7 +426,17 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
     }, [opened, report, logoUrl]);
 
     const handleOpenReport = (reportRoute: string) => {
-        router.push(reportRoute);
+        // Check if user is admin/superintendent and append schoolId parameter
+        const userRoleId = userCtx.userInfo?.roleId;
+        const isAdminOrSuperintendent = userRoleId === 2 || userRoleId === 3;
+        
+        if (isAdminOrSuperintendent && report?.submittedBySchool) {
+            const separator = reportRoute.includes('?') ? '&' : '?';
+            const routeWithSchoolId = `${reportRoute}${separator}schoolId=${report.submittedBySchool}`;
+            router.push(routeWithSchoolId);
+        } else {
+            router.push(reportRoute);
+        }
         onClose();
     };
 

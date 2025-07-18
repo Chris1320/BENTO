@@ -55,6 +55,7 @@ import { DateInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 import { notifications } from "@mantine/notifications";
 import {
+    IconAlertCircle,
     IconCalendar,
     IconDownload,
     IconFileTypePdf,
@@ -110,6 +111,23 @@ function LiquidationReportContent() {
     const searchParams = useSearchParams();
     const category = searchParams.get("category");
     const userCtx = useUser();
+
+    // Get school ID from URL parameters if user is admin/superintendent, otherwise use user's school
+    const getEffectiveSchoolId = useCallback(() => {
+        const userRoleId = userCtx.userInfo?.roleId;
+        const isAdminOrSuperintendent = userRoleId === 2 || userRoleId === 3; // Superintendent or Administrator
+
+        if (isAdminOrSuperintendent) {
+            // For admin/superintendent, get school ID from URL parameter
+            const schoolIdParam = searchParams.get("schoolId");
+            return schoolIdParam ? parseInt(schoolIdParam, 10) : null;
+        } else {
+            // For regular users (principals, canteen managers), use their assigned school
+            return userCtx.userInfo?.schoolId || null;
+        }
+    }, [userCtx.userInfo?.roleId, userCtx.userInfo?.schoolId, searchParams]);
+
+    const effectiveSchoolId = getEffectiveSchoolId();
 
     const [reportPeriod, setReportPeriod] = useState<Date | null>(new Date());
     const [unitOptions, setUnitOptions] = useState<string[]>(defaultUnitOptions);
@@ -176,7 +194,7 @@ function LiquidationReportContent() {
     // Load existing report data
     useEffect(() => {
         const loadExistingReport = async () => {
-            if (!userCtx.userInfo?.schoolId || !reportPeriod || !category) return;
+            if (!effectiveSchoolId || !reportPeriod || !category) return;
 
             setIsLoading(true);
             try {
@@ -185,7 +203,7 @@ function LiquidationReportContent() {
 
                 const response = await csclient.getLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryGet({
                     path: {
-                        school_id: userCtx.userInfo.schoolId,
+                        school_id: effectiveSchoolId,
                         year,
                         month,
                         category,
@@ -299,7 +317,7 @@ function LiquidationReportContent() {
         };
 
         loadExistingReport();
-    }, [userCtx.userInfo?.schoolId, reportPeriod, category]);
+    }, [effectiveSchoolId, reportPeriod, category]);
 
     // Initialize signature data and load school users
     useEffect(() => {
@@ -430,13 +448,13 @@ function LiquidationReportContent() {
     // Load school data and automatically assign principal
     useEffect(() => {
         const loadSchoolData = async () => {
-            if (!userCtx.userInfo?.schoolId) return;
+            if (!effectiveSchoolId) return;
 
             try {
                 // Get school details using the school ID
                 const schoolResponse = await csclient.getSchoolEndpointV1SchoolsGet({
                     query: {
-                        school_id: userCtx.userInfo.schoolId,
+                        school_id: effectiveSchoolId,
                     },
                 });
 
@@ -498,7 +516,7 @@ function LiquidationReportContent() {
         };
 
         loadSchoolData();
-    }, [userCtx.userInfo?.schoolId, notedBy, selectedNotedByUser, schoolUsers, reportStatus]);
+    }, [effectiveSchoolId, notedBy, selectedNotedByUser, schoolUsers, reportStatus]);
 
     // Validate category parameter
     if (!category || !report_type[category as keyof typeof report_type]) {
@@ -516,6 +534,39 @@ function LiquidationReportContent() {
                                 </Title>
                                 <Text size="sm" c="dimmed">
                                     The report category is missing or invalid.
+                                </Text>
+                            </div>
+                        </Group>
+                        <ActionIcon variant="subtle" color="gray" onClick={() => router.push("/reports")} size="lg">
+                            <IconX size={20} />
+                        </ActionIcon>
+                    </Flex>
+                </Stack>
+            </div>
+        );
+    }
+
+    // Validate that school ID is available
+    if (!effectiveSchoolId) {
+        const userRoleId = userCtx.userInfo?.roleId;
+        const isAdminOrSuperintendent = userRoleId === 2 || userRoleId === 3;
+
+        return (
+            <div className="max-w-7xl mx-auto p-4 sm:p-6">
+                <Stack gap="lg">
+                    <Flex justify="space-between" align="center">
+                        <Group gap="md">
+                            <div className="p-2 bg-red-100 rounded-lg">
+                                <IconAlertCircle size={28} />
+                            </div>
+                            <div>
+                                <Title order={2} className="text-gray-800">
+                                    {isAdminOrSuperintendent ? "School Not Specified" : "No School Assignment"}
+                                </Title>
+                                <Text size="sm" c="dimmed">
+                                    {isAdminOrSuperintendent
+                                        ? "Please specify a school ID in the URL to view this report."
+                                        : "You are not assigned to a school. Please contact your administrator."}
                                 </Text>
                             </div>
                         </Group>
@@ -560,7 +611,7 @@ function LiquidationReportContent() {
                     await csclient.changeLiquidationReportStatusV1ReportsLiquidationSchoolIdYearMonthCategoryStatusPatch(
                         {
                             path: {
-                                school_id: userCtx.userInfo.schoolId,
+                                school_id: effectiveSchoolId,
                                 year,
                                 month,
                                 category,
@@ -650,7 +701,7 @@ function LiquidationReportContent() {
     };
 
     const handleSubmitReport = async () => {
-        if (!userCtx.userInfo?.schoolId || !reportPeriod || !category) {
+        if (!effectiveSchoolId || !reportPeriod || !category) {
             notifications.show({
                 title: "Error",
                 message:
@@ -707,11 +758,11 @@ function LiquidationReportContent() {
 
             // Prepare the report data
             const reportData: csclient.LiquidationReportCreateRequest = {
-                schoolId: userCtx.userInfo.schoolId,
+                schoolId: effectiveSchoolId,
                 entries,
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
                 preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
-                teacherInCharge: userCtx.userInfo.id, // Current user ID
+                teacherInCharge: userCtx.userInfo?.id || null, // Current user ID
                 certifiedBy: [], // Can be set later
                 memo: notes || null, // Add memo field
             };
@@ -726,7 +777,7 @@ function LiquidationReportContent() {
 
             await csclient.createOrUpdateLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryPatch({
                 path: {
-                    school_id: userCtx.userInfo.schoolId,
+                    school_id: effectiveSchoolId,
                     year,
                     month,
                     category,
@@ -753,7 +804,7 @@ function LiquidationReportContent() {
     };
 
     const handleSaveDraft = async () => {
-        if (!userCtx.userInfo?.schoolId || !reportPeriod || !category) {
+        if (!effectiveSchoolId || !reportPeriod || !category) {
             notifications.show({
                 title: "Error",
                 message:
@@ -794,11 +845,11 @@ function LiquidationReportContent() {
 
             // Prepare the report data
             const reportData: csclient.LiquidationReportCreateRequest = {
-                schoolId: userCtx.userInfo.schoolId,
+                schoolId: effectiveSchoolId,
                 entries,
                 notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
                 preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
-                teacherInCharge: userCtx.userInfo.id,
+                teacherInCharge: userCtx.userInfo?.id || null,
                 certifiedBy: [],
                 memo: notes || null, // Add memo field
             };
@@ -813,7 +864,7 @@ function LiquidationReportContent() {
 
             await csclient.createOrUpdateLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryPatch({
                 path: {
-                    school_id: userCtx.userInfo.schoolId,
+                    school_id: effectiveSchoolId,
                     year,
                     month,
                     category,
@@ -1657,7 +1708,7 @@ function LiquidationReportContent() {
                         <SubmitForReviewButton
                             reportType="liquidation"
                             reportPeriod={{
-                                schoolId: userCtx.userInfo?.schoolId || 0,
+                                schoolId: effectiveSchoolId || 0,
                                 year: reportPeriod?.getFullYear() || new Date().getFullYear(),
                                 month: reportPeriod?.getMonth()
                                     ? reportPeriod.getMonth() + 1

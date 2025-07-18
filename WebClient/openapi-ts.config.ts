@@ -5,13 +5,15 @@ import "dotenv/config";
 export default defineConfig({
     input: {
         path: `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/openapi.json`,
-        pagination: { keywords: ["limit", "offset"] },
         // watch: true,
     },
     output: {
         path: "src/lib/api/csclient",
         format: "prettier",
         lint: "eslint",
+    },
+    parser: {
+        pagination: { keywords: ["limit", "offset"] },
     },
     plugins: [
         {

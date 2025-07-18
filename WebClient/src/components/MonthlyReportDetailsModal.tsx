@@ -806,7 +806,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
 
                 // Convert to canvas
                 const canvas = await html2canvas(tempDiv, {
-                    background: "#ffffff",
+                    backgroundColor: "#ffffff",
                     useCORS: true,
                     logging: false,
                     allowTaint: false,

@@ -761,7 +761,7 @@ function SalesandPurchasesContent() {
             const canvas = await html2canvas(element, {
                 useCORS: true,
                 allowTaint: true,
-                background: "#ffffff",
+                backgroundColor: "#ffffff",
             });
 
             const imgData = canvas.toDataURL("image/png");

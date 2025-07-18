@@ -87,7 +87,6 @@ function SalesandPurchasesContent() {
     // User selection state for "noted by" field
     const [selectedNotedByUser, setSelectedNotedByUser] = useState<csclient.UserSimple | null>(null);
     const [approvalModalOpened, setApprovalModalOpened] = useState(false);
-    const [approvalConfirmed, setApprovalConfirmed] = useState(false);
     const [approvalCheckbox, setApprovalCheckbox] = useState(false);
 
     // Report status state
@@ -237,10 +236,6 @@ function SalesandPurchasesContent() {
                                             if (response.data) {
                                                 const signatureUrl = URL.createObjectURL(response.data as Blob);
                                                 setNotedBySignatureUrl(signatureUrl);
-                                                // Only mark as approved if report status is approved
-                                                if (report.reportStatus === "approved") {
-                                                    setApprovalConfirmed(true);
-                                                }
                                             }
                                         } catch (error) {
                                             customLogger.error("Failed to load noted by user signature:", error);
@@ -409,7 +404,6 @@ function SalesandPurchasesContent() {
             if (response.data) {
                 const signatureUrl = URL.createObjectURL(response.data as Blob);
                 setNotedBySignatureUrl(signatureUrl);
-                setApprovalConfirmed(true);
             }
         } catch (error) {
             customLogger.error("Failed to load noted by user signature:", error);
@@ -1240,7 +1234,6 @@ function SalesandPurchasesContent() {
                                         setPreparedBySignatureUrl(null);
                                         setNotedBySignatureUrl(null);
                                         setSelectedNotedByUser(null);
-                                        setApprovalConfirmed(false);
                                     }
                                 }}
                                 leftSection={<IconCalendar size={16} />}
@@ -1430,7 +1423,9 @@ function SalesandPurchasesContent() {
                                 <Badge
                                     size="sm"
                                     color={
-                                        approvalConfirmed && reportStatus === "approved"
+                                        reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived"
                                             ? "green"
                                             : selectedNotedByUser
                                             ? "yellow"
@@ -1438,8 +1433,12 @@ function SalesandPurchasesContent() {
                                     }
                                     variant="light"
                                 >
-                                    {approvalConfirmed && reportStatus === "approved"
+                                    {reportStatus === "approved"
                                         ? "Approved"
+                                        : reportStatus === "received"
+                                        ? "Received"
+                                        : reportStatus === "archived"
+                                        ? "Archived"
                                         : selectedNotedByUser
                                         ? "Pending Approval"
                                         : "Not Selected"}

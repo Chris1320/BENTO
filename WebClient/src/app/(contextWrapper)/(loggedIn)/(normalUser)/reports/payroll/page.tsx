@@ -165,7 +165,6 @@ function PayrollPageContent() {
     const [selectedNotedByUser, setSelectedNotedByUser] = useState<csclient.UserSimple | null>(null);
     const [reportApprovalModalOpened, setReportApprovalModalOpened] = useState(false);
     const [reportApprovalCheckbox, setReportApprovalCheckbox] = useState(false);
-    const [approvalConfirmed, setApprovalConfirmed] = useState(false);
 
     // Report status tracking
     const [reportStatus, setReportStatus] = useState<string | null>(null);
@@ -242,11 +241,6 @@ function PayrollPageContent() {
                 if (reportResponse.data && entriesResponse.data) {
                     // Set report status from the loaded report
                     setReportStatus(reportResponse.data.reportStatus || "draft");
-
-                    // Set approval confirmation if the report is already approved
-                    if (reportResponse.data.reportStatus === "approved") {
-                        setApprovalConfirmed(true);
-                    }
 
                     // Store the notedBy user ID from the loaded report
                     // Note: This will be converted to a user name once school users are loaded
@@ -681,7 +675,6 @@ function PayrollPageContent() {
             if (response.data) {
                 const signatureUrl = URL.createObjectURL(response.data as Blob);
                 setNotedBySignatureUrl(signatureUrl);
-                setApprovalConfirmed(true);
             }
         } catch (error) {
             customLogger.error("Failed to load noted by user signature:", error);
@@ -2027,7 +2020,9 @@ function PayrollPageContent() {
                                 <Badge
                                     size="sm"
                                     color={
-                                        approvalConfirmed && reportStatus === "approved"
+                                        reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived"
                                             ? "green"
                                             : selectedNotedByUser
                                             ? "yellow"
@@ -2035,8 +2030,12 @@ function PayrollPageContent() {
                                     }
                                     variant="light"
                                 >
-                                    {approvalConfirmed && reportStatus === "approved"
+                                    {reportStatus === "approved"
                                         ? "Approved"
+                                        : reportStatus === "received"
+                                        ? "Received"
+                                        : reportStatus === "archived"
+                                        ? "Archived"
                                         : selectedNotedByUser
                                         ? "Pending Approval"
                                         : "Not Selected"}

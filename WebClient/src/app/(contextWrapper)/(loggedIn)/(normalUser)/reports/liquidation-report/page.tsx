@@ -1643,12 +1643,22 @@ function LiquidationReportContent() {
                                 <Badge
                                     size="sm"
                                     color={
-                                        reportStatus === "approved" ? "green" : selectedNotedByUser ? "yellow" : "gray"
+                                        reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived"
+                                            ? "green"
+                                            : selectedNotedByUser
+                                            ? "yellow"
+                                            : "gray"
                                     }
                                     variant="light"
                                 >
                                     {reportStatus === "approved"
                                         ? "Approved"
+                                        : reportStatus === "received"
+                                        ? "Received"
+                                        : reportStatus === "archived"
+                                        ? "Archived"
                                         : selectedNotedByUser
                                         ? "Pending Approval"
                                         : "Not Assigned"}

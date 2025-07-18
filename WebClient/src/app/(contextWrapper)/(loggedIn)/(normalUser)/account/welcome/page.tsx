@@ -809,8 +809,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                 <ProgramTitleCenter classes={classes} logoControls={logoControls} />
                                 <Container size="xs" mt="xl">
                                     <Text mt="md" ta="center">
-                                        You can link your Google or Microsoft account to your profile for easier login
-                                        and account management.
+                                        You can link your Google account to your profile for easier login and account
+                                        management.
                                     </Text>
                                     <Stack mt="md">
                                         <Group justify="space-between" align="center">

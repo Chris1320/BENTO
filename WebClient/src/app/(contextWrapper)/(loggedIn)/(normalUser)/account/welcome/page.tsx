@@ -84,11 +84,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     ));
     const pwStrength = getStrength(getCurrentPassword());
     const meterColor = pwStrength === 100 ? "teal" : pwStrength > 50 ? "yellow" : "red";
-    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
+    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean }>({
         google: false,
-        // TODO: OAuth adapters below are not implemented yet.
-        microsoft: false,
-        facebook: false,
     });
 
     // Helper function to refetch user profile
@@ -117,7 +114,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         ["Set your position", userPermissions?.includes("users:self:modify:position")],
         ["Link your email", userPermissions?.includes("users:self:modify:email")],
         ["Set your password", userPermissions?.includes("users:self:modify:password")],
-        ["Link your Google/Microsoft account", true],
+        ["Link your Google account for easier sign in", true],
     ];
     let maxSteps = 2; // Total number of steps in the welcome process
     maxSteps += userPermissions?.includes("users:self:modify:name") ? 1 : 0;
@@ -510,8 +507,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                 if (response) {
                     setOAuthSupport({
                         google: response.google,
-                        microsoft: response.microsoft,
-                        facebook: response.facebook,
                     });
                     customLogger.info("OAuth support updated", response);
                 } else {
@@ -926,133 +921,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 </Button>
                                             )}
                                         </Group>
-                                        <Group justify="space-between" align="center">
-                                            <Group>
-                                                <Box w={30} h={30}>
-                                                    <Image
-                                                        src="/assets/logos/microsoft.svg"
-                                                        alt="Microsoft Logo"
-                                                        width={30}
-                                                        height={30}
-                                                        style={{ objectFit: "contain" }}
-                                                    />
-                                                </Box>
-                                                <div>
-                                                    <Group>
-                                                        <Text size="sm" fw={500}>
-                                                            Microsoft
-                                                        </Text>
-                                                        <Badge
-                                                            variant="filled"
-                                                            color={userInfo?.oauthLinkedMicrosoftId ? "green" : "gray"}
-                                                            size="xs"
-                                                        >
-                                                            {userInfo?.oauthLinkedMicrosoftId ? "Linked" : "Not Linked"}
-                                                        </Badge>
-                                                    </Group>
-                                                    <Text size="xs" c="dimmed">
-                                                        Link your Microsoft account for quick sign-in
-                                                    </Text>
-                                                </div>
-                                            </Group>
-                                            {userInfo?.oauthLinkedMicrosoftId ? (
-                                                <Button
-                                                    variant="light"
-                                                    color="blue"
-                                                    size="xs"
-                                                    disabled={!oauthSupport.microsoft}
-                                                    onClick={() => {
-                                                        notifications.show({
-                                                            title: "Coming Soon",
-                                                            message: "Microsoft account linking will be available soon",
-                                                            color: "blue",
-                                                        });
-                                                    }}
-                                                >
-                                                    Unlink Account
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    variant="light"
-                                                    color="blue"
-                                                    size="xs"
-                                                    disabled={!oauthSupport.microsoft}
-                                                    onClick={async () => {
-                                                        notifications.show({
-                                                            title: "Coming Soon",
-                                                            message: "Microsoft account linking will be available soon",
-                                                            color: "blue",
-                                                        });
-                                                    }}
-                                                >
-                                                    Link Account
-                                                </Button>
-                                            )}
-                                        </Group>
-                                        {/* <Group justify="space-between" align="center">
-                                            <Group>
-                                                <Box w={30} h={30}>
-                                                    <Image
-                                                        src="/assets/logos/facebook.svg"
-                                                        alt="Facebook Logo"
-                                                        width={30}
-                                                        height={30}
-                                                        style={{ objectFit: "contain" }}
-                                                    />
-                                                </Box>
-                                                <div>
-                                                    <Group>
-                                                        <Text size="sm" fw={500}>
-                                                            Facebook
-                                                        </Text>
-                                                        <Badge
-                                                            variant="filled"
-                                                            color={userInfo?.oauthLinkedFacebookId ? "green" : "gray"}
-                                                            size="xs"
-                                                        >
-                                                            {userInfo?.oauthLinkedFacebookId ? "Linked" : "Not Linked"}
-                                                        </Badge>
-                                                    </Group>
-                                                    <Text size="xs" c="dimmed">
-                                                        Link your Facebook account for quick sign-in
-                                                    </Text>
-                                                </div>
-                                            </Group>
-                                            {userInfo?.oauthLinkedFacebookId ? (
-                                                <Button
-                                                    variant="light"
-                                                    color="indigo"
-                                                    size="xs"
-                                                    disabled={!oauthSupport.facebook}
-                                                    onClick={() => {
-                                                        notifications.show({
-                                                            title: "Coming Soon",
-                                                            message:
-                                                                "Facebook account unlinking will be available soon",
-                                                            color: "blue",
-                                                        });
-                                                    }}
-                                                >
-                                                    Unlink Account
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    variant="light"
-                                                    color="indigo"
-                                                    size="xs"
-                                                    disabled={!oauthSupport.facebook}
-                                                    onClick={async () => {
-                                                        notifications.show({
-                                                            title: "Coming Soon",
-                                                            message: "Facebook account linking will be available soon",
-                                                            color: "blue",
-                                                        });
-                                                    }}
-                                                >
-                                                    Link Account
-                                                </Button>
-                                            )}
-                                        </Group> */}
                                     </Stack>
                                     <Text size="sm" c="dimmed" ta="center" mt="md">
                                         This step is optional and can be done later in the profile settings.
@@ -1105,40 +973,16 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                 OAuth Accounts
                                             </Table.Td>
                                             <Table.Td>
-                                                {!userInfo?.oauthLinkedGoogleId &&
-                                                    !userInfo?.oauthLinkedFacebookId &&
-                                                    !userInfo?.oauthLinkedMicrosoftId && (
-                                                        <Text size="sm" c="dimmed">
-                                                            No accounts linked
-                                                        </Text>
-                                                    )}
+                                                {!userInfo?.oauthLinkedGoogleId && (
+                                                    <Text size="sm" c="dimmed">
+                                                        No accounts linked
+                                                    </Text>
+                                                )}
                                                 {userInfo?.oauthLinkedGoogleId && (
                                                     <Badge variant="light" c="red" mr={4}>
                                                         <Image
                                                             src="/assets/logos/google.svg"
                                                             alt="Google Logo"
-                                                            width={16}
-                                                            height={16}
-                                                            style={{ objectFit: "contain", marginRight: 4 }}
-                                                        />
-                                                    </Badge>
-                                                )}
-                                                {userInfo?.oauthLinkedMicrosoftId && (
-                                                    <Badge variant="light" c="indigo" mr={4}>
-                                                        <Image
-                                                            src="/assets/logos/microsoft.svg"
-                                                            alt="Microsoft Logo"
-                                                            width={16}
-                                                            height={16}
-                                                            style={{ objectFit: "contain", marginRight: 4 }}
-                                                        />
-                                                    </Badge>
-                                                )}
-                                                {userInfo?.oauthLinkedFacebookId && (
-                                                    <Badge variant="light" c="blue" mr={4}>
-                                                        <Image
-                                                            src="/assets/logos/facebook.svg"
-                                                            alt="Facebook Logo"
                                                             width={16}
                                                             height={16}
                                                             style={{ objectFit: "contain", marginRight: 4 }}

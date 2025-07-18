@@ -65,11 +65,8 @@ export function MainLoginComponent(): React.ReactElement {
     const [showMFAInput, setShowMFAInput] = useState(false);
     const [showOTPRecoveryInput, setShowOTPRecoveryInput] = useState(false);
     const [mfaNonce, setMFANonce] = useState<string | null>(null);
-    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
+    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean }>({
         google: false,
-        // TODO: OAuth adapters below are not implemented yet.
-        microsoft: false,
-        facebook: false,
     });
     const form = useForm<LoginFormValues>({
         mode: "uncontrolled",
@@ -85,6 +82,7 @@ export function MainLoginComponent(): React.ReactElement {
     });
     const [otpFormHasError, setOtpFormHasError] = useState(false);
     const [otpRecoveryFormHasError, setOtpRecoveryFormHasError] = useState(false);
+    const [oauthLoading, setOauthLoading] = useState(false);
 
     /**
      * Handles the login process for the user.
@@ -289,11 +287,9 @@ export function MainLoginComponent(): React.ReactElement {
                 }
 
                 if (result.data) {
-                    const response = result.data as { google: boolean; microsoft: boolean; facebook: boolean };
+                    const response = result.data as { google: boolean };
                     setOAuthSupport({
                         google: response.google,
-                        microsoft: response.microsoft,
-                        facebook: response.facebook,
                     });
                     customLogger.info("OAuth support updated", response);
                 } else {
@@ -371,6 +367,7 @@ export function MainLoginComponent(): React.ReactElement {
                         fullWidth
                         mt="xl"
                         loading={buttonLoading}
+                        disabled={oauthLoading}
                         rightSection={<IconLogin />}
                         component={motion.button}
                         transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
@@ -382,11 +379,13 @@ export function MainLoginComponent(): React.ReactElement {
                     >
                         Sign in
                     </Button>
-                    <Divider my="lg" label="Or continue with" labelPosition="center" />
+                    <Divider my="lg" label="or" labelPosition="center" />
                     <Group justify="center" mt="md">
                         <Button
                             variant="light"
-                            disabled={!oauthSupport.google}
+                            fullWidth
+                            disabled={!oauthSupport.google || buttonLoading}
+                            loading={oauthLoading}
                             component={motion.button}
                             transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
                             whileHover={{ scale: 1.05 }}
@@ -396,19 +395,68 @@ export function MainLoginComponent(): React.ReactElement {
                             dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
                             onClick={async (e: React.MouseEvent) => {
                                 e.preventDefault();
+                                setOauthLoading(true);
                                 try {
                                     const response = await fetch(
                                         `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/login`
                                     );
-                                    const data = await response.json();
-                                    if (data.url) {
-                                        window.location.href = data.url;
+
+                                    if (!response.ok) {
+                                        throw new Error(
+                                            `Failed to get OAuth URL: ${response.status} ${response.statusText}`
+                                        );
                                     }
+
+                                    const data = await response.json();
+                                    if (!data.url) {
+                                        throw new Error("No OAuth authorization URL received");
+                                    }
+
+                                    // Open OAuth in popup window
+                                    const width = 500;
+                                    const height = 600;
+                                    const left = window.screen.width / 2 - width / 2;
+                                    const top = window.screen.height / 2 - height / 2;
+
+                                    const popup = window.open(
+                                        data.url,
+                                        "google_oauth_login",
+                                        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+                                    );
+
+                                    if (!popup) {
+                                        throw new Error(
+                                            "Failed to open popup window. Please allow popups for this site."
+                                        );
+                                    }
+
+                                    // Listen for popup to close (login completed)
+                                    const checkClosed = setInterval(() => {
+                                        if (popup.closed) {
+                                            clearInterval(checkClosed);
+                                            setOauthLoading(false);
+                                            // Refresh the page to check if login was successful
+                                            window.location.reload();
+                                        }
+                                    }, 1000);
+
+                                    // Timeout after 5 minutes
+                                    setTimeout(() => {
+                                        clearInterval(checkClosed);
+                                        setOauthLoading(false);
+                                        if (popup && !popup.closed) {
+                                            popup.close();
+                                        }
+                                    }, 5 * 60 * 1000);
                                 } catch (error) {
-                                    customLogger.error("Error starting OAuth:", error);
+                                    setOauthLoading(false);
+                                    customLogger.error("Error starting Google OAuth login:", error);
                                     notifications.show({
                                         title: "Login failed",
-                                        message: "Failed to start Google login process.",
+                                        message:
+                                            error instanceof Error
+                                                ? error.message
+                                                : "Failed to start Google login process.",
                                         color: "red",
                                         icon: <IconX />,
                                     });
@@ -428,65 +476,10 @@ export function MainLoginComponent(): React.ReactElement {
                                         : { pointerEvents: "none" }
                                 }
                             />
+                            <Text ml={10} size="sm" style={{ pointerEvents: "none" }}>
+                                Sign in with Google
+                            </Text>
                         </Button>
-                        {/* TODO: Not implemented yet */}
-                        <Button
-                            variant="light"
-                            disabled={!oauthSupport.microsoft}
-                            component={motion.button}
-                            transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            drag
-                            dragElastic={0.1}
-                            dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
-                            onClick={async (e: React.MouseEvent) => {
-                                e.preventDefault();
-                            }}
-                        >
-                            <Image
-                                src="/assets/logos/microsoft.svg"
-                                alt="Log In with Microsoft"
-                                height={20}
-                                width="auto"
-                                radius="sm"
-                                fit="contain"
-                                style={
-                                    !oauthSupport.microsoft
-                                        ? { filter: "grayscale(100%)", pointerEvents: "none" }
-                                        : { pointerEvents: "none" }
-                                }
-                            />
-                        </Button>
-                        {/* TODO: Not implemented yet */}
-                        {/* <Button
-                            variant="light"
-                            disabled={!oauthSupport.facebook}
-                            component={motion.button}
-                            transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            drag
-                            dragElastic={0.1}
-                            dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
-                            onClick={async (e: React.MouseEvent) => {
-                                e.preventDefault();
-                            }}
-                        >
-                            <Image
-                                src="/assets/logos/facebook.svg"
-                                alt="Log In with Facebook"
-                                height={20}
-                                width="auto"
-                                radius="sm"
-                                fit="contain"
-                                style={
-                                    !oauthSupport.facebook
-                                        ? { filter: "grayscale(100%)", pointerEvents: "none" }
-                                        : { pointerEvents: "none" }
-                                }
-                            />
-                        </Button> */}
                     </Group>
                 </form>
             </Paper>

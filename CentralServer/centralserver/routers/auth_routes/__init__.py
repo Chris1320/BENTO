@@ -391,9 +391,4 @@ async def get_oauth_config() -> dict[str, bool]:
 
     return {
         "google": google_oauth_adapter is not None,
-        # TODO: The OAuth adapters below are not yet implemented. See adapters/oauth.py
-        # "microsoft": app_config.authentication.oauth.microsoft is not None,
-        # "facebook": app_config.authentication.oauth.facebook is not None,
-        "microsoft": False,
-        "facebook": False,
     }

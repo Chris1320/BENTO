@@ -294,10 +294,6 @@ class Authentication:
         }
         export["oauth"] = {
             "google": self.oauth.google.export() if self.oauth.google else None,
-            "microsoft": (
-                self.oauth.microsoft.export() if self.oauth.microsoft else None
-            ),
-            "facebook": self.oauth.facebook.export() if self.oauth.facebook else None,
         }
 
         return export

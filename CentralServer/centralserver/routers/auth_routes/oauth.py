@@ -161,39 +161,3 @@ async def oauth_unlink_google(
 
     logger.info("Google OAuth unlinked successfully for user: %s", token.id)
     return {"message": "Google account unlinked successfully."}
-
-
-@router.get("/microsoft/login")
-async def microsoft_oauth_login():
-    """Handle Microsoft OAuth login."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Microsoft OAuth login is not implemented yet.",
-    )
-
-
-@router.get("/microsoft/callback")
-async def microsoft_oauth_callback():
-    """Handle Microsoft OAuth callback."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Microsoft OAuth callback is not implemented yet.",
-    )
-
-
-@router.get("/facebook/login")
-async def facebook_oauth_login():
-    """Handle Facebook OAuth login."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Facebook OAuth login is not implemented yet.",
-    )
-
-
-@router.get("/facebook/callback")
-async def facebook_oauth_callback():
-    """Handle Facebook OAuth callback."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Facebook OAuth callback is not implemented yet.",
-    )

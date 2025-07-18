@@ -3,7 +3,7 @@ import { GetAccessTokenHeader } from "@/lib/utils/token";
 /**
  * Opens an OAuth popup window and returns a promise that resolves with the result
  * @param url - The OAuth authorization URL to open
- * @param provider - The OAuth provider name (e.g., 'google', 'microsoft')
+ * @param provider - The OAuth provider name (e.g., 'google')
  * @returns Promise that resolves with the OAuth result
  */
 export function openOAuthPopup(

@@ -106,7 +106,7 @@ function PayrollPageContent() {
     // For regular users (principals, canteen managers), use their assigned school
     const getEffectiveSchoolId = useCallback(() => {
         const isAdminOrSuperintendent = userCtx.userInfo?.roleId === 2 || userCtx.userInfo?.roleId === 3;
-        
+
         if (isAdminOrSuperintendent) {
             // For admin/superintendent, get school ID from URL parameter
             const schoolIdParam = searchParams.get("schoolId");
@@ -1545,14 +1545,23 @@ function PayrollPageContent() {
                             style={{
                                 width: "200px",
                                 height: "60px",
-                                border: notedBySignatureUrl && reportStatus === "approved" ? "none" : "1px solid #ccc",
+                                border:
+                                    notedBySignatureUrl &&
+                                    (reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived")
+                                        ? "none"
+                                        : "1px solid #ccc",
                                 marginBottom: "10px",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                             }}
                         >
-                            {notedBySignatureUrl && reportStatus === "approved" ? (
+                            {notedBySignatureUrl &&
+                            (reportStatus === "approved" ||
+                                reportStatus === "received" ||
+                                reportStatus === "archived") ? (
                                 <Image
                                     src={notedBySignatureUrl}
                                     alt="Noted by signature"
@@ -2046,7 +2055,10 @@ function PayrollPageContent() {
                                     overflow: "hidden",
                                 }}
                             >
-                                {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
+                                {notedBySignatureUrl &&
+                                (reportStatus === "approved" ||
+                                    reportStatus === "received" ||
+                                    reportStatus === "archived") ? (
                                     <Image
                                         src={notedBySignatureUrl}
                                         alt="Noted by signature"

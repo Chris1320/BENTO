@@ -52,7 +52,7 @@ function SalesandPurchasesContent() {
     const getEffectiveSchoolId = useCallback(() => {
         const userRoleId = userCtx.userInfo?.roleId;
         const isAdminOrSuperintendent = userRoleId === 2 || userRoleId === 3; // Superintendent or Administrator
-        
+
         if (isAdminOrSuperintendent) {
             // For admin/superintendent, get school ID from URL parameter
             const schoolIdParam = searchParams.get("schoolId");
@@ -64,7 +64,7 @@ function SalesandPurchasesContent() {
     }, [userCtx.userInfo?.roleId, userCtx.userInfo?.schoolId, searchParams]);
 
     const effectiveSchoolId = getEffectiveSchoolId();
-    
+
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([]);
@@ -1055,14 +1055,23 @@ function SalesandPurchasesContent() {
                             style={{
                                 width: "200px",
                                 height: "60px",
-                                border: notedBySignatureUrl && approvalConfirmed ? "none" : "1px solid #ccc",
+                                border:
+                                    notedBySignatureUrl &&
+                                    (reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived")
+                                        ? "none"
+                                        : "1px solid #ccc",
                                 marginBottom: "10px",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                             }}
                         >
-                            {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
+                            {notedBySignatureUrl &&
+                            (reportStatus === "approved" ||
+                                reportStatus === "received" ||
+                                reportStatus === "archived") ? (
                                 <Image
                                     src={notedBySignatureUrl}
                                     alt="Noted by signature"
@@ -1449,7 +1458,10 @@ function SalesandPurchasesContent() {
                                     overflow: "hidden",
                                 }}
                             >
-                                {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
+                                {notedBySignatureUrl &&
+                                (reportStatus === "approved" ||
+                                    reportStatus === "received" ||
+                                    reportStatus === "archived") ? (
                                     <Image
                                         src={notedBySignatureUrl}
                                         alt="Noted by signature"

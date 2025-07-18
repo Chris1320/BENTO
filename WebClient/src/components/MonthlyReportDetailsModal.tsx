@@ -429,9 +429,9 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
         // Check if user is admin/superintendent and append schoolId parameter
         const userRoleId = userCtx.userInfo?.roleId;
         const isAdminOrSuperintendent = userRoleId === 2 || userRoleId === 3;
-        
+
         if (isAdminOrSuperintendent && report?.submittedBySchool) {
-            const separator = reportRoute.includes('?') ? '&' : '?';
+            const separator = reportRoute.includes("?") ? "&" : "?";
             const routeWithSchoolId = `${reportRoute}${separator}schoolId=${report.submittedBySchool}`;
             router.push(routeWithSchoolId);
         } else {

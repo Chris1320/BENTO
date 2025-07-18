@@ -1249,14 +1249,23 @@ function LiquidationReportContent() {
                             style={{
                                 width: "200px",
                                 height: "60px",
-                                border: notedBySignatureUrl && reportStatus === "approved" ? "none" : "1px solid #ccc",
+                                border:
+                                    notedBySignatureUrl &&
+                                    (reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived")
+                                        ? "none"
+                                        : "1px solid #ccc",
                                 marginBottom: "10px",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                             }}
                         >
-                            {notedBySignatureUrl && reportStatus === "approved" ? (
+                            {notedBySignatureUrl &&
+                            (reportStatus === "approved" ||
+                                reportStatus === "received" ||
+                                reportStatus === "archived") ? (
                                 <Image
                                     src={notedBySignatureUrl}
                                     alt="Noted by signature"
@@ -1658,7 +1667,10 @@ function LiquidationReportContent() {
                                     overflow: "hidden",
                                 }}
                             >
-                                {notedBySignatureUrl && reportStatus === "approved" ? (
+                                {notedBySignatureUrl &&
+                                (reportStatus === "approved" ||
+                                    reportStatus === "received" ||
+                                    reportStatus === "archived") ? (
                                     <Image
                                         src={notedBySignatureUrl}
                                         alt="Noted by signature"

@@ -15,7 +15,7 @@ import {
     getAllRolesV1AuthRolesGet,
     getAllUsersEndpointV1UsersAllGet,
     getUserAvatarEndpointV1UsersAvatarGet,
-    requestVerificationEmailV1AuthEmailRequestPost,
+    requestVerificationEmailAdminV1AuthEmailRequestAdminPost,
     updateUserAvatarEndpointV1UsersAvatarPatch,
     updateUserEndpointV1UsersPatch,
 } from "@/lib/api/csclient";
@@ -769,8 +769,11 @@ export default function UsersPage(): JSX.Element {
                                                                 onClick={async () => {
                                                                     try {
                                                                         const result =
-                                                                            await requestVerificationEmailV1AuthEmailRequestPost(
+                                                                            await requestVerificationEmailAdminV1AuthEmailRequestAdminPost(
                                                                                 {
+                                                                                    query: {
+                                                                                        user_id: user.id,
+                                                                                    },
                                                                                     headers: {
                                                                                         Authorization:
                                                                                             GetAccessTokenHeader(),
@@ -787,8 +790,7 @@ export default function UsersPage(): JSX.Element {
                                                                         notifications.show({
                                                                             id: "verification-email-sent",
                                                                             title: "Verification Email Sent",
-                                                                            message:
-                                                                                "Please check your email and click the link to verify your email.",
+                                                                            message: `Verification email has been sent to ${user.email}. The user should check their email and click the link to verify.`,
                                                                             color: "blue",
                                                                             icon: <IconMail />,
                                                                         });

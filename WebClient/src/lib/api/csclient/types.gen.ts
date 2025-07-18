@@ -1911,6 +1911,39 @@ export type ResetPasswordV1AuthEmailRecoveryResetPostResponses = {
 
 export type ResetPasswordV1AuthEmailRecoveryResetPostResponse = ResetPasswordV1AuthEmailRecoveryResetPostResponses[keyof ResetPasswordV1AuthEmailRecoveryResetPostResponses];
 
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    url: '/v1/auth/email/request/admin';
+};
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostError = RequestVerificationEmailAdminV1AuthEmailRequestAdminPostErrors[keyof RequestVerificationEmailAdminV1AuthEmailRequestAdminPostErrors];
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponses = {
+    /**
+     * Response Request Verification Email Admin V1 Auth Email Request Admin Post
+     * Successful Response
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponse = RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponses[keyof RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponses];
+
 export type GoogleOauthLoginV1AuthOauthGoogleLoginGetData = {
     body?: never;
     path?: never;

@@ -234,18 +234,35 @@ async def update_user_signature(
             logger.warning("No e-signature to delete for user: %s", target_user)
             raise ValueError("No e-signature to delete.")
 
-        await object_store_manager.delete(
-            BucketNames.ESIGNATURES, selected_user.signatureUrn
-        )
+        try:
+            await object_store_manager.delete(
+                BucketNames.ESIGNATURES, selected_user.signatureUrn
+            )
+
+        except Exception as e:
+            logger.error(
+                "Failed to delete e-signature for user %s: %s (ignored)",
+                target_user,
+                str(e),
+            )
+
         selected_user.signatureUrn = None
 
     else:
         processed_img = await validate_and_process_signature(await img.read())
         if selected_user.signatureUrn is not None:
             logger.debug("Deleting old e-signature for user: %s", target_user)
-            await object_store_manager.delete(
-                BucketNames.ESIGNATURES, selected_user.signatureUrn
-            )
+            try:
+                await object_store_manager.delete(
+                    BucketNames.ESIGNATURES, selected_user.signatureUrn
+                )
+
+            except Exception as e:
+                logger.error(
+                    "Failed to delete old e-signature for user %s: %s (ignored)",
+                    target_user,
+                    str(e),
+                )
 
         logger.debug("Updating e-signature for user: %s", target_user)
         bucket_object = await object_store_manager.put(

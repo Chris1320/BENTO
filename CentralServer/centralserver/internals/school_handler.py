@@ -90,13 +90,30 @@ async def update_school_logo(
             logger.warning("No logo to delete for school_id: %s", school_id)
             raise HTTPException(status_code=400, detail="No logo to delete.")
 
-        await handler.delete(BucketNames.SCHOOL_LOGOS, school.logoUrn)
+        try:
+            await handler.delete(BucketNames.SCHOOL_LOGOS, school.logoUrn)
+
+        except Exception as e:
+            logger.error(
+                "Failed to delete logo for school_id %s: %s (ignored)",
+                school_id,
+                str(e),
+            )
+
         school.logoUrn = None
 
     else:
         if school.logoUrn is not None:
             logger.debug("Deleting old logo for school_id: %s", school_id)
-            await handler.delete(BucketNames.SCHOOL_LOGOS, school.logoUrn)
+            try:
+                await handler.delete(BucketNames.SCHOOL_LOGOS, school.logoUrn)
+
+            except Exception as e:
+                logger.error(
+                    "Failed to delete old logo for school_id %s: %s (ignored)",
+                    school_id,
+                    str(e),
+                )
 
         logger.debug("Updating logo for school_id: %s", school_id)
         new_fn = uuid.uuid4().hex

@@ -96,16 +96,13 @@ async def create_new_user(
 
     logger.info("Creating new user: %s", new_user.username)
     logger.debug("Created by user: %s", token.id)
-    
+
     # Auto-verify email if provided during creation (not invited users - they get different treatment)
     email_verified = new_user.email is not None
-    
+
     user = UserPublic.model_validate(
         await create_user(
-            new_user, 
-            session, 
-            background_tasks,
-            email_verified=email_verified
+            new_user, session, background_tasks, email_verified=email_verified
         )
     )
     logger.debug("Returning new user information: %s", user)

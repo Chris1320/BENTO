@@ -140,7 +140,8 @@ async def create_user(
         nameLast=new_user.nameLast,
         position=new_user.position,
         schoolId=new_user.schoolId,
-        emailVerified=email_verified or new_user.email is None,  # Auto-verify if explicitly set or if no email
+        emailVerified=email_verified
+        or new_user.email is None,  # Auto-verify if explicitly set or if no email
     )
     session.add(user)
     if commit:

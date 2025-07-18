@@ -1,7 +1,6 @@
 "use client";
 
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
-import { SplitButton } from "@/components/SplitButton/SplitButton";
 import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import * as csclient from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
@@ -28,7 +27,15 @@ import {
 import { DatePickerInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconCalendar, IconDownload, IconFileTypePdf, IconHistory, IconX } from "@tabler/icons-react";
+import {
+    IconAlertCircle,
+    IconCalendar,
+    IconDownload,
+    IconDeviceFloppy,
+    IconFileTypePdf,
+    IconHistory,
+    IconX,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -609,7 +616,7 @@ function SalesandPurchasesContent() {
     const totals = calculateTotals();
 
     // Bulk submit all entries for the month
-    const handleSubmit = async () => {
+    const handleSave = async () => {
         if (!userCtx.userInfo) {
             notifications.show({
                 title: "Error",
@@ -699,8 +706,8 @@ function SalesandPurchasesContent() {
             });
 
             notifications.show({
-                title: "Submission",
-                message: "Your entries have been submitted successfully.",
+                title: "Saved",
+                message: "Your entries have been saved successfully.",
                 color: "green",
             });
 
@@ -750,7 +757,7 @@ function SalesandPurchasesContent() {
             customLogger.error(err instanceof Error ? err.message : String(err));
             notifications.show({
                 title: "Error",
-                message: "Failed to submit entries.",
+                message: "Failed to save entries.",
                 color: "red",
             });
         }
@@ -1490,6 +1497,17 @@ function SalesandPurchasesContent() {
 
                 {/* Action Buttons */}
                 <Group justify="flex-end" gap="md">
+                    <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setPdfModalOpened(true)}
+                        className="hide-in-pdf"
+                        leftSection={<IconFileTypePdf size={16} />}
+                    >
+                        Export PDF
+                    </Button>
                     <SubmitForReviewButton
                         reportType="daily"
                         reportPeriod={{
@@ -1508,20 +1526,14 @@ function SalesandPurchasesContent() {
                             router.push("/reports");
                         }}
                     />
-                    <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
-                        Cancel
-                    </Button>
                     <Button
-                        variant="outline"
-                        onClick={() => setPdfModalOpened(true)}
+                        disabled={isReadOnly()}
+                        onClick={handleSave}
                         className="hide-in-pdf"
-                        leftSection={<IconFileTypePdf size={16} />}
+                        leftSection={<IconDeviceFloppy size={16} />}
                     >
-                        Export PDF
+                        Save
                     </Button>
-                    <SplitButton disabled={isReadOnly()} onSubmit={handleSubmit} className="hide-in-pdf">
-                        Submit
-                    </SplitButton>
                 </Group>
 
                 {/* Approval Confirmation Modal */}

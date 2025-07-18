@@ -13,6 +13,8 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Use .env.prod if it exists, otherwise use .env
+RUN if [ -f .env.prod ]; then cp .env.prod .env; fi
 RUN bun run build
 
 # Stage 3: Set up the production environment

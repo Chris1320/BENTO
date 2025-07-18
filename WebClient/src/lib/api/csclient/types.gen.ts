@@ -1588,14 +1588,6 @@ export type UserPublic = {
      */
     oauthLinkedGoogleId: string | null;
     /**
-     * Oauthlinkedmicrosoftid
-     */
-    oauthLinkedMicrosoftId: string | null;
-    /**
-     * Oauthlinkedfacebookid
-     */
-    oauthLinkedFacebookId: string | null;
-    /**
      * Forceupdateinfo
      */
     forceUpdateInfo: boolean;
@@ -1933,6 +1925,20 @@ export type GoogleOauthLoginV1AuthOauthGoogleLoginGetResponses = {
     200: unknown;
 };
 
+export type GoogleOauthLoginLinkV1AuthOauthGoogleLoginLinkGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/oauth/google/login/link';
+};
+
+export type GoogleOauthLoginLinkV1AuthOauthGoogleLoginLinkGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type GoogleOauthCallbackV1AuthOauthGoogleCallbackGetData = {
     body?: never;
     path?: never;
@@ -1969,6 +1975,10 @@ export type OauthLinkGoogleV1AuthOauthGoogleLinkGetData = {
          * Code
          */
         code: string;
+        /**
+         * Redirect Uri
+         */
+        redirect_uri?: string | null;
     };
     url: '/v1/auth/oauth/google/link';
 };
@@ -2012,62 +2022,6 @@ export type OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponses = {
 };
 
 export type OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponse = OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponses[keyof OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponses];
-
-export type MicrosoftOauthLoginV1AuthOauthMicrosoftLoginGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/microsoft/login';
-};
-
-export type MicrosoftOauthLoginV1AuthOauthMicrosoftLoginGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type MicrosoftOauthCallbackV1AuthOauthMicrosoftCallbackGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/microsoft/callback';
-};
-
-export type MicrosoftOauthCallbackV1AuthOauthMicrosoftCallbackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type FacebookOauthLoginV1AuthOauthFacebookLoginGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/facebook/login';
-};
-
-export type FacebookOauthLoginV1AuthOauthFacebookLoginGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type FacebookOauthCallbackV1AuthOauthFacebookCallbackGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/facebook/callback';
-};
-
-export type FacebookOauthCallbackV1AuthOauthFacebookCallbackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
 
 export type GenerateMfaOtpV1AuthMfaOtpGeneratePostData = {
     body?: never;

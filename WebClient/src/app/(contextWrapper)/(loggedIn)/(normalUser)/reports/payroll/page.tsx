@@ -62,7 +62,7 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 
 dayjs.extend(weekOfYear);
@@ -99,7 +99,25 @@ interface EmployeeSignature {
 
 function PayrollPageContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const userCtx = useUser();
+
+    // Get effective school ID - for administrators/superintendents, get from URL parameter
+    // For regular users (principals, canteen managers), use their assigned school
+    const getEffectiveSchoolId = useCallback(() => {
+        const isAdminOrSuperintendent = userCtx.userInfo?.roleId === 2 || userCtx.userInfo?.roleId === 3;
+
+        if (isAdminOrSuperintendent) {
+            // For admin/superintendent, get school ID from URL parameter
+            const schoolIdParam = searchParams.get("schoolId");
+            return schoolIdParam ? parseInt(schoolIdParam, 10) : null;
+        } else {
+            // For regular users (principals, canteen managers), use their assigned school
+            return userCtx.userInfo?.schoolId || null;
+        }
+    }, [userCtx.userInfo?.roleId, userCtx.userInfo?.schoolId, searchParams]);
+
+    const effectiveSchoolId = getEffectiveSchoolId();
 
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [weekPeriods, setWeekPeriods] = useState<WeekPeriod[]>([]);
@@ -192,7 +210,7 @@ function PayrollPageContent() {
     // Load existing payroll report when month changes
     useEffect(() => {
         const loadExistingPayrollReport = async () => {
-            if (!selectedMonth || !userCtx.userInfo?.schoolId) {
+            if (!selectedMonth || !effectiveSchoolId) {
                 return;
             }
 
@@ -201,7 +219,7 @@ function PayrollPageContent() {
             try {
                 const year = selectedMonth.getFullYear();
                 const month = selectedMonth.getMonth() + 1;
-                const schoolId = userCtx.userInfo.schoolId;
+                const schoolId = effectiveSchoolId;
 
                 // Try to fetch existing payroll report
                 const reportResponse = await getSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthGet({
@@ -364,10 +382,10 @@ function PayrollPageContent() {
         };
 
         // Only load if we have both month and user info, and week periods are generated
-        if (selectedMonth && userCtx.userInfo?.schoolId && weekPeriods.length > 0) {
+        if (selectedMonth && effectiveSchoolId && weekPeriods.length > 0) {
             loadExistingPayrollReport();
         }
-    }, [selectedMonth, userCtx.userInfo?.schoolId, weekPeriods]);
+    }, [selectedMonth, effectiveSchoolId, weekPeriods]);
 
     // Initialize signature data and load school users
     useEffect(() => {
@@ -380,7 +398,7 @@ function PayrollPageContent() {
              * Reason: Allow selection of any user from the same school for report approval
              */
             const loadSchoolUsers = async () => {
-                if (!userCtx.userInfo?.schoolId) return;
+                if (!effectiveSchoolId) return;
 
                 try {
                     const response = await csclient.getUsersSimpleEndpointV1UsersSimpleGet();
@@ -422,16 +440,16 @@ function PayrollPageContent() {
         };
 
         initializeSignatures();
-    }, [userCtx.userInfo, preparedById]);
+    }, [userCtx.userInfo, preparedById, effectiveSchoolId]);
 
     // Load school data and auto-assign principal
     useEffect(() => {
         const loadSchoolData = async () => {
-            if (!userCtx.userInfo?.schoolId) return;
+            if (!effectiveSchoolId) return;
 
             try {
                 const response = await csclient.getSchoolEndpointV1SchoolsGet({
-                    query: { school_id: userCtx.userInfo.schoolId },
+                    query: { school_id: effectiveSchoolId },
                 });
 
                 if (response.data) {
@@ -498,7 +516,7 @@ function PayrollPageContent() {
         };
 
         loadSchoolData();
-    }, [userCtx.userInfo?.schoolId]);
+    }, [effectiveSchoolId]);
 
     // Load preparedBy user's signature when preparedById is available
     useEffect(() => {
@@ -1191,7 +1209,7 @@ function PayrollPageContent() {
             const canvas = await html2canvas(element, {
                 useCORS: true,
                 allowTaint: true,
-                background: "#ffffff",
+                backgroundColor: "#ffffff",
             });
 
             const imgData = canvas.toDataURL("image/png");
@@ -1527,14 +1545,23 @@ function PayrollPageContent() {
                             style={{
                                 width: "200px",
                                 height: "60px",
-                                border: notedBySignatureUrl && reportStatus === "approved" ? "none" : "1px solid #ccc",
+                                border:
+                                    notedBySignatureUrl &&
+                                    (reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived")
+                                        ? "none"
+                                        : "1px solid #ccc",
                                 marginBottom: "10px",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                             }}
                         >
-                            {notedBySignatureUrl && reportStatus === "approved" ? (
+                            {notedBySignatureUrl &&
+                            (reportStatus === "approved" ||
+                                reportStatus === "received" ||
+                                reportStatus === "archived") ? (
                                 <Image
                                     src={notedBySignatureUrl}
                                     alt="Noted by signature"
@@ -2028,7 +2055,10 @@ function PayrollPageContent() {
                                     overflow: "hidden",
                                 }}
                             >
-                                {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
+                                {notedBySignatureUrl &&
+                                (reportStatus === "approved" ||
+                                    reportStatus === "received" ||
+                                    reportStatus === "archived") ? (
                                     <Image
                                         src={notedBySignatureUrl}
                                         alt="Noted by signature"
@@ -2061,7 +2091,7 @@ function PayrollPageContent() {
                     <SubmitForReviewButton
                         reportType="payroll"
                         reportPeriod={{
-                            schoolId: userCtx.userInfo?.schoolId || 0,
+                            schoolId: effectiveSchoolId || 0,
                             year: selectedMonth?.getFullYear() || new Date().getFullYear(),
                             month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
                         }}

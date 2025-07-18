@@ -225,11 +225,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             confirmPassword: (value, values) => (value !== values.newPassword ? "Passwords do not match" : null),
         },
     });
-    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
+    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean }>({
         google: false,
-        // TODO: OAuth adapters below are not implemented yet.
-        microsoft: false,
-        facebook: false,
     });
 
     // Add state for tracking unsaved changes
@@ -979,8 +976,6 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 if (response) {
                     setOAuthSupport({
                         google: response.google,
-                        microsoft: response.microsoft,
-                        facebook: response.facebook,
                     });
                     customLogger.info("OAuth support updated", response);
                 } else {
@@ -1731,133 +1726,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                             </Button>
                         )}
                     </Group>
-                    {/*                     <Group justify="space-between" align="center">
-                        <Group>
-                            <Box w={30} h={30}>
-                                <Image
-                                    src="/assets/logos/facebook.svg"
-                                    alt="Facebook Logo"
-                                    width={30}
-                                    height={30}
-                                    style={{ objectFit: "contain" }}
-                                />
-                            </Box>
-                            <div>
-                                <Group>
-                                    <Text size="sm" fw={500}>
-                                        Facebook
-                                    </Text>
-                                    <Badge
-                                        variant="filled"
-                                        color={userInfo?.oauthLinkedFacebookId ? "green" : "gray"}
-                                        size="xs"
-                                    >
-                                        {userInfo?.oauthLinkedFacebookId ? "Linked" : "Not Linked"}
-                                    </Badge>
-                                </Group>
-                                <Text size="xs" c="dimmed">
-                                    Link your Facebook account for quick sign-in
-                                </Text>
-                            </div>
-                        </Group>
-                        {userInfo?.oauthLinkedFacebookId ? (
-                            <Button
-                                variant="light"
-                                color="blue"
-                                size="xs"
-                                disabled={!oauthSupport.facebook}
-                                onClick={() => {
-                                    notifications.show({
-                                        title: "Coming Soon",
-                                        message: "Facebook account linking will be available soon",
-                                        color: "blue",
-                                    });
-                                }}
-                            >
-                                Unlink Account
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="light"
-                                color="blue"
-                                size="xs"
-                                disabled={!oauthSupport.facebook}
-                                onClick={async () => {
-                                    notifications.show({
-                                        title: "Coming Soon",
-                                        message: "Facebook account linking will be available soon",
-                                        color: "blue",
-                                    });
-                                }}
-                            >
-                                Link Account
-                            </Button>
-                        )}
-                    </Group> */}
-                    <Group justify="space-between" align="center">
-                        <Group>
-                            <Box w={30} h={30}>
-                                <Image
-                                    src="/assets/logos/microsoft.svg"
-                                    alt="Microsoft Logo"
-                                    width={30}
-                                    height={30}
-                                    style={{ objectFit: "contain" }}
-                                />
-                            </Box>
-                            <div>
-                                <Group>
-                                    <Text size="sm" fw={500}>
-                                        Microsoft
-                                    </Text>
-                                    <Badge
-                                        variant="filled"
-                                        color={userInfo?.oauthLinkedMicrosoftId ? "green" : "gray"}
-                                        size="xs"
-                                    >
-                                        {userInfo?.oauthLinkedMicrosoftId ? "Linked" : "Not Linked"}
-                                    </Badge>
-                                </Group>
-                                <Text size="xs" c="dimmed">
-                                    Link your Microsoft account for quick sign-in
-                                </Text>
-                            </div>
-                        </Group>
-                        {userInfo?.oauthLinkedMicrosoftId ? (
-                            <Button
-                                variant="light"
-                                color="indigo"
-                                size="xs"
-                                disabled={!oauthSupport.microsoft}
-                                onClick={() => {
-                                    notifications.show({
-                                        title: "Coming Soon",
-                                        message: "Microsoft account unlinking will be available soon",
-                                        color: "blue",
-                                    });
-                                }}
-                            >
-                                Unlink Account
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="light"
-                                color="indigo"
-                                size="xs"
-                                disabled={!oauthSupport.microsoft}
-                                onClick={async () => {
-                                    notifications.show({
-                                        title: "Coming Soon",
-                                        message: "Microsoft account linking will be available soon",
-                                        color: "blue",
-                                    });
-                                }}
-                            >
-                                Link Account
-                            </Button>
-                        )}
-                    </Group>
-                </Stack>{" "}
+                </Stack>
                 <Button loading={buttonLoading} rightSection={<IconDeviceFloppy />} type="submit" fullWidth mt="xl">
                     Save
                 </Button>

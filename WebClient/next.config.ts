@@ -3,7 +3,6 @@ import { codecovNextJSWebpackPlugin } from "@codecov/nextjs-webpack-plugin";
 
 const nextConfig: NextConfig = {
     devIndicators: process.env.NODE_ENV !== "production" ? {} : false,
-    output: "standalone",
     experimental: {
         optimizePackageImports: ["@mantine/core", "@mantine/hooks"],
     },

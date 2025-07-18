@@ -8,7 +8,7 @@ COPY ./templates ./templates
 COPY ./pyproject.toml ./pyproject.toml
 COPY ./uv.lock ./uv.lock
 
-RUN mkdir -p ./{db,logs}
+RUN mkdir -p ./db ./logs
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 

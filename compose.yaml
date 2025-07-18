@@ -9,7 +9,7 @@ services:
             - project_scars-centralserver-data:/app/data
             - project_scars-centralserver-db:/app/db
             - project_scars-centralserver-logs:/app/logs
-            - ./CentralServer/config.prod.json:/app/config.json:ro
+            - ./CentralServer/config.prod.json:/app/config.json:rw
         restart: unless-stopped
 
     webclient:

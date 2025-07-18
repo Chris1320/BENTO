@@ -82,7 +82,7 @@ import {
 } from "@tabler/icons-react";
 import { useQRCode } from "next-qrcode";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 interface EditProfileValues {
@@ -107,6 +107,7 @@ interface ProfileContentProps {
 
 function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileContentProps) {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const userCtx = useUser();
     const { SVG } = useQRCode();
     const { setColorScheme, colorScheme } = useMantineColorScheme();
@@ -772,6 +773,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             setHasUnsavedChanges(false); // Reset unsaved changes flag after successful save
             buttonStateHandler.close();
         }
+
+        router.push("/dashboard");
     };
 
     const handlePasswordChange = async (values: {

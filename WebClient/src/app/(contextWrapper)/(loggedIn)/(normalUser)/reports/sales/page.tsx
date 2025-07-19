@@ -23,6 +23,7 @@ import {
     Table,
     Text,
     Title,
+    Tooltip,
 } from "@mantine/core";
 import { DatePickerInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
@@ -1508,32 +1509,56 @@ function SalesandPurchasesContent() {
                     >
                         Export PDF
                     </Button>
-                    <SubmitForReviewButton
-                        reportType="daily"
-                        reportPeriod={{
-                            schoolId: effectiveSchoolId || 0,
-                            year: currentMonth.getFullYear(),
-                            month: currentMonth.getMonth() + 1,
-                        }}
-                        disabled={isReadOnly()}
-                        onSuccess={() => {
-                            // Redirect to reports page after successful submission
-                            notifications.show({
-                                title: "Status Updated",
-                                message: "Report has been submitted for review.",
-                                color: "green",
-                            });
-                            router.push("/reports");
-                        }}
-                    />
-                    <Button
-                        disabled={isReadOnly()}
-                        onClick={handleSave}
-                        className="hide-in-pdf"
-                        leftSection={<IconDeviceFloppy size={16} />}
+                    <Tooltip
+                        label={
+                            isReadOnly()
+                                ? "This report is already under review"
+                                : dailyEntries.length === 0
+                                ? "Add at least one entry to submit for review"
+                                : "Submit for review"
+                        }
+                        disabled={!isReadOnly() && dailyEntries.length > 0}
                     >
-                        Save
-                    </Button>
+                        <div>
+                            <SubmitForReviewButton
+                                reportType="daily"
+                                reportPeriod={{
+                                    schoolId: effectiveSchoolId || 0,
+                                    year: currentMonth.getFullYear(),
+                                    month: currentMonth.getMonth() + 1,
+                                }}
+                                disabled={isReadOnly() || dailyEntries.length === 0}
+                                onSuccess={() => {
+                                    // Redirect to reports page after successful submission
+                                    notifications.show({
+                                        title: "Status Updated",
+                                        message: "Report has been submitted for review.",
+                                        color: "green",
+                                    });
+                                    router.push("/reports");
+                                }}
+                            />
+                        </div>
+                    </Tooltip>
+                    <Tooltip
+                        label={
+                            isReadOnly()
+                                ? "Edits are disabled while the report is under review"
+                                : dailyEntries.length === 0
+                                ? "Add at least one entry to save"
+                                : "Save report"
+                        }
+                        disabled={!isReadOnly() && dailyEntries.length > 0}
+                    >
+                        <Button
+                            disabled={isReadOnly() || dailyEntries.length === 0}
+                            onClick={handleSave}
+                            className="hide-in-pdf"
+                            leftSection={<IconDeviceFloppy size={16} />}
+                        >
+                            Save
+                        </Button>
+                    </Tooltip>
                 </Group>
 
                 {/* Approval Confirmation Modal */}

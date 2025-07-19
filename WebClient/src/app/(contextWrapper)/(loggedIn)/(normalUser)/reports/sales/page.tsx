@@ -1097,13 +1097,13 @@ function SalesandPurchasesContent() {
             dailyEntries
                 .slice()
                 .sort((a, b) => {
-                    // Sort by YYYY-MM (from date) then by day
+                    // Sort by YYYY-MM (from date) then by day - DESCENDING for table display (latest first)
                     const aMonth = dayjs(a.date).format("YYYY-MM");
                     const bMonth = dayjs(b.date).format("YYYY-MM");
                     if (aMonth !== bMonth) {
-                        return aMonth.localeCompare(bMonth);
+                        return bMonth.localeCompare(aMonth); // Reversed for descending
                     }
-                    return a.day - b.day;
+                    return b.day - a.day; // Reversed for descending
                 })
                 .map((entry) => (
                     <Table.Tr key={`${entry.date}-${entry.day}`}>

@@ -1,8 +1,10 @@
+from datetime import datetime, timezone
 from sqlmodel import Session, select
 
 from centralserver.internals.exceptions import NotificationNotFoundError
 from centralserver.internals.logger import LoggerFactory
 from centralserver.internals.models.notification import Notification, NotificationType
+from centralserver.internals.websocket_manager import websocket_manager
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -127,6 +129,23 @@ async def push_notification(
     session.add(notification)
     session.commit()
     session.refresh(notification)
+
+    # Send WebSocket notification to the user about the new notification
+    await websocket_manager.send_to_user(
+        str(owner_id),
+        {
+            "type": "notification",
+            "notification_type": "new_notification",
+            "notification_id": str(notification.id),
+            "data": {"notification": notification.model_dump()},
+            "timestamp": datetime.now(timezone.utc).timestamp(),
+        },
+    )
+
+    logger.debug(
+        "New notification created and sent via WebSocket for user %s", owner_id
+    )
+    return notification
 
 
 async def archive_notification(

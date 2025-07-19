@@ -27,6 +27,14 @@ interface UserUpdateMessage extends WebSocketMessage {
     timestamp: number;
 }
 
+interface NotificationMessage extends WebSocketMessage {
+    type: "notification";
+    notification_type: "new_notification" | "notification_archived" | "notification_unarchived";
+    notification_id: string;
+    data: Record<string, unknown>;
+    timestamp: number;
+}
+
 interface ConnectionEstablishedMessage extends WebSocketMessage {
     type: "connection_established";
     user_id: string;
@@ -232,6 +240,27 @@ export function useUserWebSocket() {
                                 customLogger.warn("Unknown user update type", updateMsg.update_type);
                         }
                     }
+                    break;
+                }
+
+                case "notification": {
+                    const notificationMsg = message as NotificationMessage;
+                    customLogger.info("Received notification WebSocket message", {
+                        type: notificationMsg.notification_type,
+                        notification_id: notificationMsg.notification_id,
+                    });
+
+                    // Dispatch custom event for notification updates
+                    // This allows other components to listen for notification changes
+                    const notificationEvent = new CustomEvent("websocket-notification", {
+                        detail: {
+                            type: notificationMsg.notification_type,
+                            notification_id: notificationMsg.notification_id,
+                            data: notificationMsg.data,
+                            timestamp: notificationMsg.timestamp,
+                        },
+                    });
+                    window.dispatchEvent(notificationEvent);
                     break;
                 }
 

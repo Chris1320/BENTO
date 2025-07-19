@@ -8,7 +8,7 @@ import {
     getAllRolesV1AuthRolesGet,
     getAllUsersEndpointV1UsersAllGet,
     getUserNotificationsV1NotificationsMeGet,
-    Notification,
+    type Notification,
     NotificationType,
     Role,
     School,
@@ -20,6 +20,7 @@ import { notificationIcons } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { getRelativeTime } from "@/lib/utils/date";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
+import { useNotificationWebSocket } from "@/lib/hooks/useNotificationWebSocket";
 import {
     ActionIcon,
     Avatar,
@@ -80,6 +81,32 @@ export default function NotificationsPage() {
     const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
     const [availableSchools, setAvailableSchools] = useState<School[]>([]);
     const [availableUsers, setAvailableUsers] = useState<UserPublic[]>([]);
+
+    // WebSocket integration for real-time notification updates
+    useNotificationWebSocket({
+        onNewNotification: (notification) => {
+            customLogger.info("Received new notification via WebSocket", notification);
+            setAllNotifications((prev) => [notification, ...prev]);
+
+            // Show a browser notification for new notifications
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(notification.title, {
+                    body: notification.content,
+                    icon: "/assets/logos/BENTO.svg",
+                    tag: `notification-${notification.id}`, // Prevent duplicate notifications
+                });
+            }
+        },
+        onNotificationArchived: (notificationId) => {
+            customLogger.info("Notification archived via WebSocket", notificationId);
+            setAllNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, archived: true } : n)));
+        },
+        onNotificationUnarchived: (notificationId) => {
+            customLogger.info("Notification unarchived via WebSocket", notificationId);
+            setAllNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, archived: false } : n)));
+        },
+        enabled: true,
+    });
 
     const handleFetch = async () => {
         try {
@@ -271,6 +298,13 @@ export default function NotificationsPage() {
 
     useEffect(() => {
         handleFetch();
+
+        // Request browser notification permission if not already granted
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission().then((permission) => {
+                customLogger.info("Browser notification permission:", permission);
+            });
+        }
     }, []);
 
     useEffect(() => {

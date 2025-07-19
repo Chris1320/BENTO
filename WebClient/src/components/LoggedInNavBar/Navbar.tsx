@@ -26,6 +26,7 @@ import { JSX, useEffect, useState } from "react";
 import classes from "./Navbar.module.css";
 import { customLogger } from "@/lib/api/customLogger";
 import { useUserSyncControls } from "@/lib/hooks/useUserSyncControls";
+import { useNotificationWebSocket } from "@/lib/hooks/useNotificationWebSocket";
 
 export const Navbar: React.FC = () => {
     const [links, setLinks] = useState<JSX.Element[]>([]);
@@ -36,6 +37,23 @@ export const Navbar: React.FC = () => {
     const pathname = usePathname();
     const { logout } = useAuth();
     const { triggerRefresh, isRefreshing } = useUserSyncControls();
+
+    // WebSocket integration for real-time notification count updates
+    useNotificationWebSocket({
+        onNewNotification: () => {
+            customLogger.debug("New notification received, updating count");
+            setNotificationsQuantity((prev) => prev + 1);
+        },
+        onNotificationArchived: () => {
+            customLogger.debug("Notification archived, updating count");
+            fetchNotificationsQuantity(); // Refresh to get accurate count
+        },
+        onNotificationUnarchived: () => {
+            customLogger.debug("Notification unarchived, updating count");
+            fetchNotificationsQuantity(); // Refresh to get accurate count
+        },
+        enabled: true,
+    });
 
     const fetchNotificationsQuantity = async () => {
         try {

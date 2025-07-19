@@ -1,4 +1,5 @@
 from typing import Annotated
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlmodel import Session, func, select
@@ -30,6 +31,7 @@ from centralserver.internals.notification_handler import (
 from centralserver.internals.notification_handler import (
     push_notification,
 )
+from centralserver.internals.websocket_manager import websocket_manager
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -217,6 +219,21 @@ async def archive_notification(
             n.notification_id,
             token.id,
         )
+
+        # Send WebSocket notification to the user about the archive/unarchive action
+        await websocket_manager.send_to_user(
+            str(archived_notification.ownerId),
+            {
+                "type": "notification",
+                "notification_type": (
+                    "notification_unarchived" if unarchive else "notification_archived"
+                ),
+                "notification_id": str(archived_notification.id),
+                "data": {"notification": archived_notification.model_dump()},
+                "timestamp": datetime.now(timezone.utc).timestamp(),
+            },
+        )
+
         return archived_notification
 
     except NotificationNotFoundError as e:

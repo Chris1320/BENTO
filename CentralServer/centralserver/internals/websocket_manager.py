@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -11,6 +12,15 @@ from centralserver.internals.logger import LoggerFactory
 from centralserver.internals.models.token import DecodedJWTToken
 
 logger = LoggerFactory().get_logger(__name__)
+
+
+class WebSocketJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder for WebSocket messages that handles datetime objects."""
+
+    def default(self, o: Any) -> Any:
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return super().default(o)
 
 
 class WebSocketConnectionManager:
@@ -112,7 +122,7 @@ class WebSocketConnectionManager:
 
         for websocket in connections:
             try:
-                await websocket.send_text(json.dumps(message))
+                await websocket.send_text(json.dumps(message, cls=WebSocketJSONEncoder))
                 sent_count += 1
             except Exception as e:
                 logger.warning(
@@ -271,7 +281,8 @@ async def handle_websocket_connection(websocket: WebSocket) -> None:
                     "type": "connection_established",
                     "user_id": token.id,
                     "timestamp": asyncio.get_event_loop().time(),
-                }
+                },
+                cls=WebSocketJSONEncoder,
             )
         )
 
@@ -293,7 +304,8 @@ async def handle_websocket_connection(websocket: WebSocket) -> None:
                                 {
                                     "type": "pong",
                                     "timestamp": asyncio.get_event_loop().time(),
-                                }
+                                },
+                                cls=WebSocketJSONEncoder,
                             )
                         )
                     else:

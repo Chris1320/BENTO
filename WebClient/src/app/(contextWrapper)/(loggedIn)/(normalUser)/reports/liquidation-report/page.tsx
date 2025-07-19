@@ -1316,6 +1316,7 @@ function LiquidationReportContent() {
                             leftSection={<IconCalendar size={16} />}
                             className="w-full sm:w-64"
                             valueFormat="MMMM YYYY"
+                            maxDate={new Date()}
                             required
                         />
                     </Group>

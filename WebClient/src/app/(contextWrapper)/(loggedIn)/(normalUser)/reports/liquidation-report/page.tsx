@@ -49,6 +49,7 @@ import {
     TextInput,
     Textarea,
     Title,
+    Tooltip,
 } from "@mantine/core";
 import { DateInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
@@ -187,6 +188,11 @@ function LiquidationReportContent() {
     const isReadOnly = useCallback(() => {
         return reportStatus === "review" || reportStatus === "approved";
     }, [reportStatus]);
+
+    // Helper function to check if there are any valid expenses
+    const hasValidExpenses = useCallback(() => {
+        return expenseItems.some((item) => item.particulars.trim() !== "" && item.unitPrice > 0 && item.date);
+    }, [expenseItems]);
 
     const hasQtyUnit = QTY_FIELDS_REQUIRED.includes(category || "");
     const hasReceiptVoucher = RECEIPT_FIELDS_REQUIRED.includes(category || "");
@@ -1616,11 +1622,10 @@ function LiquidationReportContent() {
                 </SimpleGrid>
 
                 {/* Action Buttons */}
-                <Stack gap="md">
+                <Group justify="flex-end" gap="md">
                     {/* Disbursement Voucher Button */}
-                    <Group justify="flex-end">
-                        {/* FIXME: Implement this */}
-                        {/* <Button
+                    {/* FIXME: Implement this */}
+                    {/* <Button
                             leftSection={<IconFileText size={16} />}
                             variant="light"
                             onClick={() => router.push(`/reports/disbursement-voucher?category=${category}`)}
@@ -1630,48 +1635,77 @@ function LiquidationReportContent() {
                         >
                             Create Disbursement Voucher
                         </Button> */}
-                    </Group>
-
-                    {/* Main Action Buttons */}
-                    <Group justify="flex-end" gap="md">
-                        <Button
-                            variant="outline"
-                            onClick={handleClose}
-                            className="hover:bg-gray-100 hide-in-pdf"
-                            disabled={isSaving}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => setPdfModalOpened(true)}
-                            className="hide-in-pdf"
-                            leftSection={<IconFileTypePdf size={16} />}
-                        >
-                            Export PDF
-                        </Button>
-                        <SubmitForReviewButton
-                            reportType="liquidation"
-                            reportPeriod={{
-                                schoolId: effectiveSchoolId || 0,
-                                year: reportPeriod?.getFullYear() || new Date().getFullYear(),
-                                month: reportPeriod?.getMonth()
-                                    ? reportPeriod.getMonth() + 1
-                                    : new Date().getMonth() + 1,
-                                category: category || "",
-                            }}
-                            disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
-                            onSuccess={() => {
-                                notifications.show({
-                                    title: "Status Updated",
-                                    message: "Report status has been updated to 'Review'.",
-                                    color: "green",
-                                });
-                                setTimeout(() => {
-                                    router.push("/reports");
-                                }, 1000);
-                            }}
-                        />
+                    <Button
+                        variant="outline"
+                        onClick={handleClose}
+                        className="hover:bg-gray-100 hide-in-pdf"
+                        disabled={isSaving}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setPdfModalOpened(true)}
+                        className="hide-in-pdf"
+                        leftSection={<IconFileTypePdf size={16} />}
+                    >
+                        Export PDF
+                    </Button>
+                    <Tooltip
+                        label={
+                            isReadOnly()
+                                ? "Submission is disabled in read-only mode"
+                                : !hasValidExpenses()
+                                ? "Add expense details"
+                                : ""
+                        }
+                        disabled={isReadOnly() ? false : hasValidExpenses()}
+                        position="top"
+                        withArrow
+                    >
+                        <div>
+                            <SubmitForReviewButton
+                                reportType="liquidation"
+                                reportPeriod={{
+                                    schoolId: effectiveSchoolId || 0,
+                                    year: reportPeriod?.getFullYear() || new Date().getFullYear(),
+                                    month: reportPeriod?.getMonth()
+                                        ? reportPeriod.getMonth() + 1
+                                        : new Date().getMonth() + 1,
+                                    category: category || "",
+                                }}
+                                disabled={
+                                    (reportStatus !== null &&
+                                        reportStatus !== "draft" &&
+                                        reportStatus !== "rejected") ||
+                                    isReadOnly() ||
+                                    !hasValidExpenses()
+                                }
+                                onSuccess={() => {
+                                    notifications.show({
+                                        title: "Status Updated",
+                                        message: "Report status has been updated to 'Review'.",
+                                        color: "green",
+                                    });
+                                    setTimeout(() => {
+                                        router.push("/reports");
+                                    }, 1000);
+                                }}
+                            />
+                        </div>
+                    </Tooltip>
+                    <Tooltip
+                        label={
+                            isReadOnly()
+                                ? "Edits are disabled in read-only mode"
+                                : !hasValidExpenses()
+                                ? "Add expense details"
+                                : ""
+                        }
+                        disabled={isReadOnly() ? false : hasValidExpenses()}
+                        position="top"
+                        withArrow
+                    >
                         <Button
                             onClick={handleSaveReport}
                             className="bg-blue-600 hover:bg-blue-700"
@@ -1682,13 +1716,14 @@ function LiquidationReportContent() {
                                 !category ||
                                 expenseItems.some((item) => !item.date || !item.particulars) ||
                                 expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
-                                isReadOnly()
+                                isReadOnly() ||
+                                !hasValidExpenses()
                             }
                         >
                             {isSaving ? "Saving..." : "Save"}
                         </Button>
-                    </Group>
-                </Stack>
+                    </Tooltip>
+                </Group>
 
                 {/* Approval Modal */}
                 <Modal

@@ -1512,9 +1512,9 @@ function SalesandPurchasesContent() {
                     <Tooltip
                         label={
                             isReadOnly()
-                                ? "This report is already under review"
+                                ? "Submission is disabled in read-only mode"
                                 : dailyEntries.length === 0
-                                ? "Add at least one entry to submit for review"
+                                ? "Add sales and purchase entries"
                                 : "Submit for review"
                         }
                         disabled={!isReadOnly() && dailyEntries.length > 0}
@@ -1543,9 +1543,9 @@ function SalesandPurchasesContent() {
                     <Tooltip
                         label={
                             isReadOnly()
-                                ? "Edits are disabled while the report is under review"
+                                ? "Edits are disabled in read-only mode"
                                 : dailyEntries.length === 0
-                                ? "Add at least one entry to save"
+                                ? "Add sales and purchase entries"
                                 : "Save report"
                         }
                         disabled={!isReadOnly() && dailyEntries.length > 0}

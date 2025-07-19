@@ -1246,6 +1246,7 @@ function SalesandPurchasesContent() {
                                 }}
                                 leftSection={<IconCalendar size={16} />}
                                 className="w-64"
+                                maxDate={new Date()}
                             />
                             <DatePickerInput
                                 placeholder="Select date"
@@ -1264,8 +1265,12 @@ function SalesandPurchasesContent() {
                                 }}
                                 leftSection={<IconCalendar size={16} />}
                                 className="w-64"
-                                minDate={currentMonth ? dayjs(currentMonth).startOf("month").toDate() : undefined}
-                                maxDate={currentMonth ? dayjs(currentMonth).endOf("month").toDate() : new Date()}
+                                minDate={dayjs(currentMonth).startOf("month").toDate()}
+                                maxDate={
+                                    dayjs(currentMonth).isSame(dayjs(), "month")
+                                        ? new Date() // Limit to today if current month is this month
+                                        : dayjs(currentMonth).endOf("month").toDate() // Otherwise allow full month
+                                }
                                 disabled={isReadOnly()}
                                 getDayProps={(date) => {
                                     // e.date is always the first of the month (YYYY-MM-01), but e.day is the actual day

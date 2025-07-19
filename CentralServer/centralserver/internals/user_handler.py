@@ -29,6 +29,14 @@ from centralserver.internals.models.user import (
 from centralserver.internals.notification_handler import push_notification
 from centralserver.internals.permissions import DEFAULT_ROLES
 from centralserver.internals.school_handler import clear_assigned_noted_by_for_user
+from centralserver.internals.websocket_manager import websocket_manager
+
+
+# Import for WebSocket notifications (avoid circular import by importing here)
+def get_websocket_manager():
+    """Get the WebSocket manager instance to avoid circular imports."""
+    return websocket_manager
+
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -217,6 +225,21 @@ async def update_user_avatar(
 
     session.commit()
     session.refresh(selected_user)
+
+    # Send WebSocket notification for avatar update
+    try:
+        wm = get_websocket_manager()
+        await wm.send_user_update(
+            user_id=selected_user.id,
+            update_type="avatar_updated",
+            data={
+                "avatarUrn": selected_user.avatarUrn,
+                "lastModified": selected_user.lastModified.isoformat(),
+            },
+        )
+    except Exception as e:
+        logger.warning("Failed to send WebSocket notification for avatar update: %s", e)
+
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
 
@@ -292,6 +315,23 @@ async def update_user_signature(
 
     session.commit()
     session.refresh(selected_user)
+
+    # Send WebSocket notification for signature update
+    try:
+        wm = get_websocket_manager()
+        await wm.send_user_update(
+            user_id=selected_user.id,
+            update_type="signature_updated",
+            data={
+                "signatureUrn": selected_user.signatureUrn,
+                "lastModified": selected_user.lastModified.isoformat(),
+            },
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to send WebSocket notification for signature update: %s", e
+        )
+
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
 
@@ -308,6 +348,7 @@ async def update_user_info(
     """
 
     email_changed = False
+    user_was_deactivated = False
     selected_user = session.get(User, target_user.id)
 
     if not selected_user:  # Check if user exists
@@ -679,7 +720,11 @@ async def update_user_info(
             )
 
         logger.debug("Updating deactivated status for user: %s", target_user.id)
+        old_deactivated_status = selected_user.deactivated
         selected_user.deactivated = target_user.deactivated
+
+        # Check if user was just deactivated (changed from False/None to True)
+        user_was_deactivated = (not old_deactivated_status) and target_user.deactivated
 
     if (  # Update onboarding status if provided
         target_user.finishedTutorials is not None
@@ -723,6 +768,27 @@ async def update_user_info(
     session.commit()
     session.refresh(selected_user)
 
+    # Send WebSocket notification for user deactivation (must be sent before profile update)
+    if user_was_deactivated:
+        try:
+            wm = get_websocket_manager()
+            await wm.send_user_update(
+                user_id=selected_user.id,
+                update_type="user_deactivated",
+                data={
+                    "deactivated": True,
+                    "lastModified": selected_user.lastModified.isoformat(),
+                },
+            )
+            logger.info(
+                "Sent WebSocket deactivation notification for user: %s",
+                selected_user.id,
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for user deactivation: %s", e
+            )
+
     # Send notification if user was updated by someone else
     # if not updating_self:
     #     await push_notification(
@@ -743,6 +809,31 @@ async def update_user_info(
             notification_type=NotificationType.MAIL,
             session=session,
         )
+
+    # Send WebSocket notification for profile update
+    try:
+        wm = get_websocket_manager()
+        await wm.send_user_update(
+            user_id=selected_user.id,
+            update_type="profile_updated",
+            data={
+                "username": selected_user.username,
+                "nameFirst": selected_user.nameFirst,
+                "nameMiddle": selected_user.nameMiddle,
+                "nameLast": selected_user.nameLast,
+                "email": selected_user.email,
+                "position": selected_user.position,
+                "schoolId": selected_user.schoolId,
+                "roleId": selected_user.roleId,
+                "lastModified": selected_user.lastModified.isoformat(),
+                "emailChanged": email_changed,
+            },
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to send WebSocket notification for profile update: %s", e
+        )
+
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
 

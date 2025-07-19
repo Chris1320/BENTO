@@ -188,6 +188,37 @@ function LiquidationReportContent() {
         return reportStatus === "review" || reportStatus === "approved";
     }, [reportStatus]);
 
+    // Helper function to check if a date is a weekend (Saturday or Sunday)
+    const isWeekend = useCallback((date: Date) => {
+        const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
+        return dayOfWeek === 0 || dayOfWeek === 6;
+    }, []);
+
+    // Helper function to get previous weekday (for new item defaults)
+    const getPreviousWeekday = useCallback(() => {
+        let date = new Date();
+        while (isWeekend(date)) {
+            date = dayjs(date).subtract(1, "day").toDate();
+        }
+        return date;
+    }, [isWeekend]);
+
+    // Update initial expense item to use weekday
+    useEffect(() => {
+        if (expenseItems.length === 1 && expenseItems[0].particulars === "" && expenseItems[0].unitPrice === 0) {
+            // Only update if this looks like the initial default item
+            const initialDate = expenseItems[0].date;
+            if (isWeekend(initialDate)) {
+                setExpenseItems([
+                    {
+                        ...expenseItems[0],
+                        date: getPreviousWeekday(),
+                    },
+                ]);
+            }
+        }
+    }, [expenseItems, isWeekend, getPreviousWeekday]);
+
     const hasQtyUnit = QTY_FIELDS_REQUIRED.includes(category || "");
     const hasReceiptVoucher = RECEIPT_FIELDS_REQUIRED.includes(category || "");
 
@@ -648,7 +679,7 @@ function LiquidationReportContent() {
     const addNewItem = () => {
         const newItem: ExpenseDetails = {
             id: new Date(),
-            date: new Date(),
+            date: getPreviousWeekday(), // Use previous weekday for past receipts/invoices
             particulars: "",
             receiptNumber: hasReceiptVoucher ? "" : undefined,
             quantity: hasQtyUnit ? 1 : undefined,
@@ -665,6 +696,17 @@ function LiquidationReportContent() {
     };
 
     const updateItem = (id: Date, field: keyof ExpenseDetails, value: string | number | Date) => {
+        // Prevent setting weekend dates
+        if (field === "date" && value instanceof Date && isWeekend(value)) {
+            notifications.show({
+                title: "Weekend Not Allowed",
+                message:
+                    "Expense dates cannot be set to weekends (Saturday and Sunday). The canteen is closed on weekends.",
+                color: "orange",
+            });
+            return;
+        }
+
         setExpenseItems(
             expenseItems.map((item) => {
                 if (item.id === id) {
@@ -1380,7 +1422,7 @@ function LiquidationReportContent() {
                                 setExpenseItems([
                                     {
                                         id: new Date(),
-                                        date: new Date(),
+                                        date: getPreviousWeekday(), // Use previous weekday for past receipts/invoices
                                         particulars: "",
                                         receiptNumber: RECEIPT_FIELDS_REQUIRED.includes(category || "")
                                             ? ""
@@ -1455,6 +1497,31 @@ function LiquidationReportContent() {
                                                     required
                                                     readOnly={isReadOnly()}
                                                     disabled={isReadOnly()}
+                                                    getDayProps={(date) => {
+                                                        const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
+
+                                                        // Check if the date is within the current report month
+                                                        const isCurrentMonth = reportPeriod
+                                                            ? dayjs(date).isSame(reportPeriod, "month")
+                                                            : false;
+
+                                                        // Disable weekends (Saturday and Sunday)
+                                                        const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
+
+                                                        // Disable future dates (after today)
+                                                        const isFutureDate = dayjs(date).isAfter(dayjs(), "day");
+
+                                                        // Disable if not in current month, is weekend, or is future date
+                                                        const shouldDisable =
+                                                            !isCurrentMonth || isWeekendDay || isFutureDate;
+
+                                                        return {
+                                                            disabled: shouldDisable,
+                                                            style: {
+                                                                color: shouldDisable ? "#adb5bd" : undefined, // gray out disabled days
+                                                            },
+                                                        };
+                                                    }}
                                                 />
                                             </Table.Td>
                                             {hasReceiptVoucher && (

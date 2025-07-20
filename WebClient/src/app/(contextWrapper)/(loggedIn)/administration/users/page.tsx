@@ -51,6 +51,8 @@ import {
 import { notifications } from "@mantine/notifications";
 import {
     IconCheck,
+    IconChevronDown,
+    IconChevronUp,
     IconCircleDashedCheck,
     IconCircleDashedX,
     IconEdit,
@@ -63,6 +65,7 @@ import {
     IconSchool,
     IconSearch,
     IconSendOff,
+    IconSelector,
     IconUser,
     IconUserCheck,
     IconUserExclamation,
@@ -106,6 +109,10 @@ export default function UsersPage(): JSX.Element {
     const [updateFilter, setUpdateFilter] = useState<string | null>(null);
 
     const [allUsers, setAllUsers] = useState<UserPublic[]>([]);
+
+    // Sorting state
+    const [sortField, setSortField] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
     // WebSocket integration for real-time user management updates
     useUserManagementWebSocket({
@@ -274,6 +281,57 @@ export default function UsersPage(): JSX.Element {
             );
         }
 
+        // Apply sorting
+        if (sortField) {
+            filtered.sort((a, b) => {
+                let aValue: string;
+                let bValue: string;
+
+                switch (sortField) {
+                    case "username":
+                        aValue = a.username?.toLowerCase() || "";
+                        bValue = b.username?.toLowerCase() || "";
+                        break;
+                    case "email":
+                        aValue = a.email?.toLowerCase() || "";
+                        bValue = b.email?.toLowerCase() || "";
+                        break;
+                    case "name":
+                        aValue = `${a.nameFirst || ""} ${a.nameLast || ""}`.toLowerCase().trim();
+                        bValue = `${b.nameFirst || ""} ${b.nameLast || ""}`.toLowerCase().trim();
+                        break;
+                    case "school":
+                        const aSchool = availableSchools.find((school) => school.id === a.schoolId)?.name || "";
+                        const bSchool = availableSchools.find((school) => school.id === b.schoolId)?.name || "";
+                        aValue = aSchool.toLowerCase();
+                        bValue = bSchool.toLowerCase();
+                        break;
+                    case "role":
+                        aValue = roles[a.roleId]?.toLowerCase() || "";
+                        bValue = roles[b.roleId]?.toLowerCase() || "";
+                        break;
+                    case "status":
+                        aValue = a.deactivated ? "deactivated" : "active";
+                        bValue = b.deactivated ? "deactivated" : "active";
+                        break;
+                    case "twoFactor":
+                        aValue = a.otpVerified ? "enabled" : "disabled";
+                        bValue = b.otpVerified ? "enabled" : "disabled";
+                        break;
+                    case "forceUpdate":
+                        aValue = a.forceUpdateInfo ? "required" : "not required";
+                        bValue = b.forceUpdateInfo ? "required" : "not required";
+                        break;
+                    default:
+                        return 0;
+                }
+
+                if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+                if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+                return 0;
+            });
+        }
+
         return filtered;
     };
 
@@ -291,6 +349,25 @@ export default function UsersPage(): JSX.Element {
 
     const handleSearch = () => {
         setCurrentPage(1);
+    };
+
+    const handleSort = (field: string) => {
+        if (sortField === field) {
+            // If clicking the same field, toggle direction
+            setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+        } else {
+            // If clicking a new field, set it and default to ascending
+            setSortField(field);
+            setSortDirection("asc");
+        }
+        setCurrentPage(1); // Reset to first page when sorting
+    };
+
+    const getSortIcon = (field: string) => {
+        if (sortField !== field) {
+            return <IconSelector size={14} style={{ opacity: 0.5 }} />;
+        }
+        return sortDirection === "asc" ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />;
     };
 
     const handleCreate = () => {
@@ -665,7 +742,19 @@ export default function UsersPage(): JSX.Element {
         const end = start + userPerPage;
         setUsers(filtered.slice(start, end));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allUsers, roleFilter, schoolFilter, statusFilter, updateFilter, searchTerm, userPerPage, currentPage]);
+    }, [
+        allUsers,
+        roleFilter,
+        schoolFilter,
+        statusFilter,
+        updateFilter,
+        searchTerm,
+        userPerPage,
+        currentPage,
+        sortField,
+        sortDirection,
+        availableSchools,
+    ]);
 
     //Function to for Hover and Mouse Tracking on User Card
     // const [hoveredUser, setHoveredUser] = useState<UserPublicType | null>(null);
@@ -816,14 +905,78 @@ export default function UsersPage(): JSX.Element {
                                         )}
                                 </Group>
                             </TableTh>
-                            <TableTh>Username</TableTh>
-                            <TableTh>Email</TableTh>
-                            <TableTh>Name</TableTh>
-                            <TableTh>Assigned School</TableTh>
-                            <TableTh>Role</TableTh>
-                            <TableTh></TableTh>
-                            <TableTh></TableTh>
-                            <TableTh></TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("username")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>Username</Text>
+                                    {getSortIcon("username")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("email")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>Email</Text>
+                                    {getSortIcon("email")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("name")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>Name</Text>
+                                    {getSortIcon("name")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("school")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>Assigned School</Text>
+                                    {getSortIcon("school")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("role")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>Role</Text>
+                                    {getSortIcon("role")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("status")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>Status</Text>
+                                    {getSortIcon("status")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("twoFactor")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>2FA</Text>
+                                    {getSortIcon("twoFactor")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("forceUpdate")}
+                            >
+                                <Group gap="xs" justify="space-between">
+                                    <Text>Force Update</Text>
+                                    {getSortIcon("forceUpdate")}
+                                </Group>
+                            </TableTh>
                             <TableTh>Edit</TableTh>
                         </TableTr>
                     </TableThead>
@@ -1193,7 +1346,7 @@ export default function UsersPage(): JSX.Element {
                         setModalOpen={setOpenCreateUserModal}
                         availableSchools={availableSchools}
                         availableRoles={availableRoles}
-                        onUserCreate={(newUser) => {
+                        onUserCreate={() => {
                             // setAllUsers((prev) => [newUser, ...prev]);
                         }}
                     />

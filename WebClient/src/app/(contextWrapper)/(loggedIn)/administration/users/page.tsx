@@ -837,410 +837,425 @@ export default function UsersPage(): JSX.Element {
                     onFilterChange={handleFilterChange}
                 />
 
-                <Table highlightOnHover stickyHeader>
-                    <TableThead>
-                        <TableTr>
-                            <TableTh>
-                                <Group>
-                                    <Checkbox
-                                        checked={selected.size === users.length && users.length > 0}
-                                        indeterminate={selected.size > 0 && selected.size < users.length}
-                                        onChange={(event) => handleSelectAll(event.currentTarget.checked)}
-                                    />
-                                    {selected.size > 0 &&
-                                        (userCtx.userPermissions?.includes("users:global:deactivate") ||
-                                            userCtx.userPermissions?.includes("users:global:modify:school") ||
-                                            userCtx.userPermissions?.includes("users:global:forceupdate")) && (
-                                            <Menu shadow="md" width={200}>
-                                                <Menu.Target>
-                                                    <Button variant="light" size="xs">
-                                                        Actions ({selected.size})
-                                                    </Button>
-                                                </Menu.Target>
-                                                <Menu.Dropdown>
-                                                    <Menu.Label>Bulk Actions</Menu.Label>
-                                                    <Menu.Item
-                                                        leftSection={<IconUserOff size={14} />}
-                                                        disabled={
-                                                            !userCtx.userPermissions?.includes(
-                                                                "users:global:deactivate"
-                                                            )
-                                                        }
-                                                        onClick={() => handleBulkAction("deactivate")}
-                                                    >
-                                                        Deactivate Users
-                                                    </Menu.Item>
-                                                    <Menu.Item
-                                                        leftSection={<IconUserCheck size={14} />}
-                                                        disabled={
-                                                            !userCtx.userPermissions?.includes(
-                                                                "users:global:deactivate"
-                                                            )
-                                                        }
-                                                        onClick={() => handleBulkAction("reactivate")}
-                                                    >
-                                                        Reactivate Users
-                                                    </Menu.Item>
-                                                    <Menu.Divider />
-                                                    <Menu.Item
-                                                        leftSection={<IconSchool size={14} />}
-                                                        disabled={
-                                                            !userCtx.userPermissions?.includes(
-                                                                "users:global:modify:school"
-                                                            )
-                                                        }
-                                                        onClick={handleOpenBulkSchoolModal}
-                                                    >
-                                                        Assign School
-                                                    </Menu.Item>
-                                                    <Menu.Divider />
-                                                    <Menu.Item
-                                                        leftSection={<IconCheck size={14} />}
-                                                        disabled={
-                                                            !userCtx.userPermissions?.includes(
-                                                                "users:global:forceupdate"
-                                                            )
-                                                        }
-                                                        onClick={() => handleBulkForceUpdateToggle("enable")}
-                                                    >
-                                                        Enable Force Update Info
-                                                    </Menu.Item>
-                                                    <Menu.Item
-                                                        leftSection={<IconX size={14} />}
-                                                        disabled={
-                                                            !userCtx.userPermissions?.includes(
-                                                                "users:global:forceupdate"
-                                                            )
-                                                        }
-                                                        onClick={() => handleBulkForceUpdateToggle("disable")}
-                                                    >
-                                                        Disable Force Update Info
-                                                    </Menu.Item>
-                                                </Menu.Dropdown>
-                                            </Menu>
-                                        )}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("username")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>Username</Text>
-                                    {getSortIcon("username")}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("email")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>Email</Text>
-                                    {getSortIcon("email")}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("name")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>Name</Text>
-                                    {getSortIcon("name")}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("school")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>Assigned School</Text>
-                                    {getSortIcon("school")}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("role")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>Role</Text>
-                                    {getSortIcon("role")}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("status")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>Status</Text>
-                                    {getSortIcon("status")}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("twoFactor")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>2FA</Text>
-                                    {getSortIcon("twoFactor")}
-                                </Group>
-                            </TableTh>
-                            <TableTh
-                                style={{ cursor: "pointer", userSelect: "none" }}
-                                onClick={() => handleSort("forceUpdate")}
-                            >
-                                <Group gap="xs" justify="space-between">
-                                    <Text>Force Update</Text>
-                                    {getSortIcon("forceUpdate")}
-                                </Group>
-                            </TableTh>
-                            <TableTh>Edit</TableTh>
-                        </TableTr>
-                    </TableThead>
-                    <TableTbody>
-                        {users.length > 0 ? (
-                            users.map((user, index) => (
-                                <TableTr
-                                    key={index}
-                                    bg={selected.has(index) ? "gray.1" : undefined}
-                                    // onMouseEnter={() => setHoveredUser(user)}
-                                    // onMouseLeave={() => setHoveredUser(null)}
-                                >
-                                    {/* Checkbox and Avatar */}
-                                    <TableTd>
-                                        <Group>
-                                            <Checkbox
-                                                checked={selected.has(index)}
-                                                onChange={() => toggleSelected(index)}
-                                            />
-                                            {user.avatarUrn ? (
-                                                <Avatar radius="xl" src={fetchUserAvatar(user.avatarUrn)}>
-                                                    <IconUser />
-                                                </Avatar>
-                                            ) : (
-                                                <Avatar
-                                                    radius="xl"
-                                                    name={user.nameFirst + " " + user.nameLast}
-                                                    color="initials"
-                                                />
-                                            )}
-                                        </Group>
-                                    </TableTd>
-                                    <TableTd c={user.deactivated ? "dimmed" : undefined}>{user.username}</TableTd>
-                                    <TableTd c={user.deactivated ? "dimmed" : undefined}>
-                                        <Group gap="xs" align="center">
-                                            {user.email &&
-                                                (user.emailVerified ? (
-                                                    <Tooltip label="Email verified" position="bottom" withArrow>
-                                                        <IconCircleDashedCheck size={16} color="green" />
-                                                    </Tooltip>
-                                                ) : (
-                                                    <Tooltip
-                                                        label={
-                                                            userCtx.userPermissions?.includes(
-                                                                "users:global:modify:email"
-                                                            )
-                                                                ? "Email not verified (Click to send verification mail)"
-                                                                : "Email not verified (Permission required to send verification mail)"
-                                                        }
-                                                        position="bottom"
-                                                        withArrow
-                                                    >
-                                                        <motion.div
-                                                            whileTap={{
-                                                                scale: userCtx.userPermissions?.includes(
-                                                                    "users:global:modify:email"
+                <Table.ScrollContainer minWidth={1200} type="native">
+                    <Table highlightOnHover stickyHeader>
+                        <TableThead>
+                            <TableTr>
+                                <TableTh>
+                                    <Group wrap="nowrap">
+                                        <Checkbox
+                                            checked={selected.size === users.length && users.length > 0}
+                                            indeterminate={selected.size > 0 && selected.size < users.length}
+                                            onChange={(event) => handleSelectAll(event.currentTarget.checked)}
+                                        />
+                                        {selected.size > 0 &&
+                                            (userCtx.userPermissions?.includes("users:global:deactivate") ||
+                                                userCtx.userPermissions?.includes("users:global:modify:school") ||
+                                                userCtx.userPermissions?.includes("users:global:forceupdate")) && (
+                                                <Menu shadow="md" width={200}>
+                                                    <Menu.Target>
+                                                        <Button variant="light" size="xs">
+                                                            Actions ({selected.size})
+                                                        </Button>
+                                                    </Menu.Target>
+                                                    <Menu.Dropdown>
+                                                        <Menu.Label>Bulk Actions</Menu.Label>
+                                                        <Menu.Item
+                                                            leftSection={<IconUserOff size={14} />}
+                                                            disabled={
+                                                                !userCtx.userPermissions?.includes(
+                                                                    "users:global:deactivate"
                                                                 )
-                                                                    ? 0.9
-                                                                    : 1,
-                                                            }}
-                                                            whileHover={{
-                                                                scale: userCtx.userPermissions?.includes(
-                                                                    "users:global:modify:email"
-                                                                )
-                                                                    ? 1.05
-                                                                    : 1,
-                                                            }}
-                                                            style={{
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                justifyContent: "center",
-                                                                cursor: userCtx.userPermissions?.includes(
-                                                                    "users:global:modify:email"
-                                                                )
-                                                                    ? "pointer"
-                                                                    : "not-allowed",
-                                                                opacity: userCtx.userPermissions?.includes(
-                                                                    "users:global:modify:email"
-                                                                )
-                                                                    ? 1
-                                                                    : 0.5,
-                                                            }}
+                                                            }
+                                                            onClick={() => handleBulkAction("deactivate")}
                                                         >
-                                                            <IconCircleDashedX
-                                                                size={16}
-                                                                color="gray"
-                                                                onClick={async () => {
-                                                                    // Check permission before proceeding
-                                                                    if (
-                                                                        !userCtx.userPermissions?.includes(
-                                                                            "users:global:modify:email"
-                                                                        )
-                                                                    ) {
-                                                                        notifications.show({
-                                                                            id: "verification-email-permission-denied",
-                                                                            title: "Permission Denied",
-                                                                            message:
-                                                                                "You don't have permission to send verification emails for other users.",
-                                                                            color: "red",
-                                                                            icon: <IconSendOff />,
-                                                                        });
-                                                                        return;
-                                                                    }
-
-                                                                    try {
-                                                                        const result =
-                                                                            await requestVerificationEmailAdminV1AuthEmailRequestAdminPost(
-                                                                                {
-                                                                                    query: {
-                                                                                        user_id: user.id,
-                                                                                    },
-                                                                                    headers: {
-                                                                                        Authorization:
-                                                                                            GetAccessTokenHeader(),
-                                                                                    },
-                                                                                }
-                                                                            );
-
-                                                                        if (result.error) {
-                                                                            throw new Error(
-                                                                                `Failed to send verification email: ${result.response.status} ${result.response.statusText}`
-                                                                            );
-                                                                        }
-
-                                                                        notifications.show({
-                                                                            id: "verification-email-sent",
-                                                                            title: "Verification Email Sent",
-                                                                            message: `Verification email has been sent to ${user.email}. The user should check their email and click the link to verify.`,
-                                                                            color: "blue",
-                                                                            icon: <IconMail />,
-                                                                        });
-                                                                    } catch (error) {
-                                                                        if (error instanceof Error) {
-                                                                            notifications.show({
-                                                                                id: "verification-email-error",
-                                                                                title: "Error",
-                                                                                message: `Failed to send verification email: ${error.message}`,
-                                                                                color: "red",
-                                                                                icon: <IconSendOff />,
-                                                                            });
-                                                                        } else {
-                                                                            notifications.show({
-                                                                                id: "verification-email-error-unknown",
-                                                                                title: "Error",
-                                                                                message:
-                                                                                    "Failed to send verification email. Please try again later.",
-                                                                                color: "red",
-                                                                                icon: <IconSendOff />,
-                                                                            });
-                                                                        }
-                                                                    }
+                                                            Deactivate Users
+                                                        </Menu.Item>
+                                                        <Menu.Item
+                                                            leftSection={<IconUserCheck size={14} />}
+                                                            disabled={
+                                                                !userCtx.userPermissions?.includes(
+                                                                    "users:global:deactivate"
+                                                                )
+                                                            }
+                                                            onClick={() => handleBulkAction("reactivate")}
+                                                        >
+                                                            Reactivate Users
+                                                        </Menu.Item>
+                                                        <Menu.Divider />
+                                                        <Menu.Item
+                                                            leftSection={<IconSchool size={14} />}
+                                                            disabled={
+                                                                !userCtx.userPermissions?.includes(
+                                                                    "users:global:modify:school"
+                                                                )
+                                                            }
+                                                            onClick={handleOpenBulkSchoolModal}
+                                                        >
+                                                            Assign School
+                                                        </Menu.Item>
+                                                        <Menu.Divider />
+                                                        <Menu.Item
+                                                            leftSection={<IconCheck size={14} />}
+                                                            disabled={
+                                                                !userCtx.userPermissions?.includes(
+                                                                    "users:global:forceupdate"
+                                                                )
+                                                            }
+                                                            onClick={() => handleBulkForceUpdateToggle("enable")}
+                                                        >
+                                                            Enable Force Update Info
+                                                        </Menu.Item>
+                                                        <Menu.Item
+                                                            leftSection={<IconX size={14} />}
+                                                            disabled={
+                                                                !userCtx.userPermissions?.includes(
+                                                                    "users:global:forceupdate"
+                                                                )
+                                                            }
+                                                            onClick={() => handleBulkForceUpdateToggle("disable")}
+                                                        >
+                                                            Disable Force Update Info
+                                                        </Menu.Item>
+                                                    </Menu.Dropdown>
+                                                </Menu>
+                                            )}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("username")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>Username</Text>
+                                        {getSortIcon("username")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("email")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>Email</Text>
+                                        {getSortIcon("email")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("name")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>Name</Text>
+                                        {getSortIcon("name")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("school")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>Assigned School</Text>
+                                        {getSortIcon("school")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("role")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>Role</Text>
+                                        {getSortIcon("role")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("status")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>Status</Text>
+                                        {getSortIcon("status")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("twoFactor")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>2FA</Text>
+                                        {getSortIcon("twoFactor")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh
+                                    style={{ cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => handleSort("forceUpdate")}
+                                >
+                                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                                        <Text style={{ whiteSpace: "nowrap" }}>Force Update</Text>
+                                        {getSortIcon("forceUpdate")}
+                                    </Group>
+                                </TableTh>
+                                <TableTh>Edit</TableTh>
+                            </TableTr>
+                        </TableThead>
+                        <TableTbody>
+                            {users.length > 0 ? (
+                                users.map((user, index) => (
+                                    <TableTr
+                                        key={index}
+                                        bg={selected.has(index) ? "gray.1" : undefined}
+                                        // onMouseEnter={() => setHoveredUser(user)}
+                                        // onMouseLeave={() => setHoveredUser(null)}
+                                    >
+                                        {/* Checkbox and Avatar */}
+                                        <TableTd>
+                                            <Group wrap="nowrap">
+                                                <Checkbox
+                                                    checked={selected.has(index)}
+                                                    onChange={() => toggleSelected(index)}
+                                                />
+                                                {user.avatarUrn ? (
+                                                    <Avatar radius="xl" src={fetchUserAvatar(user.avatarUrn)}>
+                                                        <IconUser />
+                                                    </Avatar>
+                                                ) : (
+                                                    <Avatar
+                                                        radius="xl"
+                                                        name={user.nameFirst + " " + user.nameLast}
+                                                        color="initials"
+                                                    />
+                                                )}
+                                            </Group>
+                                        </TableTd>
+                                        <TableTd c={user.deactivated ? "dimmed" : undefined}>{user.username}</TableTd>
+                                        <TableTd c={user.deactivated ? "dimmed" : undefined}>
+                                            <Group gap="xs" align="center" wrap="nowrap">
+                                                {user.email &&
+                                                    (user.emailVerified ? (
+                                                        <Tooltip label="Email verified" position="bottom" withArrow>
+                                                            <IconCircleDashedCheck size={16} color="green" />
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Tooltip
+                                                            label={
+                                                                userCtx.userPermissions?.includes(
+                                                                    "users:global:modify:email"
+                                                                )
+                                                                    ? "Email not verified (Click to send verification mail)"
+                                                                    : "Email not verified (Permission required to send verification mail)"
+                                                            }
+                                                            position="bottom"
+                                                            withArrow
+                                                        >
+                                                            <motion.div
+                                                                whileTap={{
+                                                                    scale: userCtx.userPermissions?.includes(
+                                                                        "users:global:modify:email"
+                                                                    )
+                                                                        ? 0.9
+                                                                        : 1,
                                                                 }}
-                                                            />
-                                                        </motion.div>
-                                                    </Tooltip>
-                                                ))}
-                                            {user.email ? (
-                                                <Anchor
-                                                    href={`mailto:${user.email}`}
-                                                    underline="never"
-                                                    size="sm"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    {user.email}
-                                                </Anchor>
+                                                                whileHover={{
+                                                                    scale: userCtx.userPermissions?.includes(
+                                                                        "users:global:modify:email"
+                                                                    )
+                                                                        ? 1.05
+                                                                        : 1,
+                                                                }}
+                                                                style={{
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "center",
+                                                                    cursor: userCtx.userPermissions?.includes(
+                                                                        "users:global:modify:email"
+                                                                    )
+                                                                        ? "pointer"
+                                                                        : "not-allowed",
+                                                                    opacity: userCtx.userPermissions?.includes(
+                                                                        "users:global:modify:email"
+                                                                    )
+                                                                        ? 1
+                                                                        : 0.5,
+                                                                }}
+                                                            >
+                                                                <IconCircleDashedX
+                                                                    size={16}
+                                                                    color="gray"
+                                                                    onClick={async () => {
+                                                                        // Check permission before proceeding
+                                                                        if (
+                                                                            !userCtx.userPermissions?.includes(
+                                                                                "users:global:modify:email"
+                                                                            )
+                                                                        ) {
+                                                                            notifications.show({
+                                                                                id: "verification-email-permission-denied",
+                                                                                title: "Permission Denied",
+                                                                                message:
+                                                                                    "You don't have permission to send verification emails for other users.",
+                                                                                color: "red",
+                                                                                icon: <IconSendOff />,
+                                                                            });
+                                                                            return;
+                                                                        }
+
+                                                                        try {
+                                                                            const result =
+                                                                                await requestVerificationEmailAdminV1AuthEmailRequestAdminPost(
+                                                                                    {
+                                                                                        query: {
+                                                                                            user_id: user.id,
+                                                                                        },
+                                                                                        headers: {
+                                                                                            Authorization:
+                                                                                                GetAccessTokenHeader(),
+                                                                                        },
+                                                                                    }
+                                                                                );
+
+                                                                            if (result.error) {
+                                                                                throw new Error(
+                                                                                    `Failed to send verification email: ${result.response.status} ${result.response.statusText}`
+                                                                                );
+                                                                            }
+
+                                                                            notifications.show({
+                                                                                id: "verification-email-sent",
+                                                                                title: "Verification Email Sent",
+                                                                                message: `Verification email has been sent to ${user.email}. The user should check their email and click the link to verify.`,
+                                                                                color: "blue",
+                                                                                icon: <IconMail />,
+                                                                            });
+                                                                        } catch (error) {
+                                                                            if (error instanceof Error) {
+                                                                                notifications.show({
+                                                                                    id: "verification-email-error",
+                                                                                    title: "Error",
+                                                                                    message: `Failed to send verification email: ${error.message}`,
+                                                                                    color: "red",
+                                                                                    icon: <IconSendOff />,
+                                                                                });
+                                                                            } else {
+                                                                                notifications.show({
+                                                                                    id: "verification-email-error-unknown",
+                                                                                    title: "Error",
+                                                                                    message:
+                                                                                        "Failed to send verification email. Please try again later.",
+                                                                                    color: "red",
+                                                                                    icon: <IconSendOff />,
+                                                                                });
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </motion.div>
+                                                        </Tooltip>
+                                                    ))}
+                                                {user.email ? (
+                                                    <Anchor
+                                                        href={`mailto:${user.email}`}
+                                                        underline="never"
+                                                        size="sm"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        {user.email}
+                                                    </Anchor>
+                                                ) : (
+                                                    <Text size="sm" c="dimmed">
+                                                        N/A
+                                                    </Text>
+                                                )}
+                                            </Group>
+                                        </TableTd>
+                                        <TableTd c={user.deactivated ? "dimmed" : undefined}>
+                                            {user.nameFirst == null &&
+                                                user.nameMiddle == null &&
+                                                user.nameLast == null && (
+                                                    <Text size="sm" c="dimmed">
+                                                        N/A
+                                                    </Text>
+                                                )}
+                                            {user.nameFirst}{" "}
+                                            {user.nameMiddle
+                                                ? user.nameMiddle
+                                                      .split(" ")
+                                                      .map((n) => n[0])
+                                                      .join(".") + ". "
+                                                : ""}
+                                            {user.nameLast}
+                                        </TableTd>
+                                        <TableTd c={user.deactivated ? "dimmed" : undefined}>
+                                            {user.schoolId ? (
+                                                availableSchools.find((school) => school.id === user.schoolId)
+                                                    ?.name || (
+                                                    <Text size="sm" c="dimmed">
+                                                        N/A
+                                                    </Text>
+                                                )
                                             ) : (
                                                 <Text size="sm" c="dimmed">
                                                     N/A
                                                 </Text>
                                             )}
-                                        </Group>
-                                    </TableTd>
-                                    <TableTd c={user.deactivated ? "dimmed" : undefined}>
-                                        {user.nameFirst == null && user.nameMiddle == null && user.nameLast == null && (
-                                            <Text size="sm" c="dimmed">
-                                                N/A
-                                            </Text>
-                                        )}
-                                        {user.nameFirst}{" "}
-                                        {user.nameMiddle
-                                            ? user.nameMiddle
-                                                  .split(" ")
-                                                  .map((n) => n[0])
-                                                  .join(".") + ". "
-                                            : ""}
-                                        {user.nameLast}
-                                    </TableTd>
-                                    <TableTd c={user.deactivated ? "dimmed" : undefined}>
-                                        {user.schoolId ? (
-                                            availableSchools.find((school) => school.id === user.schoolId)?.name || (
-                                                <Text size="sm" c="dimmed">
-                                                    N/A
-                                                </Text>
-                                            )
-                                        ) : (
-                                            <Text size="sm" c="dimmed">
-                                                N/A
-                                            </Text>
-                                        )}
-                                    </TableTd>
-                                    <TableTd c={user.deactivated ? "dimmed" : undefined}>{roles[user.roleId]}</TableTd>
-                                    <TableTd>
-                                        <Tooltip
-                                            label={user.deactivated ? "User is deactivated" : "User is active"}
-                                            position="bottom"
-                                            withArrow
-                                        >
-                                            {user.deactivated ? (
-                                                <IconLock color="gray" />
-                                            ) : (
-                                                <IconLockOpen color="green" />
-                                            )}
-                                        </Tooltip>
-                                    </TableTd>
-                                    <TableTd>
-                                        <Tooltip label="Two-Factor Authentication" position="bottom" withArrow>
-                                            {user.otpVerified ? <IconKey color="green" /> : <IconKey color="gray" />}
-                                        </Tooltip>
-                                    </TableTd>
-                                    <TableTd>
-                                        <Tooltip label="Force Update Required" position="bottom" withArrow>
-                                            {user.forceUpdateInfo ? <IconCheck color="gray" /> : <IconX color="gray" />}
-                                        </Tooltip>
-                                    </TableTd>
-                                    <TableTd>
-                                        <Tooltip label="Edit User" position="bottom" openDelay={500} withArrow>
-                                            <ActionIcon
-                                                variant="light"
-                                                disabled={!userCtx.userPermissions?.includes("users:global:modify")}
-                                                onClick={() => handleEdit(index, user)}
+                                        </TableTd>
+                                        <TableTd c={user.deactivated ? "dimmed" : undefined}>
+                                            {roles[user.roleId]}
+                                        </TableTd>
+                                        <TableTd>
+                                            <Tooltip
+                                                label={user.deactivated ? "User is deactivated" : "User is active"}
+                                                position="bottom"
+                                                withArrow
                                             >
-                                                <IconEdit size={16} />
-                                            </ActionIcon>
-                                        </Tooltip>
+                                                {user.deactivated ? (
+                                                    <IconLock color="gray" />
+                                                ) : (
+                                                    <IconLockOpen color="green" />
+                                                )}
+                                            </Tooltip>
+                                        </TableTd>
+                                        <TableTd>
+                                            <Tooltip label="Two-Factor Authentication" position="bottom" withArrow>
+                                                {user.otpVerified ? (
+                                                    <IconKey color="green" />
+                                                ) : (
+                                                    <IconKey color="gray" />
+                                                )}
+                                            </Tooltip>
+                                        </TableTd>
+                                        <TableTd>
+                                            <Tooltip label="Force Update Required" position="bottom" withArrow>
+                                                {user.forceUpdateInfo ? (
+                                                    <IconCheck color="gray" />
+                                                ) : (
+                                                    <IconX color="gray" />
+                                                )}
+                                            </Tooltip>
+                                        </TableTd>
+                                        <TableTd>
+                                            <Tooltip label="Edit User" position="bottom" openDelay={500} withArrow>
+                                                <ActionIcon
+                                                    variant="light"
+                                                    disabled={!userCtx.userPermissions?.includes("users:global:modify")}
+                                                    onClick={() => handleEdit(index, user)}
+                                                >
+                                                    <IconEdit size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </TableTd>
+                                    </TableTr>
+                                ))
+                            ) : (
+                                <TableTr>
+                                    <TableTd colSpan={9}>
+                                        <Text c="dimmed" size="sm" ta="center" py="xl">
+                                            No users available
+                                        </Text>
                                     </TableTd>
                                 </TableTr>
-                            ))
-                        ) : (
-                            <TableTr>
-                                <TableTd colSpan={9}>
-                                    <Text c="dimmed" size="sm" ta="center" py="xl">
-                                        No users available
-                                    </Text>
-                                </TableTd>
-                            </TableTr>
-                        )}
-                    </TableTbody>
-                </Table>
+                            )}
+                        </TableTbody>
+                    </Table>
+                </Table.ScrollContainer>
                 {/* <AnimatePresence>
                     {hoveredUser && (
                         <motion.div

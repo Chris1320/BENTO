@@ -421,178 +421,195 @@ export default function SchoolsPage(): JSX.Element {
                     </ActionIcon>
                 </Flex>
             </Flex>
-            <Table highlightOnHover stickyHeader>
-                <TableThead>
-                    <TableTr>
-                        <TableTh></TableTh>
-                        <TableTh style={{ cursor: "pointer", userSelect: "none" }} onClick={() => handleSort("name")}>
-                            <Group gap="xs" justify="space-between">
-                                <Text>School Name</Text>
-                                {getSortIcon("name")}
-                            </Group>
-                        </TableTh>
-                        <TableTh
-                            style={{ cursor: "pointer", userSelect: "none" }}
-                            onClick={() => handleSort("address")}
-                        >
-                            <Group gap="xs" justify="space-between">
-                                <Text>Address</Text>
-                                {getSortIcon("address")}
-                            </Group>
-                        </TableTh>
-                        <TableTh style={{ cursor: "pointer", userSelect: "none" }} onClick={() => handleSort("phone")}>
-                            <Group gap="xs" justify="space-between">
-                                <Text>Phone Number</Text>
-                                {getSortIcon("phone")}
-                            </Group>
-                        </TableTh>
-                        <TableTh style={{ cursor: "pointer", userSelect: "none" }} onClick={() => handleSort("email")}>
-                            <Group gap="xs" justify="space-between">
-                                <Text>Email</Text>
-                                {getSortIcon("email")}
-                            </Group>
-                        </TableTh>
-                        <TableTh
-                            style={{ cursor: "pointer", userSelect: "none" }}
-                            onClick={() => handleSort("website")}
-                        >
-                            <Group gap="xs" justify="space-between">
-                                <Text>Website</Text>
-                                {getSortIcon("website")}
-                            </Group>
-                        </TableTh>
-                        <TableTh style={{ cursor: "pointer", userSelect: "none" }} onClick={() => handleSort("status")}>
-                            <Group gap="xs" justify="space-between">
-                                <Text>Status</Text>
-                                {getSortIcon("status")}
-                            </Group>
-                        </TableTh>
-                        <TableTh
-                            style={{ cursor: "pointer", userSelect: "none" }}
-                            onClick={() => handleSort("lastModified")}
-                        >
-                            <Group gap="xs" justify="space-between">
-                                <Text>Last Modified</Text>
-                                {getSortIcon("lastModified")}
-                            </Group>
-                        </TableTh>
-                        <TableTh
-                            style={{ cursor: "pointer", userSelect: "none" }}
-                            onClick={() => handleSort("dateCreated")}
-                        >
-                            <Group gap="xs" justify="space-between">
-                                <Text>Date Created</Text>
-                                {getSortIcon("dateCreated")}
-                            </Group>
-                        </TableTh>
-                        <TableTh></TableTh>
-                    </TableTr>
-                </TableThead>
-                <TableTbody>
-                    {schools.map((school, index) => (
-                        <TableTr key={index} bg={selected.has(index) ? "gray.1" : undefined}>
-                            {/* Checkbox and Logo */}
-                            <TableTd>
-                                <Group>
-                                    <Checkbox checked={selected.has(index)} onChange={() => toggleSelected(index)} />
-                                    {school.logoUrn && school.id != null ? (
-                                        <Avatar radius="xl" src={fetchSchoolLogo(school.logoUrn)}>
-                                            <IconUser />
-                                        </Avatar>
-                                    ) : (
-                                        <Avatar radius="xl" name={school.name} color="initials" />
-                                    )}
+            <Table.ScrollContainer minWidth={1000} type="native">
+                <Table highlightOnHover stickyHeader>
+                    <TableThead>
+                        <TableTr>
+                            <TableTh></TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("name")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>School Name</Text>
+                                    {getSortIcon("name")}
                                 </Group>
-                            </TableTd>
-                            <TableTd>{school.name}</TableTd>
-                            <TableTd c={school.address ? undefined : "dimmed"}>
-                                {school.address ? school.address : "N/A"}
-                            </TableTd>
-                            <TableTd c={school.phone ? undefined : "dimmed"}>
-                                {school.phone ? (
-                                    <Anchor
-                                        href={`tel:${school.phone}`}
-                                        underline="never"
-                                        size="sm"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {school.phone}
-                                    </Anchor>
-                                ) : (
-                                    <Text size="sm">N/A</Text>
-                                )}
-                            </TableTd>
-                            <TableTd c={school.email ? undefined : "dimmed"}>
-                                {school.email ? (
-                                    <Anchor
-                                        href={`mailto:${school.email}`}
-                                        underline="never"
-                                        size="sm"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {school.email}
-                                    </Anchor>
-                                ) : (
-                                    <Text size="sm">N/A</Text>
-                                )}
-                            </TableTd>
-                            <TableTd c={school.website ? undefined : "dimmed"}>
-                                {school.website ? (
-                                    <Anchor
-                                        href={
-                                            school.website.startsWith("http")
-                                                ? school.website
-                                                : `https://${school.website}`
-                                        }
-                                        underline="never"
-                                        size="sm"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {school.website.replace(/^https?:\/\//, "").split("/")[0]}
-                                    </Anchor>
-                                ) : (
-                                    <Text size="sm">N/A</Text>
-                                )}
-                            </TableTd>
-                            <TableTd>
-                                <Tooltip
-                                    label={school.deactivated ? "School is deactivated" : "School is active"}
-                                    position="bottom"
-                                    withArrow
-                                >
-                                    {school.deactivated ? <IconLock color="red" /> : <IconLockOpen color="green" />}
-                                </Tooltip>
-                            </TableTd>
-                            <Tooltip label={formatUTCDate(school.lastModified, "YYYY-MM-DD HH:mm:ss")}>
-                                <TableTd c={school.lastModified ? undefined : "dimmed"}>
-                                    {getRelativeTime(school.lastModified)}
-                                </TableTd>
-                            </Tooltip>
-                            <Tooltip label={formatUTCDate(school.dateCreated, "YYYY-MM-DD HH:mm:ss")}>
-                                <TableTd c={school.dateCreated ? undefined : "dimmed"}>
-                                    {getRelativeTime(school.dateCreated)}
-                                </TableTd>
-                            </Tooltip>
-                            <TableTd>
-                                <Tooltip label="Edit School" position="bottom" openDelay={500} withArrow>
-                                    <ActionIcon
-                                        disabled={
-                                            userCtx.userInfo?.schoolId === school.id
-                                                ? !userCtx.userPermissions?.includes("schools:self:modify")
-                                                : !userCtx.userPermissions?.includes("schools:global:modify")
-                                        }
-                                        variant="light"
-                                        onClick={() => handleEdit(index, school)}
-                                    >
-                                        <IconEdit size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </TableTd>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("address")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Address</Text>
+                                    {getSortIcon("address")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("phone")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Phone Number</Text>
+                                    {getSortIcon("phone")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("email")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Email</Text>
+                                    {getSortIcon("email")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("website")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Website</Text>
+                                    {getSortIcon("website")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("status")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Status</Text>
+                                    {getSortIcon("status")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("lastModified")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Last Modified</Text>
+                                    {getSortIcon("lastModified")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("dateCreated")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Date Created</Text>
+                                    {getSortIcon("dateCreated")}
+                                </Group>
+                            </TableTh>
+                            <TableTh></TableTh>
                         </TableTr>
-                    ))}
-                </TableTbody>
-            </Table>
+                    </TableThead>
+                    <TableTbody>
+                        {schools.map((school, index) => (
+                            <TableTr key={index} bg={selected.has(index) ? "gray.1" : undefined}>
+                                {/* Checkbox and Logo */}
+                                <TableTd>
+                                    <Group>
+                                        <Checkbox
+                                            checked={selected.has(index)}
+                                            onChange={() => toggleSelected(index)}
+                                        />
+                                        {school.logoUrn && school.id != null ? (
+                                            <Avatar radius="xl" src={fetchSchoolLogo(school.logoUrn)}>
+                                                <IconUser />
+                                            </Avatar>
+                                        ) : (
+                                            <Avatar radius="xl" name={school.name} color="initials" />
+                                        )}
+                                    </Group>
+                                </TableTd>
+                                <TableTd>{school.name}</TableTd>
+                                <TableTd c={school.address ? undefined : "dimmed"}>
+                                    {school.address ? school.address : "N/A"}
+                                </TableTd>
+                                <TableTd c={school.phone ? undefined : "dimmed"}>
+                                    {school.phone ? (
+                                        <Anchor
+                                            href={`tel:${school.phone}`}
+                                            underline="never"
+                                            size="sm"
+                                            rel="noopener noreferrer"
+                                        >
+                                            {school.phone}
+                                        </Anchor>
+                                    ) : (
+                                        <Text size="sm">N/A</Text>
+                                    )}
+                                </TableTd>
+                                <TableTd c={school.email ? undefined : "dimmed"}>
+                                    {school.email ? (
+                                        <Anchor
+                                            href={`mailto:${school.email}`}
+                                            underline="never"
+                                            size="sm"
+                                            rel="noopener noreferrer"
+                                        >
+                                            {school.email}
+                                        </Anchor>
+                                    ) : (
+                                        <Text size="sm">N/A</Text>
+                                    )}
+                                </TableTd>
+                                <TableTd c={school.website ? undefined : "dimmed"}>
+                                    {school.website ? (
+                                        <Anchor
+                                            href={
+                                                school.website.startsWith("http")
+                                                    ? school.website
+                                                    : `https://${school.website}`
+                                            }
+                                            underline="never"
+                                            size="sm"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            {school.website.replace(/^https?:\/\//, "").split("/")[0]}
+                                        </Anchor>
+                                    ) : (
+                                        <Text size="sm">N/A</Text>
+                                    )}
+                                </TableTd>
+                                <TableTd>
+                                    <Tooltip
+                                        label={school.deactivated ? "School is deactivated" : "School is active"}
+                                        position="bottom"
+                                        withArrow
+                                    >
+                                        {school.deactivated ? <IconLock color="red" /> : <IconLockOpen color="green" />}
+                                    </Tooltip>
+                                </TableTd>
+                                <Tooltip label={formatUTCDate(school.lastModified, "YYYY-MM-DD HH:mm:ss")}>
+                                    <TableTd c={school.lastModified ? undefined : "dimmed"}>
+                                        {getRelativeTime(school.lastModified)}
+                                    </TableTd>
+                                </Tooltip>
+                                <Tooltip label={formatUTCDate(school.dateCreated, "YYYY-MM-DD HH:mm:ss")}>
+                                    <TableTd c={school.dateCreated ? undefined : "dimmed"}>
+                                        {getRelativeTime(school.dateCreated)}
+                                    </TableTd>
+                                </Tooltip>
+                                <TableTd>
+                                    <Tooltip label="Edit School" position="bottom" openDelay={500} withArrow>
+                                        <ActionIcon
+                                            disabled={
+                                                userCtx.userInfo?.schoolId === school.id
+                                                    ? !userCtx.userPermissions?.includes("schools:self:modify")
+                                                    : !userCtx.userPermissions?.includes("schools:global:modify")
+                                            }
+                                            variant="light"
+                                            onClick={() => handleEdit(index, school)}
+                                        >
+                                            <IconEdit size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </TableTd>
+                            </TableTr>
+                        ))}
+                    </TableTbody>
+                </Table>
+            </Table.ScrollContainer>
             <Group justify="space-between" align="center" m="md">
                 <div></div>
                 <Stack align="center" justify="center" gap="sm">

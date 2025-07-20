@@ -548,7 +548,7 @@ export default function NotificationsPage() {
                                                             </Badge>
                                                         </Tooltip>
                                                     </Stack>
-                                                    
+
                                                     {/* Desktop: Horizontal layout */}
                                                     <Group
                                                         justify="space-between"
@@ -579,7 +579,7 @@ export default function NotificationsPage() {
                                                             </Badge>
                                                         </Tooltip>
                                                     </Group>
-                                                    
+
                                                     <Text size="sm" c="dimmed" style={{ wordBreak: "break-word" }}>
                                                         {n.content}
                                                     </Text>

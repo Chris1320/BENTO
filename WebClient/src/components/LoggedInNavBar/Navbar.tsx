@@ -257,7 +257,7 @@ export const Navbar: React.FC = () => {
                 </Group>
             </div>
             <div className={classes.footer}>
-                <NavLink
+                {/* <NavLink
                     href="#"
                     label="Documentation"
                     leftSection={<IconHelp className={classes.linkIcon} stroke={1.5} />}
@@ -266,7 +266,7 @@ export const Navbar: React.FC = () => {
                         customLogger.info("User accessed documentation");
                         router.push("/documentation");
                     }}
-                />
+                /> */}
                 <NavLink
                     href="#"
                     label="Logout"

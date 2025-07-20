@@ -8,6 +8,7 @@ import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools, GetSchoolLogo, GetSchoolQuantity } from "@/lib/api/school";
 import { useUser } from "@/lib/providers/user";
 import { formatUTCDate, getRelativeTime } from "@/lib/utils/date";
+import { useSchoolManagementWebSocket } from "@/lib/hooks/useSchoolManagementWebSocket";
 import {
     ActionIcon,
     Anchor,
@@ -66,6 +67,95 @@ export default function SchoolsPage(): JSX.Element {
 
     //Handler for School Creation
     const [addModalOpen, setAddModalOpen] = useState(false);
+
+    // WebSocket integration for real-time school management updates
+    useSchoolManagementWebSocket({
+        onSchoolCreated: (newSchool) => {
+            customLogger.info("School created via WebSocket", newSchool);
+
+            // Check if school already exists to prevent duplication
+            setAllSchools((prevSchools) => {
+                const schoolExists = prevSchools.some((school) => school.id === newSchool.id);
+                if (schoolExists) {
+                    customLogger.debug("School already exists in list, skipping WebSocket add", newSchool.id);
+                    return prevSchools;
+                }
+                return [newSchool, ...prevSchools];
+            });
+
+            // Show notification
+            // notifications.show({
+            //     id: `school-created-${newSchool.id}`,
+            //     title: "New School Created",
+            //     message: `School ${newSchool.name} has been created.`,
+            //     color: "green",
+            //     icon: <IconPlus />,
+            // });
+        },
+        onSchoolUpdated: (schoolId, updateData) => {
+            customLogger.info("School updated via WebSocket", { schoolId, updateData });
+            setAllSchools((prevSchools) =>
+                prevSchools.map((school) =>
+                    school.id?.toString() === schoolId
+                        ? { ...school, ...(updateData.school as Partial<School>) }
+                        : school
+                )
+            );
+        },
+        onSchoolDeactivated: (schoolId) => {
+            customLogger.info("School deactivated via WebSocket", schoolId);
+
+            let schoolToNotify: School | undefined;
+            setAllSchools((prevSchools) => {
+                const updatedSchools = prevSchools.map((school) => {
+                    if (school.id?.toString() === schoolId) {
+                        schoolToNotify = school;
+                        return { ...school, deactivated: true };
+                    }
+                    return school;
+                });
+                return updatedSchools;
+            });
+
+            // Show notification if school was found
+            if (schoolToNotify) {
+                notifications.show({
+                    id: `school-deactivated-${schoolId}`,
+                    title: "School Deactivated",
+                    message: `School ${schoolToNotify.name} has been deactivated.`,
+                    color: "orange",
+                    icon: <IconLock />,
+                });
+            }
+        },
+        onSchoolReactivated: (schoolId) => {
+            customLogger.info("School reactivated via WebSocket", schoolId);
+
+            let schoolToNotify: School | undefined;
+            setAllSchools((prevSchools) => {
+                const updatedSchools = prevSchools.map((school) => {
+                    if (school.id?.toString() === schoolId) {
+                        schoolToNotify = school;
+                        return { ...school, deactivated: false };
+                    }
+                    return school;
+                });
+                return updatedSchools;
+            });
+
+            // Show notification if school was found
+            if (schoolToNotify) {
+                notifications.show({
+                    id: `school-reactivated-${schoolId}`,
+                    title: "School Reactivated",
+                    message: `School ${schoolToNotify.name} has been reactivated.`,
+                    color: "green",
+                    icon: <IconLockOpen />,
+                });
+            }
+        },
+        enabled: true,
+    });
 
     const handleSearch = () => {
         setCurrentPage(1);
@@ -441,8 +531,8 @@ export default function SchoolsPage(): JSX.Element {
                 modalOpen={addModalOpen}
                 setModalOpen={setAddModalOpen}
                 onSchoolCreate={(newSchool) => {
-                    setSchools((prevSchools) => [...prevSchools, newSchool]);
-                    setAllSchools((prevAllSchools) => [...prevAllSchools, newSchool]);
+                    // setSchools((prevSchools) => [...prevSchools, newSchool]);
+                    // setAllSchools((prevAllSchools) => [...prevAllSchools, newSchool]);
                 }}
             />
         </>

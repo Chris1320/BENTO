@@ -35,6 +35,27 @@ interface NotificationMessage extends WebSocketMessage {
     timestamp: number;
 }
 
+interface UserManagementMessage extends WebSocketMessage {
+    type: "user_management";
+    management_type: "user_created" | "user_updated" | "user_deleted" | "user_deactivated" | "user_reactivated";
+    user_id: string;
+    data: Record<string, unknown>;
+    timestamp: number;
+}
+
+interface SchoolManagementMessage extends WebSocketMessage {
+    type: "school_management";
+    management_type:
+        | "school_created"
+        | "school_updated"
+        | "school_deleted"
+        | "school_deactivated"
+        | "school_reactivated";
+    school_id: string;
+    data: Record<string, unknown>;
+    timestamp: number;
+}
+
 interface ConnectionEstablishedMessage extends WebSocketMessage {
     type: "connection_established";
     user_id: string;
@@ -261,6 +282,46 @@ export function useUserWebSocket() {
                         },
                     });
                     window.dispatchEvent(notificationEvent);
+                    break;
+                }
+
+                case "user_management": {
+                    const userMgmtMsg = message as UserManagementMessage;
+                    customLogger.info("Received user management WebSocket message", {
+                        type: userMgmtMsg.management_type,
+                        user_id: userMgmtMsg.user_id,
+                    });
+
+                    // Dispatch custom event for user management updates
+                    const userMgmtEvent = new CustomEvent("websocket-user-management", {
+                        detail: {
+                            type: userMgmtMsg.management_type,
+                            user_id: userMgmtMsg.user_id,
+                            data: userMgmtMsg.data,
+                            timestamp: userMgmtMsg.timestamp,
+                        },
+                    });
+                    window.dispatchEvent(userMgmtEvent);
+                    break;
+                }
+
+                case "school_management": {
+                    const schoolMgmtMsg = message as SchoolManagementMessage;
+                    customLogger.info("Received school management WebSocket message", {
+                        type: schoolMgmtMsg.management_type,
+                        school_id: schoolMgmtMsg.school_id,
+                    });
+
+                    // Dispatch custom event for school management updates
+                    const schoolMgmtEvent = new CustomEvent("websocket-school-management", {
+                        detail: {
+                            type: schoolMgmtMsg.management_type,
+                            school_id: schoolMgmtMsg.school_id,
+                            data: schoolMgmtMsg.data,
+                            timestamp: schoolMgmtMsg.timestamp,
+                        },
+                    });
+                    window.dispatchEvent(schoolMgmtEvent);
                     break;
                 }
 

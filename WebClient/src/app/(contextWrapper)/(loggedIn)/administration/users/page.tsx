@@ -24,6 +24,7 @@ import { GetAllSchools } from "@/lib/api/school";
 import { roles } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
+import { useUserManagementWebSocket } from "@/lib/hooks/useUserManagementWebSocket";
 import {
     ActionIcon,
     Anchor,
@@ -105,6 +106,93 @@ export default function UsersPage(): JSX.Element {
     const [updateFilter, setUpdateFilter] = useState<string | null>(null);
 
     const [allUsers, setAllUsers] = useState<UserPublic[]>([]);
+
+    // WebSocket integration for real-time user management updates
+    useUserManagementWebSocket({
+        onUserCreated: (newUser) => {
+            customLogger.info("User created via WebSocket", newUser);
+
+            // Check if user already exists to prevent duplication
+            setAllUsers((prevUsers) => {
+                const userExists = prevUsers.some((user) => user.id === newUser.id);
+                if (userExists) {
+                    customLogger.debug("User already exists in list, skipping WebSocket add", newUser.id);
+                    return prevUsers;
+                }
+                return [newUser, ...prevUsers];
+            });
+
+            // Show notification
+            // notifications.show({
+            //     id: `user-created-${newUser.id}`,
+            //     title: "New User Created",
+            //     message: `User ${newUser.username} has been created.`,
+            //     color: "green",
+            //     icon: <IconUserCheck />,
+            // });
+        },
+        onUserUpdated: (userId, updateData) => {
+            customLogger.info("User updated via WebSocket", { userId, updateData });
+            setAllUsers((prevUsers) =>
+                prevUsers.map((user) =>
+                    user.id === userId ? { ...user, ...(updateData.user as Partial<UserPublic>) } : user
+                )
+            );
+        },
+        onUserDeactivated: (userId) => {
+            customLogger.info("User deactivated via WebSocket", userId);
+
+            let userToNotify: UserPublic | undefined;
+            setAllUsers((prevUsers) => {
+                const updatedUsers = prevUsers.map((user) => {
+                    if (user.id === userId) {
+                        userToNotify = user;
+                        return { ...user, deactivated: true };
+                    }
+                    return user;
+                });
+                return updatedUsers;
+            });
+
+            // Show notification if user was found
+            if (userToNotify) {
+                notifications.show({
+                    id: `user-deactivated-${userId}`,
+                    title: "User Deactivated",
+                    message: `User ${userToNotify.username} has been deactivated.`,
+                    color: "orange",
+                    icon: <IconUserOff />,
+                });
+            }
+        },
+        onUserReactivated: (userId) => {
+            customLogger.info("User reactivated via WebSocket", userId);
+
+            let userToNotify: UserPublic | undefined;
+            setAllUsers((prevUsers) => {
+                const updatedUsers = prevUsers.map((user) => {
+                    if (user.id === userId) {
+                        userToNotify = user;
+                        return { ...user, deactivated: false };
+                    }
+                    return user;
+                });
+                return updatedUsers;
+            });
+
+            // Show notification if user was found
+            if (userToNotify) {
+                notifications.show({
+                    id: `user-reactivated-${userId}`,
+                    title: "User Reactivated",
+                    message: `User ${userToNotify.username} has been reactivated.`,
+                    color: "green",
+                    icon: <IconUserCheck />,
+                });
+            }
+        },
+        enabled: true,
+    });
 
     // Wrapper functions to maintain compatibility with EditUserComponent
     const UpdateUserInfo = async (userUpdate: UserUpdate): Promise<UserPublic> => {
@@ -1106,7 +1194,7 @@ export default function UsersPage(): JSX.Element {
                         availableSchools={availableSchools}
                         availableRoles={availableRoles}
                         onUserCreate={(newUser) => {
-                            setAllUsers((prev) => [newUser, ...prev]);
+                            // setAllUsers((prev) => [newUser, ...prev]);
                         }}
                     />
                 )}

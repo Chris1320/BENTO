@@ -170,6 +170,31 @@ async def create_user(
         )
 
     logger.info("User `%s` created.", new_user.username)
+
+    # Send WebSocket notification about new user creation in a separate task
+    if commit:  # Only send notification if we're committing the transaction
+
+        async def send_websocket_notification():
+            try:
+                await websocket_manager.broadcast_to_all(
+                    {
+                        "type": "user_management",
+                        "management_type": "user_created",
+                        "user_id": str(user.id),
+                        "data": {"user": UserPublic.model_validate(user).model_dump()},
+                        "timestamp": int(datetime.datetime.now().timestamp()),
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to send WebSocket notification for user creation: %s", e
+                )
+
+        # Use asyncio to run the WebSocket notification without blocking
+        import asyncio
+
+        asyncio.create_task(send_websocket_notification())
+
     return user
 
 
@@ -226,19 +251,27 @@ async def update_user_avatar(
     session.commit()
     session.refresh(selected_user)
 
-    # Send WebSocket notification for avatar update
-    try:
-        wm = get_websocket_manager()
-        await wm.send_user_update(
-            user_id=selected_user.id,
-            update_type="avatar_updated",
-            data={
-                "avatarUrn": selected_user.avatarUrn,
-                "lastModified": selected_user.lastModified.isoformat(),
-            },
-        )
-    except Exception as e:
-        logger.warning("Failed to send WebSocket notification for avatar update: %s", e)
+    # Send WebSocket notification for avatar update in a separate task
+    async def send_websocket_notification():
+        try:
+            wm = get_websocket_manager()
+            await wm.send_user_update(
+                user_id=selected_user.id,
+                update_type="avatar_updated",
+                data={
+                    "avatarUrn": selected_user.avatarUrn,
+                    "lastModified": selected_user.lastModified.isoformat(),
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for avatar update: %s", e
+            )
+
+    # Use asyncio to run the WebSocket notification without blocking
+    import asyncio
+
+    asyncio.create_task(send_websocket_notification())
 
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
@@ -316,21 +349,27 @@ async def update_user_signature(
     session.commit()
     session.refresh(selected_user)
 
-    # Send WebSocket notification for signature update
-    try:
-        wm = get_websocket_manager()
-        await wm.send_user_update(
-            user_id=selected_user.id,
-            update_type="signature_updated",
-            data={
-                "signatureUrn": selected_user.signatureUrn,
-                "lastModified": selected_user.lastModified.isoformat(),
-            },
-        )
-    except Exception as e:
-        logger.warning(
-            "Failed to send WebSocket notification for signature update: %s", e
-        )
+    # Send WebSocket notification for signature update in a separate task
+    async def send_websocket_notification():
+        try:
+            wm = get_websocket_manager()
+            await wm.send_user_update(
+                user_id=selected_user.id,
+                update_type="signature_updated",
+                data={
+                    "signatureUrn": selected_user.signatureUrn,
+                    "lastModified": selected_user.lastModified.isoformat(),
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for signature update: %s", e
+            )
+
+    # Use asyncio to run the WebSocket notification without blocking
+    import asyncio
+
+    asyncio.create_task(send_websocket_notification())
 
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
@@ -768,17 +807,41 @@ async def update_user_info(
     session.commit()
     session.refresh(selected_user)
 
+    # Send WebSocket notification for general user update
+    if not user_was_deactivated:  # Don't send if deactivation notification will be sent
+        try:
+            await websocket_manager.broadcast_to_all(
+                {
+                    "type": "user_management",
+                    "management_type": "user_updated",
+                    "user_id": str(selected_user.id),
+                    "data": {
+                        "user": UserPublic.model_validate(selected_user).model_dump()
+                    },
+                    "timestamp": int(datetime.datetime.now().timestamp()),
+                }
+            )
+            logger.info(
+                "Sent WebSocket user update notification for user: %s", selected_user.id
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for user update: %s", e
+            )
+
     # Send WebSocket notification for user deactivation (must be sent before profile update)
     if user_was_deactivated:
         try:
-            wm = get_websocket_manager()
-            await wm.send_user_update(
-                user_id=selected_user.id,
-                update_type="user_deactivated",
-                data={
-                    "deactivated": True,
-                    "lastModified": selected_user.lastModified.isoformat(),
-                },
+            await websocket_manager.broadcast_to_all(
+                {
+                    "type": "user_management",
+                    "management_type": "user_deactivated",
+                    "user_id": str(selected_user.id),
+                    "data": {
+                        "user": UserPublic.model_validate(selected_user).model_dump()
+                    },
+                    "timestamp": int(datetime.datetime.now().timestamp()),
+                }
             )
             logger.info(
                 "Sent WebSocket deactivation notification for user: %s",

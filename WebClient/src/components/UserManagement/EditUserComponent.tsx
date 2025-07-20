@@ -386,8 +386,8 @@ export function EditUserComponent({
 
     return (
         <Modal opened={index !== null} onClose={() => setIndex(null)} title="Edit User" centered size="auto">
-            <Group gap="md" justify="apart" style={{ marginBottom: "1rem" }}>
-                <Flex direction="column" gap="md" p="lg">
+            <Group gap="md" justify="apart" wrap="wrap" style={{ marginBottom: "1rem" }}>
+                <Flex direction="column" gap="md" p="lg" style={{ flex: 1, minWidth: "300px" }}>
                     <Center>
                         <Card shadow="sm" radius="xl" withBorder style={{ position: "relative", cursor: "pointer" }}>
                             <FileButton onChange={setAvatar} accept="image/png,image/jpeg">
@@ -533,7 +533,7 @@ export function EditUserComponent({
                         </Table.Tr>
                     </Table>
                 </Flex>
-                <Flex direction="column" gap="md">
+                <Flex direction="column" gap="md" style={{ flex: 1, minWidth: "300px" }}>
                     <form
                         onSubmit={form.onSubmit(handleSave)}
                         onKeyDown={(e) => {

@@ -302,7 +302,6 @@ const DashboardContent = memo(function DashboardContent() {
                                     filledSegmentColor="blue"
                                     value={profileCompletionPercentage}
                                     transitionDuration={250}
-                                    label={`${profileCompletionPercentage}% Complete`}
                                     size={120}
                                     hiddenFrom="sm"
                                 />

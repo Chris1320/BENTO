@@ -264,16 +264,16 @@ export function EditUserComponent({
         );
         try {
             // First handle field deletions if any
-            if (hasFieldsToDelete) {
-                await DeleteUserInfo(fieldsToDelete);
-                notifications.show({
-                    id: "user-delete-fields-success",
-                    title: "Success",
-                    message: "Selected fields cleared successfully.",
-                    color: "green",
-                    icon: <IconPencilCheck />,
-                });
-            }
+            // if (hasFieldsToDelete) {
+            //     await DeleteUserInfo(fieldsToDelete);
+            //     notifications.show({
+            //         id: "user-delete-fields-success",
+            //         title: "Success",
+            //         message: "Selected fields cleared successfully.",
+            //         color: "green",
+            //         icon: <IconPencilCheck />,
+            //     });
+            // }
 
             // Filter out fields that were deleted from the update object to avoid conflicts
             const filteredUserInfo: UserUpdate = { ...newUserInfo };

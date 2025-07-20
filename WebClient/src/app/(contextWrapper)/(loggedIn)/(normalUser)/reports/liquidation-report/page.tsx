@@ -130,7 +130,25 @@ function LiquidationReportContent() {
 
     const effectiveSchoolId = getEffectiveSchoolId();
 
-    const [reportPeriod, setReportPeriod] = useState<Date | null>(new Date());
+    // Helper function to get initial period from URL parameters or default to current month
+    const getInitialReportPeriod = useCallback(() => {
+        const yearParam = searchParams.get("year");
+        const monthParam = searchParams.get("month");
+
+        if (yearParam && monthParam) {
+            const year = parseInt(yearParam, 10);
+            const month = parseInt(monthParam, 10);
+
+            // Validate year and month
+            if (!isNaN(year) && !isNaN(month) && month >= 1 && month <= 12) {
+                return new Date(year, month - 1); // month is 0-indexed in Date constructor
+            }
+        }
+
+        return new Date(); // Default to current month
+    }, [searchParams]);
+
+    const [reportPeriod, setReportPeriod] = useState<Date | null>(getInitialReportPeriod());
     const [unitOptions, setUnitOptions] = useState<string[]>(defaultUnitOptions);
     const [expenseItems, setExpenseItems] = useState<ExpenseDetails[]>([
         {
@@ -203,6 +221,14 @@ function LiquidationReportContent() {
         }
         return date;
     }, [isWeekend]);
+
+    // Update report period when URL parameters change
+    useEffect(() => {
+        const newPeriod = getInitialReportPeriod();
+        if (newPeriod.getTime() !== (reportPeriod?.getTime() || 0)) {
+            setReportPeriod(newPeriod);
+        }
+    }, [searchParams, getInitialReportPeriod, reportPeriod]);
 
     // Update initial expense item to use weekday
     useEffect(() => {

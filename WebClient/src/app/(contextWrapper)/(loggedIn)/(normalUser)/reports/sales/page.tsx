@@ -20,7 +20,6 @@ import {
     Image,
     Modal,
     NumberInput,
-    ScrollArea,
     SimpleGrid,
     Stack,
     Table,
@@ -67,8 +66,26 @@ function SalesandPurchasesContent() {
 
     const effectiveSchoolId = getEffectiveSchoolId();
 
+    // Helper function to get initial month from URL parameters or default to current month
+    const getInitialMonth = useCallback(() => {
+        const yearParam = searchParams.get("year");
+        const monthParam = searchParams.get("month");
+
+        if (yearParam && monthParam) {
+            const year = parseInt(yearParam, 10);
+            const month = parseInt(monthParam, 10);
+
+            // Validate year and month
+            if (!isNaN(year) && !isNaN(month) && month >= 1 && month <= 12) {
+                return new Date(year, month - 1); // month is 0-indexed in Date constructor
+            }
+        }
+
+        return new Date(); // Default to current month
+    }, [searchParams]);
+
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+    const [currentMonth, setCurrentMonth] = useState<Date>(getInitialMonth());
     const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([]);
     const [originalEntries, setOriginalEntries] = useState<DailyEntry[]>([]);
     const [editingEntry, setEditingEntry] = useState<DailyEntry | null>(null);
@@ -118,6 +135,14 @@ function SalesandPurchasesContent() {
     const isTodayWeekend = useCallback(() => {
         return isWeekend(new Date());
     }, [isWeekend]);
+
+    // Update current month when URL parameters change
+    useEffect(() => {
+        const newMonth = getInitialMonth();
+        if (newMonth.getTime() !== currentMonth.getTime()) {
+            setCurrentMonth(newMonth);
+        }
+    }, [searchParams, getInitialMonth, currentMonth]);
 
     // Fetch entries for the current month
     useEffect(() => {

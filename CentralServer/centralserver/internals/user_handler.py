@@ -32,6 +32,49 @@ from centralserver.internals.school_handler import clear_assigned_noted_by_for_u
 from centralserver.internals.websocket_manager import websocket_manager
 
 
+# Helper function for background notifications that creates its own session
+async def send_welcome_notification(user_id: str, user_name: str):
+    """Send welcome notification to a user with a new database session."""
+    try:
+        # Import here to avoid circular import
+        from centralserver.internals.db_handler import get_db_session
+
+        # Create a new session for this background task
+        with next(get_db_session()) as session:
+            await push_notification(
+                owner_id=user_id,
+                title="Please add an email address",
+                content=f"Welcome to {user_name}! Please add an email address to your account to receive important notifications.",
+                important=True,
+                notification_type=NotificationType.MAIL,
+                session=session,
+            )
+    except Exception as e:
+        logger.error("Failed to send welcome notification to user %s: %s", user_id, e)
+
+
+async def send_email_update_notification(user_id: str):
+    """Send email update notification to a user with a new database session."""
+    try:
+        # Import here to avoid circular import
+        from centralserver.internals.db_handler import get_db_session
+
+        # Create a new session for this background task
+        with next(get_db_session()) as session:
+            await push_notification(
+                owner_id=user_id,
+                title="Email address updated",
+                content="Your email address has been updated. Please verify it to receive notifications.",
+                important=True,
+                notification_type=NotificationType.MAIL,
+                session=session,
+            )
+    except Exception as e:
+        logger.error(
+            "Failed to send email update notification to user %s: %s", user_id, e
+        )
+
+
 # Import for WebSocket notifications (avoid circular import by importing here)
 def get_websocket_manager():
     """Get the WebSocket manager instance to avoid circular imports."""
@@ -159,14 +202,12 @@ async def create_user(
     # Only send notification about missing email if email is not provided and send_notification is True
     # Don't send notifications for users that have email pre-filled (they can verify it separately)
     if send_notification and not user.email:
+        # Create a separate task for notification without passing the session
+        # to avoid connection pool exhaustion
         background_tasks.add_task(
-            push_notification,
-            owner_id=user.id,
-            title="Please add an email address",
-            content=f"Welcome to {Program.name}! Please add an email address to your account to receive important notifications.",
-            important=True,
-            notification_type=NotificationType.MAIL,
-            session=session,
+            send_welcome_notification,
+            user_id=user.id,
+            user_name=Program.name,
         )
 
     logger.info("User `%s` created.", new_user.username)
@@ -864,14 +905,11 @@ async def update_user_info(
     #     )
 
     if email_changed:
-        await push_notification(
-            owner_id=selected_user.id,
-            title="Email address updated",
-            content="Your email address has been updated. Please verify it to receive notifications.",
-            important=True,
-            notification_type=NotificationType.MAIL,
-            session=session,
-        )
+        # Use a background task to avoid session sharing issues
+        try:
+            await send_email_update_notification(selected_user.id)
+        except Exception as e:
+            logger.warning("Failed to send email update notification: %s", e)
 
     # Send WebSocket notification for profile update
     try:

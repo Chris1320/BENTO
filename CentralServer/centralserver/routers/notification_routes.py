@@ -1,5 +1,4 @@
 from typing import Annotated
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlmodel import Session, func, select
@@ -32,6 +31,33 @@ from centralserver.internals.notification_handler import (
     push_notification,
 )
 from centralserver.internals.websocket_manager import websocket_manager
+
+
+# Helper function for background announcement notifications
+async def send_announcement_notification(
+    user_id: str,
+    title: str,
+    content: str,
+    important: bool,
+    notification_type: NotificationType,
+):
+    """Send announcement notification with a new database session."""
+    try:
+        # Create a new session for this background task
+        with next(get_db_session()) as session:
+            await push_notification(
+                owner_id=user_id,
+                title=title,
+                content=content,
+                important=important,
+                notification_type=notification_type,
+                session=session,
+            )
+    except Exception as e:
+        logger.error(
+            "Failed to send announcement notification to user %s: %s", user_id, e
+        )
+
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -221,18 +247,25 @@ async def archive_notification(
         )
 
         # Send WebSocket notification to the user about the archive/unarchive action
-        await websocket_manager.send_to_user(
-            str(archived_notification.ownerId),
-            {
-                "type": "notification",
-                "notification_type": (
-                    "notification_unarchived" if unarchive else "notification_archived"
-                ),
-                "notification_id": str(archived_notification.id),
-                "data": {"notification": archived_notification.model_dump()},
-                "timestamp": datetime.now(timezone.utc).timestamp(),
-            },
-        )
+        try:
+            await websocket_manager.send_to_user(
+                str(archived_notification.ownerId),
+                {
+                    "type": (
+                        "notification_unarchived"
+                        if unarchive
+                        else "notification_archived"
+                    ),
+                    "data": {
+                        "notification_id": str(archived_notification.id),
+                        "notification": archived_notification.model_dump(),
+                    },
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for archive/unarchive: %s", e
+            )
 
         return archived_notification
 
@@ -379,13 +412,12 @@ async def announce_notification(
     logger.debug("Targeting %d users for notification announcement.", len(target))
     for user in target:
         background_tasks.add_task(
-            push_notification,
-            owner_id=user.id,
+            send_announcement_notification,
+            user_id=user.id,
             title=title,
             content=content,
             important=important,
             notification_type=notification_type,
-            session=session,
         )
 
     logger.info("Notification announced successfully by user %s.", token.id)

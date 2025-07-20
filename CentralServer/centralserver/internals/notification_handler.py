@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from sqlmodel import Session, select
 
 from centralserver.internals.exceptions import NotificationNotFoundError
@@ -131,20 +130,24 @@ async def push_notification(
     session.refresh(notification)
 
     # Send WebSocket notification to the user about the new notification
-    await websocket_manager.send_to_user(
-        str(owner_id),
-        {
-            "type": "notification",
-            "notification_type": "new_notification",
-            "notification_id": str(notification.id),
-            "data": {"notification": notification.model_dump()},
-            "timestamp": datetime.now(timezone.utc).timestamp(),
-        },
-    )
+    # Do this after committing to avoid holding the session during WebSocket operations
+    try:
+        await websocket_manager.send_to_user(
+            str(owner_id),
+            {
+                "type": "new_notification",
+                "data": {"notification": notification.model_dump()},
+            },
+        )
+        logger.debug(
+            "New notification created and sent via WebSocket for user %s", owner_id
+        )
+    except Exception as e:
+        # Don't fail the notification creation if WebSocket fails
+        logger.warning(
+            "Failed to send WebSocket notification for user %s: %s", owner_id, e
+        )
 
-    logger.debug(
-        "New notification created and sent via WebSocket for user %s", owner_id
-    )
     return notification
 
 

@@ -524,13 +524,9 @@ export default function NotificationsPage() {
                                                     <IconComponent />
                                                 </Avatar>
                                                 <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                                                    <Group
-                                                        justify="space-between"
-                                                        align="flex-start"
-                                                        wrap="wrap"
-                                                        gap="xs"
-                                                    >
-                                                        <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                                                    {/* Mobile: Stack vertically, Desktop: Horizontal group */}
+                                                    <Stack gap="xs" hiddenFrom="sm">
+                                                        <Group gap="xs" wrap="wrap">
                                                             <Text fw={500} style={{ wordBreak: "break-word" }}>
                                                                 {n.title}
                                                             </Text>
@@ -547,9 +543,43 @@ export default function NotificationsPage() {
                                                             label={dayjs(n.created).format("YYYY-MM-DD HH:mm:ss")}
                                                             withArrow
                                                         >
-                                                            <Badge size="sm">{getRelativeTime(n.created)}</Badge>
+                                                            <Badge size="sm" style={{ alignSelf: "flex-start" }}>
+                                                                {getRelativeTime(n.created)}
+                                                            </Badge>
+                                                        </Tooltip>
+                                                    </Stack>
+                                                    
+                                                    {/* Desktop: Horizontal layout */}
+                                                    <Group
+                                                        justify="space-between"
+                                                        align="flex-start"
+                                                        wrap="nowrap"
+                                                        gap="xs"
+                                                        visibleFrom="sm"
+                                                    >
+                                                        <Group gap="xs" wrap="wrap" style={{ flex: 1, minWidth: 0 }}>
+                                                            <Text fw={500} style={{ wordBreak: "break-word" }}>
+                                                                {n.title}
+                                                            </Text>
+                                                            {n.important && (
+                                                                <Tooltip position="bottom" label="Important" withArrow>
+                                                                    <Badge color="red" variant="filled" size="xs">
+                                                                        Important
+                                                                    </Badge>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Group>
+                                                        <Tooltip
+                                                            position="bottom"
+                                                            label={dayjs(n.created).format("YYYY-MM-DD HH:mm:ss")}
+                                                            withArrow
+                                                        >
+                                                            <Badge size="sm" style={{ flexShrink: 0 }}>
+                                                                {getRelativeTime(n.created)}
+                                                            </Badge>
                                                         </Tooltip>
                                                     </Group>
+                                                    
                                                     <Text size="sm" c="dimmed" style={{ wordBreak: "break-word" }}>
                                                         {n.content}
                                                     </Text>

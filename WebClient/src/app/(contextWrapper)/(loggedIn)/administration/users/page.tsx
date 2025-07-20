@@ -151,11 +151,9 @@ export default function UsersPage(): JSX.Element {
         onUserDeactivated: (userId) => {
             customLogger.info("User deactivated via WebSocket", userId);
 
-            let userToNotify: UserPublic | undefined;
             setAllUsers((prevUsers) => {
                 const updatedUsers = prevUsers.map((user) => {
                     if (user.id === userId) {
-                        userToNotify = user;
                         return { ...user, deactivated: true };
                     }
                     return user;
@@ -177,11 +175,9 @@ export default function UsersPage(): JSX.Element {
         onUserReactivated: (userId) => {
             customLogger.info("User reactivated via WebSocket", userId);
 
-            let userToNotify: UserPublic | undefined;
             setAllUsers((prevUsers) => {
                 const updatedUsers = prevUsers.map((user) => {
                     if (user.id === userId) {
-                        userToNotify = user;
                         return { ...user, deactivated: false };
                     }
                     return user;

@@ -11,60 +11,8 @@ const withPWA = require("next-pwa")({
         document: "/_offline",
         image: "/icon-512x512.png",
     },
-    runtimeCaching: [
-        {
-            urlPattern: /^https?.*\/api\/.*$/,
-            handler: "NetworkFirst",
-            options: {
-                cacheName: "api-cache",
-                networkTimeoutSeconds: 10,
-                expiration: {
-                    maxEntries: 100,
-                    maxAgeSeconds: 24 * 60 * 60, // 24 hours
-                },
-                cacheableResponse: {
-                    statuses: [0, 200],
-                },
-            },
-        },
-        {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
-            handler: "CacheFirst",
-            options: {
-                cacheName: "images-cache",
-                expiration: {
-                    maxEntries: 100,
-                    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-                },
-            },
-        },
-        {
-            urlPattern: /\.(?:js|css|woff|woff2|ttf|eot)$/,
-            handler: "CacheFirst",
-            options: {
-                cacheName: "static-resources",
-                expiration: {
-                    maxEntries: 100,
-                    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-                },
-            },
-        },
-        {
-            urlPattern: /^https?.*$/,
-            handler: "NetworkFirst",
-            options: {
-                cacheName: "offlineCache",
-                networkTimeoutSeconds: 15,
-                expiration: {
-                    maxEntries: 200,
-                    maxAgeSeconds: 24 * 60 * 60, // 24 hours
-                },
-                cacheableResponse: {
-                    statuses: [0, 200],
-                },
-            },
-        },
-    ],
+    // Simplified runtime caching to avoid type conflicts
+    runtimeCaching: [],
 });
 
 const nextConfig: NextConfig = {

@@ -27,6 +27,7 @@ import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { useUserManagementWebSocket } from "@/lib/hooks/useUserManagementWebSocket";
 import {
     ActionIcon,
+    Alert,
     Anchor,
     Avatar,
     Button,
@@ -50,6 +51,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
+    IconAlertTriangle,
     IconCheck,
     IconChevronDown,
     IconChevronUp,
@@ -162,15 +164,15 @@ export default function UsersPage(): JSX.Element {
             });
 
             // Show notification if user was found
-            if (userToNotify) {
-                notifications.show({
-                    id: `user-deactivated-${userId}`,
-                    title: "User Deactivated",
-                    message: `User ${userToNotify.username} has been deactivated.`,
-                    color: "orange",
-                    icon: <IconUserOff />,
-                });
-            }
+            // if (userToNotify) {
+            //     notifications.show({
+            //         id: `user-deactivated-${userId}`,
+            //         title: "User Deactivated",
+            //         message: `User ${userToNotify.username} has been deactivated.`,
+            //         color: "orange",
+            //         icon: <IconUserOff />,
+            //     });
+            // }
         },
         onUserReactivated: (userId) => {
             customLogger.info("User reactivated via WebSocket", userId);
@@ -188,15 +190,15 @@ export default function UsersPage(): JSX.Element {
             });
 
             // Show notification if user was found
-            if (userToNotify) {
-                notifications.show({
-                    id: `user-reactivated-${userId}`,
-                    title: "User Reactivated",
-                    message: `User ${userToNotify.username} has been reactivated.`,
-                    color: "green",
-                    icon: <IconUserCheck />,
-                });
-            }
+            // if (userToNotify) {
+            //     notifications.show({
+            //         id: `user-reactivated-${userId}`,
+            //         title: "User Reactivated",
+            //         message: `User ${userToNotify.username} has been reactivated.`,
+            //         color: "green",
+            //         icon: <IconUserCheck />,
+            //     });
+            // }
         },
         enabled: true,
     });
@@ -453,10 +455,23 @@ export default function UsersPage(): JSX.Element {
     const handleBulkSchoolAssignment = async (schoolId: number | null) => {
         const selectedUsers = Array.from(selected).map((idx) => users[idx]);
 
+        // Filter to only process users with valid roles (principals and canteen managers)
+        const usersToUpdate = selectedUsers.filter((user) => user.roleId === 4 || user.roleId === 5);
+
+        if (usersToUpdate.length === 0) {
+            notifications.show({
+                title: "No Valid Users",
+                message: "No users can be updated. Only principals and canteen managers can be assigned to schools.",
+                color: "red",
+                icon: <IconUserExclamation />,
+            });
+            return;
+        }
+
         try {
-            // Update all selected users with the new school assignment
+            // Update only the valid users with the new school assignment
             await Promise.all(
-                selectedUsers.map(async (user) => {
+                usersToUpdate.map(async (user) => {
                     const result = await updateUserEndpointV1UsersPatch({
                         body: {
                             id: user.id,
@@ -475,10 +490,9 @@ export default function UsersPage(): JSX.Element {
                 })
             );
 
-            // Update local state to reflect changes
+            // Update local state to reflect changes for only the valid users
             const updatedAllUsers = [...allUsers];
-            Array.from(selected).forEach((idx) => {
-                const userToUpdate = users[idx];
+            usersToUpdate.forEach((userToUpdate) => {
                 const allUsersIndex = updatedAllUsers.findIndex((u) => u.id === userToUpdate.id);
                 if (allUsersIndex !== -1) {
                     updatedAllUsers[allUsersIndex] = {
@@ -497,9 +511,15 @@ export default function UsersPage(): JSX.Element {
                 ? availableSchools.find((school) => school.id === schoolId)?.name || "Unknown School"
                 : "No School (Unassigned)";
 
+            const skippedCount = selectedUsers.length - usersToUpdate.length;
+            const successMessage =
+                skippedCount > 0
+                    ? `Successfully assigned ${usersToUpdate.length} user(s) to ${schoolName}. ${skippedCount} user(s) were skipped due to role restrictions.`
+                    : `Successfully assigned ${usersToUpdate.length} user(s) to ${schoolName}`;
+
             notifications.show({
                 title: "Success",
-                message: `Successfully assigned ${selectedUsers.length} user(s) to ${schoolName}`,
+                message: successMessage,
                 color: "green",
                 icon: <IconSchool />,
             });
@@ -1359,29 +1379,65 @@ export default function UsersPage(): JSX.Element {
                     size="md"
                 >
                     <Stack gap="md">
-                        <Text size="sm" c="dimmed">
-                            Select a school to assign to {selected.size} selected user(s):
-                        </Text>
-                        <Select
-                            placeholder="Select a school"
-                            data={[
-                                { value: "null", label: "No School (Unassign)" },
-                                ...availableSchools
-                                    .filter((school) => school.id != null)
-                                    .map((school) => ({
-                                        value: school.id!.toString(),
-                                        label: school.name,
-                                    })),
-                            ]}
-                            searchable
-                            clearable
-                            onChange={(value) => {
-                                if (value !== null) {
-                                    const schoolId = value === "null" ? null : parseInt(value);
-                                    handleBulkSchoolAssignment(schoolId);
-                                }
-                            }}
-                        />
+                        {(() => {
+                            const selectedUsers = Array.from(selected).map((idx) => users[idx]);
+                            const invalidRoleUsers = selectedUsers.filter(
+                                (user) => user.roleId !== 4 && user.roleId !== 5
+                            );
+                            const validUsers = selectedUsers.filter((user) => user.roleId === 4 || user.roleId === 5);
+
+                            return (
+                                <>
+                                    <Text size="sm" c="dimmed">
+                                        Select a school to assign to {selected.size} selected user(s):
+                                    </Text>
+
+                                    {invalidRoleUsers.length > 0 && (
+                                        <Alert
+                                            color="yellow"
+                                            title="Role Restriction Warning"
+                                            icon={<IconAlertTriangle />}
+                                        >
+                                            <Text size="sm">
+                                                {invalidRoleUsers.length} selected user(s) cannot be assigned to schools
+                                                because they are not principals or canteen managers. Only valid users
+                                                will be updated.
+                                            </Text>
+                                        </Alert>
+                                    )}
+
+                                    {validUsers.length === 0 ? (
+                                        <Alert color="red" title="No Valid Users" icon={<IconX />}>
+                                            <Text size="sm">
+                                                None of the selected users can be assigned to schools. Only principals
+                                                and canteen managers can be assigned to schools.
+                                            </Text>
+                                        </Alert>
+                                    ) : (
+                                        <Select
+                                            placeholder="Select a school"
+                                            data={[
+                                                { value: "null", label: "No School (Unassign)" },
+                                                ...availableSchools
+                                                    .filter((school) => school.id != null)
+                                                    .map((school) => ({
+                                                        value: school.id!.toString(),
+                                                        label: school.name,
+                                                    })),
+                                            ]}
+                                            searchable
+                                            clearable
+                                            onChange={(value) => {
+                                                if (value !== null) {
+                                                    const schoolId = value === "null" ? null : parseInt(value);
+                                                    handleBulkSchoolAssignment(schoolId);
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            );
+                        })()}
                         <Group justify="flex-end" mt="md">
                             <Button variant="outline" onClick={() => setOpenBulkSchoolModal(false)}>
                                 Cancel

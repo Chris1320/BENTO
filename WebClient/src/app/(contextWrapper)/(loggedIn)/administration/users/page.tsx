@@ -1367,7 +1367,7 @@ export default function UsersPage(): JSX.Element {
                         availableSchools={availableSchools}
                         availableRoles={availableRoles}
                         onUserInvite={(newUser) => {
-                            setAllUsers((prev) => [newUser, ...prev]);
+                            // setAllUsers((prev) => [newUser, ...prev]);
                         }}
                     />
                 )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { BarChart, LineChart } from "@mantine/charts";
-import { Card, Divider, Grid, Group, Paper, SimpleGrid, Text, Title, Alert, Loader, Select } from "@mantine/core";
+import { Card, Divider, Grid, Group, Paper, SimpleGrid, Text, Title, Alert, Loader, Select, Container, Stack } from "@mantine/core";
 import {
     IconArrowDownRight,
     IconArrowUpRight,
@@ -372,108 +372,116 @@ export default function StatisticsPage() {
 
     if (loadingSchools) {
         return (
-            <div className={classes.root}>
-                <Group justify="center" style={{ minHeight: 200 }}>
-                    <Loader size="lg" />
-                    <Text>Loading schools...</Text>
-                </Group>
-            </div>
+            <Container size="xl" py={{ base: "sm", md: "md" }}>
+                <div className={classes.root}>
+                    <Group justify="center" style={{ minHeight: 200 }}>
+                        <Loader size="lg" />
+                        <Text>Loading schools...</Text>
+                    </Group>
+                </div>
+            </Container>
         );
     }
 
     // Show school selector and loading message when no school is selected
     if (!statsData && !loading && !error) {
         return (
-            <div className={classes.root}>
-                <Title order={2} mb="lg">
-                    Financial Statistics - Administration
-                </Title>
+            <Container size="xl" py={{ base: "sm", md: "md" }}>
+                <div className={classes.root}>
+                    <Title order={2} mb="lg">
+                        Financial Statistics - Administration
+                    </Title>
 
-                <Select
-                    label="Select School"
-                    placeholder="Choose a school to view statistics"
-                    data={[
-                        { value: "all", label: "All Schools" },
-                        ...schools.map((school) => ({
-                            value: school.id?.toString() || "",
-                            label: school.name || "",
-                        })),
-                    ]}
-                    value={viewingAllSchools ? "all" : selectedSchoolId?.toString() || null}
-                    onChange={(value) => {
-                        if (value === "all") {
-                            setViewingAllSchools(true);
-                            setSelectedSchoolId(null);
-                        } else {
-                            setViewingAllSchools(false);
-                            setSelectedSchoolId(value ? parseInt(value) : null);
-                        }
-                    }}
-                    mb="xl"
-                />
+                    <Select
+                        label="Select School"
+                        placeholder="Choose a school to view statistics"
+                        data={[
+                            { value: "all", label: "All Schools" },
+                            ...schools.map((school) => ({
+                                value: school.id?.toString() || "",
+                                label: school.name || "",
+                            })),
+                        ]}
+                        value={viewingAllSchools ? "all" : selectedSchoolId?.toString() || null}
+                        onChange={(value) => {
+                            if (value === "all") {
+                                setViewingAllSchools(true);
+                                setSelectedSchoolId(null);
+                            } else {
+                                setViewingAllSchools(false);
+                                setSelectedSchoolId(value ? parseInt(value) : null);
+                            }
+                        }}
+                        mb="xl"
+                    />
 
-                <Alert
-                    icon={<IconAlertCircle size={16} />}
-                    title="Select a School"
-                    color="blue"
-                    style={{ margin: "2rem 0" }}
-                >
-                    Please select a school or &quot;All Schools&quot; to view financial statistics.
-                </Alert>
-            </div>
+                    <Alert
+                        icon={<IconAlertCircle size={16} />}
+                        title="Select a School"
+                        color="blue"
+                        style={{ margin: "2rem 0" }}
+                    >
+                        Please select a school or &quot;All Schools&quot; to view financial statistics.
+                    </Alert>
+                </div>
+            </Container>
         );
     }
 
     if (loading) {
         return (
-            <div className={classes.root}>
-                <Title order={2} mb="lg">
-                    Financial Statistics - Administration
-                </Title>
+            <Container size="xl" py={{ base: "sm", md: "md" }}>
+                <div className={classes.root}>
+                    <Title order={2} mb="lg">
+                        Financial Statistics - Administration
+                    </Title>
 
-                <Select
-                    label="Select School"
-                    placeholder="Choose a school to view statistics"
-                    data={[
-                        { value: "all", label: "All Schools" },
-                        ...schools.map((school) => ({
-                            value: school.id?.toString() || "",
-                            label: school.name || "",
-                        })),
-                    ]}
-                    value={viewingAllSchools ? "all" : selectedSchoolId?.toString() || null}
-                    onChange={(value) => {
-                        if (value === "all") {
-                            setViewingAllSchools(true);
-                            setSelectedSchoolId(null);
-                        } else {
-                            setViewingAllSchools(false);
-                            setSelectedSchoolId(value ? parseInt(value) : null);
-                        }
-                    }}
-                    mb="xl"
-                />
+                    <Select
+                        label="Select School"
+                        placeholder="Choose a school to view statistics"
+                        data={[
+                            { value: "all", label: "All Schools" },
+                            ...schools.map((school) => ({
+                                value: school.id?.toString() || "",
+                                label: school.name || "",
+                            })),
+                        ]}
+                        value={viewingAllSchools ? "all" : selectedSchoolId?.toString() || null}
+                        onChange={(value) => {
+                            if (value === "all") {
+                                setViewingAllSchools(true);
+                                setSelectedSchoolId(null);
+                            } else {
+                                setViewingAllSchools(false);
+                                setSelectedSchoolId(value ? parseInt(value) : null);
+                            }
+                        }}
+                        mb="xl"
+                    />
 
-                <Group justify="center" style={{ minHeight: 200 }}>
-                    <Loader size="lg" />
-                    <Text>Loading financial statistics...</Text>
-                </Group>
-            </div>
+                    <Group justify="center" style={{ minHeight: 200 }}>
+                        <Loader size="lg" />
+                        <Text>Loading financial statistics...</Text>
+                    </Group>
+                </div>
+            </Container>
         );
     }
 
     if (error || !statsData) {
         return (
-            <div className={classes.root}>
-                <Alert
-                    icon={<IconAlertCircle size={16} />}
-                    title="Error Loading Data"
-                    color="red"
-                    style={{ margin: "2rem 0" }}
-                >
-                    {error || "No financial data available"}
-                </Alert>
-            </div>
+            <Container size="xl" py={{ base: "sm", md: "md" }}>
+                <div className={classes.root}>
+                    <Alert
+                        icon={<IconAlertCircle size={16} />}
+                        title="Error Loading Data"
+                        color="red"
+                        style={{ margin: "2rem 0" }}
+                    >
+                        {error || "No financial data available"}
+                    </Alert>
+                </div>
+            </Container>
         );
     }
 
@@ -571,36 +579,69 @@ export default function StatisticsPage() {
     });
 
     return (
-        <div className={classes.root}>
-            <Group justify="space-between" mb="lg">
-                <Title order={2}>Financial Statistics - Administration</Title>
-                <Select
-                    label="Select School"
-                    placeholder="Choose a school to view statistics"
-                    value={viewingAllSchools ? "all" : selectedSchoolId?.toString() || null}
-                    onChange={(value) => {
-                        if (value === "all") {
-                            setViewingAllSchools(true);
-                            setSelectedSchoolId(null);
-                        } else {
-                            setViewingAllSchools(false);
-                            setSelectedSchoolId(value ? parseInt(value) : null);
-                        }
-                    }}
-                    data={[
-                        { value: "all", label: "🏫 All Schools Combined" },
-                        ...schools
-                            .filter((school) => school.id != null)
-                            .map((school) => ({
-                                value: school.id!.toString(),
-                                label: school.name,
-                            })),
-                    ]}
-                    style={{ minWidth: 300 }}
-                />
-            </Group>
+        <Container size="xl" py={{ base: "sm", md: "md" }}>
+            <div className={classes.root}>
+                {/* Title and School Selector */}
+                <Stack gap="md" mb="xl">
+                    <Group justify="space-between" align="center" wrap="wrap">
+                        <Title order={2}>Financial Statistics - Administration</Title>
+                        
+                        {/* Desktop: Show selector inline */}
+                        <Select
+                            label="Select School"
+                            placeholder="Choose a school to view statistics"
+                            value={viewingAllSchools ? "all" : selectedSchoolId?.toString() || null}
+                            onChange={(value) => {
+                                if (value === "all") {
+                                    setViewingAllSchools(true);
+                                    setSelectedSchoolId(null);
+                                } else {
+                                    setViewingAllSchools(false);
+                                    setSelectedSchoolId(value ? parseInt(value) : null);
+                                }
+                            }}
+                            data={[
+                                { value: "all", label: "🏫 All Schools Combined" },
+                                ...schools
+                                    .filter((school) => school.id != null)
+                                    .map((school) => ({
+                                        value: school.id!.toString(),
+                                        label: school.name,
+                                    })),
+                            ]}
+                            style={{ minWidth: 300 }}
+                            visibleFrom="sm"
+                        />
+                    </Group>
+                    
+                    {/* Mobile: Show selector below title */}
+                    <Select
+                        label="Select School"
+                        placeholder="Choose a school to view statistics"
+                        value={viewingAllSchools ? "all" : selectedSchoolId?.toString() || null}
+                        onChange={(value) => {
+                            if (value === "all") {
+                                setViewingAllSchools(true);
+                                setSelectedSchoolId(null);
+                            } else {
+                                setViewingAllSchools(false);
+                                setSelectedSchoolId(value ? parseInt(value) : null);
+                            }
+                        }}
+                        data={[
+                            { value: "all", label: "🏫 All Schools Combined" },
+                            ...schools
+                                .filter((school) => school.id != null)
+                                .map((school) => ({
+                                    value: school.id!.toString(),
+                                    label: school.name,
+                                })),
+                        ]}
+                        hiddenFrom="sm"
+                    />
+                </Stack>
 
-            {viewingAllSchools ? (
+                {viewingAllSchools ? (
                 <Text size="lg" mb="md" c="dimmed">
                     Viewing combined data for: <strong>All Schools ({schools.length} schools)</strong>
                 </Text>
@@ -610,16 +651,16 @@ export default function StatisticsPage() {
                 </Text>
             ) : null}
 
-            <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }}>{stats}</SimpleGrid>
+            <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing={{ base: "sm", md: "md" }}>{stats}</SimpleGrid>
 
             <Divider my="lg" label="Core Financial Statistics" labelPosition="center" />
 
-            <Grid gutter="md">
+            <Grid gutter={{ base: "sm", md: "md" }}>
                 <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Card withBorder p="lg">
-                        <Title order={4}>Monthly Net Sales</Title>
+                    <Card withBorder p={{ base: "sm", md: "lg" }}>
+                        <Title order={4} mb="sm">Monthly Net Sales</Title>
                         <LineChart
-                            h={300}
+                            h={{ base: 250, md: 300 }}
                             data={statsData.monthlySalesData}
                             dataKey="month"
                             series={[{ name: "sales", color: "indigo.6" }]}
@@ -631,10 +672,10 @@ export default function StatisticsPage() {
                 </Grid.Col>
 
                 <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Card withBorder p="lg">
-                        <Title order={4}>Monthly Net Income</Title>
+                    <Card withBorder p={{ base: "sm", md: "lg" }}>
+                        <Title order={4} mb="sm">Monthly Net Income</Title>
                         <LineChart
-                            h={300}
+                            h={{ base: 250, md: 300 }}
                             data={statsData.monthlyNetIncomeData}
                             dataKey="month"
                             series={[{ name: "net", color: "green.6" }]}
@@ -646,10 +687,10 @@ export default function StatisticsPage() {
                 </Grid.Col>
 
                 <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Card withBorder p="lg">
-                        <Title order={4}>Sales vs Purchases</Title>
+                    <Card withBorder p={{ base: "sm", md: "lg" }}>
+                        <Title order={4} mb="sm">Sales vs Purchases</Title>
                         <BarChart
-                            h={300}
+                            h={{ base: 250, md: 300 }}
                             data={combinedSalesData}
                             dataKey="month"
                             series={[
@@ -664,10 +705,10 @@ export default function StatisticsPage() {
                 </Grid.Col>
 
                 <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Card withBorder p="lg">
-                        <Title order={4}>Monthly Gross Profit</Title>
+                    <Card withBorder p={{ base: "sm", md: "lg" }}>
+                        <Title order={4} mb="sm">Monthly Gross Profit</Title>
                         <LineChart
-                            h={300}
+                            h={{ base: 250, md: 300 }}
                             data={combinedSalesData}
                             dataKey="month"
                             series={[{ name: "gross", color: "blue.6" }]}
@@ -681,12 +722,12 @@ export default function StatisticsPage() {
 
             <Divider my="lg" label="Performance & Efficiency Metrics" labelPosition="center" />
 
-            <Grid gutter="md">
+            <Grid gutter={{ base: "sm", md: "md" }}>
                 <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Card withBorder p="lg">
-                        <Title order={5}>Profit Margin Over Time (%)</Title>
+                    <Card withBorder p={{ base: "sm", md: "lg" }}>
+                        <Title order={5} mb="sm">Profit Margin Over Time (%)</Title>
                         <LineChart
-                            h={250}
+                            h={{ base: 200, md: 250 }}
                             data={profitMarginData}
                             dataKey="month"
                             series={[{ name: "margin", color: "teal.6" }]}
@@ -697,10 +738,10 @@ export default function StatisticsPage() {
                     </Card>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Card withBorder p="lg">
-                        <Title order={5}>Cost-to-Sales Ratio (%)</Title>
+                    <Card withBorder p={{ base: "sm", md: "lg" }}>
+                        <Title order={5} mb="sm">Cost-to-Sales Ratio (%)</Title>
                         <LineChart
-                            h={250}
+                            h={{ base: 200, md: 250 }}
                             data={costToSalesData}
                             dataKey="month"
                             series={[{ name: "ratio", color: "orange.6" }]}
@@ -711,8 +752,8 @@ export default function StatisticsPage() {
                     </Card>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Card withBorder p="lg">
-                        <Title order={5}>Monthly Summary</Title>
+                    <Card withBorder p={{ base: "sm", md: "lg" }}>
+                        <Title order={5} mb="sm">Monthly Summary</Title>
                         <div style={{ padding: "1rem 0" }}>
                             <Text size="sm" c="dimmed">
                                 Current Month Summary
@@ -730,12 +771,12 @@ export default function StatisticsPage() {
             {statsData.monthlySalesData.length > 0 && (
                 <>
                     <Divider my="lg" label="Comparative Views" labelPosition="center" />
-                    <Grid gutter="md">
+                    <Grid gutter={{ base: "sm", md: "md" }}>
                         <Grid.Col span={12}>
-                            <Card withBorder p="lg">
-                                <Title order={4}>12-Month Financial Overview</Title>
+                            <Card withBorder p={{ base: "sm", md: "lg" }}>
+                                <Title order={4} mb="sm">12-Month Financial Overview</Title>
                                 <BarChart
-                                    h={400}
+                                    h={{ base: 300, md: 400 }}
                                     data={combinedSalesData}
                                     dataKey="month"
                                     series={[
@@ -752,6 +793,7 @@ export default function StatisticsPage() {
                     </Grid>
                 </>
             )}
-        </div>
+            </div>
+        </Container>
     );
 }

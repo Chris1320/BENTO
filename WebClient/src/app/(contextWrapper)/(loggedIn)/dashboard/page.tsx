@@ -14,19 +14,7 @@ import { customLogger } from "@/lib/api/customLogger";
 import { LocalStorage, notificationIcons } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
-import {
-    Avatar,
-    Card,
-    Container,
-    Flex,
-    Group,
-    List,
-    SemiCircleProgress,
-    Stack,
-    Text,
-    ThemeIcon,
-    Title,
-} from "@mantine/core";
+import { Avatar, Card, Container, Group, List, SemiCircleProgress, Stack, Text, ThemeIcon, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconCircleCheck, IconCircleDashed, IconRefreshAlert } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -233,17 +221,56 @@ const DashboardContent = memo(function DashboardContent() {
             <Stack gap="md">
                 {/* User Welcome Section */}
                 <Card shadow="sm" p="md" radius="md" withBorder>
-                    <Group gap={20}>
-                        <Avatar variant="light" radius="lg" size={100} color="#258ce6" src={userCtx.userAvatarUrl} />
-                        <Stack gap="xs">
+                    <Group gap="md" align="flex-start" wrap="nowrap">
+                        <Avatar
+                            variant="light"
+                            radius="lg"
+                            size={100}
+                            color="#258ce6"
+                            src={userCtx.userAvatarUrl}
+                            hiddenFrom="sm"
+                            style={{ minWidth: 60 }}
+                        />
+                        <Avatar
+                            variant="light"
+                            radius="lg"
+                            size={100}
+                            color="#258ce6"
+                            src={userCtx.userAvatarUrl}
+                            visibleFrom="sm"
+                        />
+                        <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
                             {userCtx.userInfo?.nameFirst ? (
-                                <Title>Welcome, {userCtx.userInfo.nameFirst}!</Title>
+                                <>
+                                    <Title order={3} hiddenFrom="md">
+                                        Welcome, {userCtx.userInfo.nameFirst}!
+                                    </Title>
+                                    <Title order={1} visibleFrom="md">
+                                        Welcome, {userCtx.userInfo.nameFirst}!
+                                    </Title>
+                                </>
                             ) : userCtx.userInfo?.username ? (
-                                <Title>Welcome, {userCtx.userInfo.username}!</Title>
+                                <>
+                                    <Title order={3} hiddenFrom="md">
+                                        Welcome, {userCtx.userInfo.username}!
+                                    </Title>
+                                    <Title order={1} visibleFrom="md">
+                                        Welcome, {userCtx.userInfo.username}!
+                                    </Title>
+                                </>
                             ) : (
-                                <Title>Welcome!</Title>
+                                <>
+                                    <Title order={3} hiddenFrom="md">
+                                        Welcome!
+                                    </Title>
+                                    <Title order={1} visibleFrom="md">
+                                        Welcome!
+                                    </Title>
+                                </>
                             )}
-                            <Text c="dimmed">Here&apos;s what&apos;s happening with your account</Text>
+                            <Text c="dimmed" size="md">
+                                Here&apos;s what&apos;s happening with your account
+                            </Text>
                         </Stack>
                     </Group>
                 </Card>
@@ -251,20 +278,75 @@ const DashboardContent = memo(function DashboardContent() {
                 {/* Account Setup Section */}
                 {profileCompletionPercentage !== 100 && !setupCompleteDismissed && (
                     <Card p="md" radius="md" withBorder>
-                        <Flex justify="space-between" align="center" mb={20}>
-                            <SemiCircleProgress
-                                fillDirection="left-to-right"
-                                orientation="up"
-                                filledSegmentColor="blue"
-                                value={profileCompletionPercentage}
-                                transitionDuration={250}
-                                label={`${profileCompletionPercentage}% Complete`}
-                            />
-                            <Stack style={{ flex: 1 }}>
-                                <Title order={4}>Set Up Your Account</Title>
-                                <Text size="sm" c="dimmed">
-                                    Complete your profile, set up security features, and customize your preferences.
-                                </Text>
+                        <Stack gap="md">
+                            {/* Desktop Layout */}
+                            <Group justify="space-between" align="center" visibleFrom="md">
+                                <SemiCircleProgress
+                                    fillDirection="left-to-right"
+                                    orientation="up"
+                                    filledSegmentColor="blue"
+                                    value={profileCompletionPercentage}
+                                    transitionDuration={250}
+                                    label={`${profileCompletionPercentage}% Complete`}
+                                />
+                                <Stack style={{ flex: 1, marginLeft: "1rem" }}>
+                                    <Title order={4}>Set Up Your Account</Title>
+                                    <Text size="sm" c="dimmed">
+                                        Complete your profile, set up security features, and customize your preferences.
+                                    </Text>
+                                    <List spacing="xs" center>
+                                        {stepsToComplete.map(([step, completed], index) => (
+                                            <List.Item
+                                                key={index}
+                                                icon={
+                                                    <ThemeIcon
+                                                        color={completed ? "green" : "blue"}
+                                                        size={20}
+                                                        radius="xl"
+                                                    >
+                                                        {completed ? <IconCircleCheck /> : <IconCircleDashed />}
+                                                    </ThemeIcon>
+                                                }
+                                                c={completed ? "gray" : "dark"}
+                                                style={{ cursor: completed ? "default" : "pointer" }}
+                                                onClick={() => !completed && handleStepClick(index)}
+                                            >
+                                                <Text
+                                                    size="sm"
+                                                    style={{
+                                                        textDecoration: completed ? "line-through" : "none",
+                                                        cursor: completed ? "default" : "pointer",
+                                                    }}
+                                                >
+                                                    {step}
+                                                </Text>
+                                            </List.Item>
+                                        ))}
+                                    </List>
+                                </Stack>
+                            </Group>
+
+                            {/* Mobile Layout */}
+                            <Stack gap="md" hiddenFrom="md">
+                                <Group justify="center">
+                                    <SemiCircleProgress
+                                        fillDirection="left-to-right"
+                                        orientation="up"
+                                        filledSegmentColor="blue"
+                                        value={profileCompletionPercentage}
+                                        transitionDuration={250}
+                                        // label={`${profileCompletionPercentage}% Complete`}
+                                        size={120}
+                                    />
+                                </Group>
+                                <Stack align="center">
+                                    <Title order={4} ta="center">
+                                        Set Up Your Account
+                                    </Title>
+                                    <Text size="sm" c="dimmed" ta="center">
+                                        Complete your profile, set up security features, and customize your preferences.
+                                    </Text>
+                                </Stack>
                                 <List spacing="xs" center>
                                     {stepsToComplete.map(([step, completed], index) => (
                                         <List.Item
@@ -291,7 +373,7 @@ const DashboardContent = memo(function DashboardContent() {
                                     ))}
                                 </List>
                             </Stack>
-                        </Flex>
+                        </Stack>
                         <Text
                             size="xs"
                             c="dimmed"

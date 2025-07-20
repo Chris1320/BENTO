@@ -217,10 +217,13 @@ function PayrollPageContent() {
     // Update selected month when URL parameters change
     useEffect(() => {
         const newMonth = getInitialMonth();
-        if (newMonth.getTime() !== (selectedMonth?.getTime() || 0)) {
-            setSelectedMonth(newMonth);
-        }
-    }, [searchParams, getInitialMonth, selectedMonth]);
+        setSelectedMonth((prev) => {
+            if (newMonth.getTime() !== (prev?.getTime() || 0)) {
+                return newMonth;
+            }
+            return prev;
+        });
+    }, [getInitialMonth]);
 
     useEffect(() => {
         if (weekPeriods.length > 0 && !selectedWeekId) {
@@ -693,7 +696,7 @@ function PayrollPageContent() {
     };
 
     const handleClose = () => {
-        router.push("/reports");
+        router.back();
     };
 
     // Signature management handlers

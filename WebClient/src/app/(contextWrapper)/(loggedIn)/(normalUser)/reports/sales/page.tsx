@@ -139,10 +139,13 @@ function SalesandPurchasesContent() {
     // Update current month when URL parameters change
     useEffect(() => {
         const newMonth = getInitialMonth();
-        if (newMonth.getTime() !== currentMonth.getTime()) {
-            setCurrentMonth(newMonth);
-        }
-    }, [searchParams, getInitialMonth, currentMonth]);
+        setCurrentMonth((prev) => {
+            if (newMonth.getTime() !== prev.getTime()) {
+                return newMonth;
+            }
+            return prev;
+        });
+    }, [getInitialMonth]);
 
     // Fetch entries for the current month
     useEffect(() => {
@@ -428,7 +431,7 @@ function SalesandPurchasesContent() {
     }, [effectiveSchoolId, notedBy, selectedNotedByUser]);
 
     const handleClose = () => {
-        router.push("/reports");
+        router.back();
     };
 
     const handleApprovalConfirm = async () => {

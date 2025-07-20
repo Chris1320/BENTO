@@ -225,26 +225,32 @@ function LiquidationReportContent() {
     // Update report period when URL parameters change
     useEffect(() => {
         const newPeriod = getInitialReportPeriod();
-        if (newPeriod.getTime() !== (reportPeriod?.getTime() || 0)) {
-            setReportPeriod(newPeriod);
-        }
-    }, [searchParams, getInitialReportPeriod, reportPeriod]);
-
-    // Update initial expense item to use weekday
-    useEffect(() => {
-        if (expenseItems.length === 1 && expenseItems[0].particulars === "" && expenseItems[0].unitPrice === 0) {
-            // Only update if this looks like the initial default item
-            const initialDate = expenseItems[0].date;
-            if (isWeekend(initialDate)) {
-                setExpenseItems([
-                    {
-                        ...expenseItems[0],
-                        date: getPreviousWeekday(),
-                    },
-                ]);
+        setReportPeriod((prev) => {
+            if (newPeriod.getTime() !== (prev?.getTime() || 0)) {
+                return newPeriod;
             }
-        }
-    }, [expenseItems, isWeekend, getPreviousWeekday]);
+            return prev;
+        });
+    }, [getInitialReportPeriod]);
+
+    // Update initial expense item when report period changes
+    useEffect(() => {
+        setExpenseItems((prev) => {
+            if (prev.length === 1 && prev[0].particulars === "" && prev[0].unitPrice === 0) {
+                // Only update if this looks like the initial default item
+                const initialDate = prev[0].date;
+                if (isWeekend(initialDate)) {
+                    return [
+                        {
+                            ...prev[0],
+                            date: getPreviousWeekday(),
+                        },
+                    ];
+                }
+            }
+            return prev; // Return unchanged if conditions not met
+        });
+    }, [reportPeriod, isWeekend, getPreviousWeekday]);
 
     const hasQtyUnit = QTY_FIELDS_REQUIRED.includes(category || "");
     const hasReceiptVoucher = RECEIPT_FIELDS_REQUIRED.includes(category || "");
@@ -645,7 +651,7 @@ function LiquidationReportContent() {
     }
 
     const handleClose = () => {
-        router.push("/reports");
+        router.back();
     };
 
     const handleApprovalConfirm = async () => {

@@ -328,19 +328,12 @@ export default function NotificationsPage() {
     return (
         <Container size="xl" py={{ base: "sm", sm: "md", lg: "xl" }}>
             <Stack gap="lg">
-                <Title order={1}>
-                    Notifications
-                </Title>
+                <Title order={1}>Notifications</Title>
                 <Divider />
-                
+
                 {/* Controls Section */}
                 <Stack gap="md">
-                    <Group 
-                        justify="space-between" 
-                        align="center"
-                        wrap="wrap"
-                        gap="md"
-                    >
+                    <Group justify="space-between" align="center" wrap="wrap" gap="md">
                         <SegmentedControl
                             value={filter}
                             onChange={setFilter}
@@ -447,7 +440,9 @@ export default function NotificationsPage() {
                                                 });
                                                 setAllNotifications((prev) =>
                                                     prev.map((n) =>
-                                                        n.id && ids.includes(n.id) ? { ...n, archived: !allArchived } : n
+                                                        n.id && ids.includes(n.id)
+                                                            ? { ...n, archived: !allArchived }
+                                                            : n
                                                     )
                                                 );
                                                 setSelected(new Set());
@@ -488,239 +483,245 @@ export default function NotificationsPage() {
 
                 {/* Notifications List */}
                 <ScrollArea h={600}>
-                <Stack>
-                    {loading && <LoadingComponent withBorder={false} />}
-                    {!loading && filteredNotifications.length === 0 && (
-                        <Container size="xl" mt={50} style={{ textAlign: "center" }}>
-                            <IconConfetti
-                                size={64}
-                                style={{ margin: "auto", display: "block" }}
-                                color="var(--mantine-color-dimmed)"
-                            />
-                            <Text size="lg" mt="xl" c="dimmed">
-                                You&apos;re all good!
-                            </Text>
-                        </Container>
-                    )}
-                    {!loading &&
-                        filteredNotifications
-                            .slice()
-                            .reverse()
-                            .filter((n) => n.id !== undefined) // Filter out notifications without IDs
-                            .map((n) => {
-                                const notificationType = n.type || "info";
-                                const IconComponent = notificationIcons[notificationType]?.[0] || IconInfoCircle;
-                                const color = notificationIcons[notificationType]?.[1] || "gray";
-                                const isChecked = n.id ? selected.has(n.id) : false;
-                                return (
-                                    <Card key={n.id} withBorder radius="md" p="md">
-                                        <Group align="flex-start" wrap="nowrap" gap="md">
-                                            <Checkbox
-                                                checked={isChecked}
-                                                onChange={(e) => {
-                                                    if (!n.id) return;
-                                                    const newSet = new Set(selected);
-                                                    if (e.currentTarget.checked) newSet.add(n.id);
-                                                    else newSet.delete(n.id);
-                                                    setSelected(newSet);
-                                                }}
-                                            />
-                                            <Avatar color={color} radius="xl" size="md">
-                                                <IconComponent />
-                                            </Avatar>
-                                            <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                                                <Group 
-                                                    justify="space-between" 
-                                                    align="flex-start"
-                                                    wrap="wrap"
-                                                    gap="xs"
-                                                >
-                                                    <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
-                                                        <Text fw={500} style={{ wordBreak: "break-word" }}>
-                                                            {n.title}
-                                                        </Text>
-                                                        {n.important && (
-                                                            <Tooltip position="bottom" label="Important" withArrow>
-                                                                <Badge color="red" variant="filled" size="xs">
-                                                                    Important
-                                                                </Badge>
-                                                            </Tooltip>
-                                                        )}
-                                                    </Group>
-                                                    <Tooltip
-                                                        position="bottom"
-                                                        label={dayjs(n.created).format("YYYY-MM-DD HH:mm:ss")}
-                                                        withArrow
+                    <Stack>
+                        {loading && <LoadingComponent withBorder={false} />}
+                        {!loading && filteredNotifications.length === 0 && (
+                            <Container size="xl" mt={50} style={{ textAlign: "center" }}>
+                                <IconConfetti
+                                    size={64}
+                                    style={{ margin: "auto", display: "block" }}
+                                    color="var(--mantine-color-dimmed)"
+                                />
+                                <Text size="lg" mt="xl" c="dimmed">
+                                    You&apos;re all good!
+                                </Text>
+                            </Container>
+                        )}
+                        {!loading &&
+                            filteredNotifications
+                                .slice()
+                                .reverse()
+                                .filter((n) => n.id !== undefined) // Filter out notifications without IDs
+                                .map((n) => {
+                                    const notificationType = n.type || "info";
+                                    const IconComponent = notificationIcons[notificationType]?.[0] || IconInfoCircle;
+                                    const color = notificationIcons[notificationType]?.[1] || "gray";
+                                    const isChecked = n.id ? selected.has(n.id) : false;
+                                    return (
+                                        <Card key={n.id} withBorder radius="md" p="md">
+                                            <Group align="flex-start" wrap="nowrap" gap="md">
+                                                <Checkbox
+                                                    checked={isChecked}
+                                                    onChange={(e) => {
+                                                        if (!n.id) return;
+                                                        const newSet = new Set(selected);
+                                                        if (e.currentTarget.checked) newSet.add(n.id);
+                                                        else newSet.delete(n.id);
+                                                        setSelected(newSet);
+                                                    }}
+                                                />
+                                                <Avatar color={color} radius="xl" size="md">
+                                                    <IconComponent />
+                                                </Avatar>
+                                                <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                                                    <Group
+                                                        justify="space-between"
+                                                        align="flex-start"
+                                                        wrap="wrap"
+                                                        gap="xs"
                                                     >
-                                                        <Badge size="sm">{getRelativeTime(n.created)}</Badge>
-                                                    </Tooltip>
+                                                        <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                                                            <Text fw={500} style={{ wordBreak: "break-word" }}>
+                                                                {n.title}
+                                                            </Text>
+                                                            {n.important && (
+                                                                <Tooltip position="bottom" label="Important" withArrow>
+                                                                    <Badge color="red" variant="filled" size="xs">
+                                                                        Important
+                                                                    </Badge>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Group>
+                                                        <Tooltip
+                                                            position="bottom"
+                                                            label={dayjs(n.created).format("YYYY-MM-DD HH:mm:ss")}
+                                                            withArrow
+                                                        >
+                                                            <Badge size="sm">{getRelativeTime(n.created)}</Badge>
+                                                        </Tooltip>
+                                                    </Group>
+                                                    <Text size="sm" c="dimmed" style={{ wordBreak: "break-word" }}>
+                                                        {n.content}
+                                                    </Text>
+                                                </Stack>
+                                                <Group gap="xs">
+                                                    {n.archived ? (
+                                                        <Tooltip position="bottom" label="Unarchive" withArrow>
+                                                            <motion.div
+                                                                whileHover={{ scale: 1.1 }}
+                                                                whileTap={{ scale: 0.9 }}
+                                                                style={{ cursor: "pointer" }}
+                                                                onClick={() =>
+                                                                    n.id && handleArchive(n.id, n.archived || false)
+                                                                }
+                                                            >
+                                                                <ActionIcon variant="subtle">
+                                                                    <IconMail />
+                                                                </ActionIcon>
+                                                            </motion.div>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Tooltip position="bottom" label="Archive" withArrow>
+                                                            <motion.div
+                                                                whileHover={{ scale: 1.1 }}
+                                                                whileTap={{ scale: 0.9 }}
+                                                                style={{ cursor: "pointer" }}
+                                                                onClick={() =>
+                                                                    n.id && handleArchive(n.id, n.archived || false)
+                                                                }
+                                                            >
+                                                                <ActionIcon variant="subtle">
+                                                                    <IconMailOpened />
+                                                                </ActionIcon>
+                                                            </motion.div>
+                                                        </Tooltip>
+                                                    )}
                                                 </Group>
-                                                <Text size="sm" c="dimmed" style={{ wordBreak: "break-word" }}>
-                                                    {n.content}
-                                                </Text>
-                                            </Stack>
-                                            <Group gap="xs">
-                                                {n.archived ? (
-                                                    <Tooltip position="bottom" label="Unarchive" withArrow>
-                                                        <motion.div
-                                                            whileHover={{ scale: 1.1 }}
-                                                            whileTap={{ scale: 0.9 }}
-                                                            style={{ cursor: "pointer" }}
-                                                            onClick={() => n.id && handleArchive(n.id, n.archived || false)}
-                                                        >
-                                                            <ActionIcon variant="subtle">
-                                                                <IconMail />
-                                                            </ActionIcon>
-                                                        </motion.div>
-                                                    </Tooltip>
-                                                ) : (
-                                                    <Tooltip position="bottom" label="Archive" withArrow>
-                                                        <motion.div
-                                                            whileHover={{ scale: 1.1 }}
-                                                            whileTap={{ scale: 0.9 }}
-                                                            style={{ cursor: "pointer" }}
-                                                            onClick={() => n.id && handleArchive(n.id, n.archived || false)}
-                                                        >
-                                                            <ActionIcon variant="subtle">
-                                                                <IconMailOpened />
-                                                            </ActionIcon>
-                                                        </motion.div>
-                                                    </Tooltip>
-                                                )}
                                             </Group>
-                                        </Group>
-                                    </Card>
-                                );
-                            })}
-                </Stack>
-            </ScrollArea>
-
-            {/* Announcement Modal */}
-            <Modal
-                opened={announcementModalOpen}
-                onClose={announcementModalHandlers.close}
-                title="Create Announcement"
-                size="lg"
-            >
-                <form onSubmit={announcementForm.onSubmit(handleAnnouncementSubmit)}>
-                    <Stack gap="md">
-                        <TextInput
-                            label="Title"
-                            placeholder="Enter announcement title"
-                            required
-                            {...announcementForm.getInputProps("title")}
-                        />
-
-                        <Textarea
-                            label="Content"
-                            placeholder="Enter announcement content"
-                            required
-                            minRows={4}
-                            {...announcementForm.getInputProps("content")}
-                        />
-
-                        <Select
-                            label="Send to"
-                            placeholder="Select recipient type"
-                            data={[
-                                { value: "all", label: "Everyone" },
-                                { value: "role", label: "Everyone with a specific role" },
-                                { value: "school", label: "Everyone within a specific school" },
-                                { value: "users", label: "Specific users" },
-                            ]}
-                            required
-                            {...announcementForm.getInputProps("recipientType")}
-                        />
-
-                        {announcementForm.values.recipientType === "role" && (
-                            <Select
-                                label="Role"
-                                placeholder="Select a role"
-                                data={availableRoles.map((role) => ({
-                                    value: role.id?.toString() || "",
-                                    label: role.description || "",
-                                }))}
-                                required
-                                value={announcementForm.values.roleId?.toString() || null}
-                                onChange={(value) =>
-                                    announcementForm.setFieldValue("roleId", value ? parseInt(value) : null)
-                                }
-                                error={announcementForm.errors.roleId}
-                            />
-                        )}
-
-                        {announcementForm.values.recipientType === "school" && (
-                            <Select
-                                label="School"
-                                placeholder="Select a school"
-                                data={availableSchools.map((school) => ({
-                                    value: school.id?.toString() || "",
-                                    label: school.name || "",
-                                }))}
-                                required
-                                value={announcementForm.values.schoolId?.toString() || null}
-                                onChange={(value) =>
-                                    announcementForm.setFieldValue("schoolId", value ? parseInt(value) : null)
-                                }
-                                error={announcementForm.errors.schoolId}
-                            />
-                        )}
-
-                        {announcementForm.values.recipientType === "users" && (
-                            <MultiSelect
-                                label="Users"
-                                placeholder="Select users"
-                                data={availableUsers.map((user) => ({
-                                    value: user.id,
-                                    label: `${user.nameFirst || ""} ${user.nameLast || ""} (${user.username})`.trim(),
-                                }))}
-                                required
-                                searchable
-                                clearable
-                                {...announcementForm.getInputProps("userIds")}
-                            />
-                        )}
-
-                        <Select
-                            label="Notification Type"
-                            placeholder="Select notification type"
-                            data={[
-                                { value: "info", label: "Information" },
-                                { value: "success", label: "Success" },
-                                { value: "warning", label: "Warning" },
-                                { value: "error", label: "Error" },
-                                { value: "mail", label: "Mail" },
-                                { value: "security", label: "Security" },
-                            ]}
-                            {...announcementForm.getInputProps("notificationType")}
-                        />
-
-                        <Switch
-                            label="Mark as important"
-                            description="Important notifications will be highlighted for recipients"
-                            {...announcementForm.getInputProps("important", { type: "checkbox" })}
-                        />
-
-                        <Group justify="flex-end" mt="md">
-                            <Button
-                                type="button"
-                                variant="light"
-                                onClick={announcementModalHandlers.close}
-                                disabled={announcementLoading}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                loading={announcementLoading}
-                                leftSection={<IconSpeakerphone size={16} />}
-                            >
-                                Send Announcement
-                            </Button>
-                        </Group>
+                                        </Card>
+                                    );
+                                })}
                     </Stack>
-                </form>
-            </Modal>
+                </ScrollArea>
+
+                {/* Announcement Modal */}
+                <Modal
+                    opened={announcementModalOpen}
+                    onClose={announcementModalHandlers.close}
+                    title="Create Announcement"
+                    size="lg"
+                >
+                    <form onSubmit={announcementForm.onSubmit(handleAnnouncementSubmit)}>
+                        <Stack gap="md">
+                            <TextInput
+                                label="Title"
+                                placeholder="Enter announcement title"
+                                required
+                                {...announcementForm.getInputProps("title")}
+                            />
+
+                            <Textarea
+                                label="Content"
+                                placeholder="Enter announcement content"
+                                required
+                                minRows={4}
+                                {...announcementForm.getInputProps("content")}
+                            />
+
+                            <Select
+                                label="Send to"
+                                placeholder="Select recipient type"
+                                data={[
+                                    { value: "all", label: "Everyone" },
+                                    { value: "role", label: "Everyone with a specific role" },
+                                    { value: "school", label: "Everyone within a specific school" },
+                                    { value: "users", label: "Specific users" },
+                                ]}
+                                required
+                                {...announcementForm.getInputProps("recipientType")}
+                            />
+
+                            {announcementForm.values.recipientType === "role" && (
+                                <Select
+                                    label="Role"
+                                    placeholder="Select a role"
+                                    data={availableRoles.map((role) => ({
+                                        value: role.id?.toString() || "",
+                                        label: role.description || "",
+                                    }))}
+                                    required
+                                    value={announcementForm.values.roleId?.toString() || null}
+                                    onChange={(value) =>
+                                        announcementForm.setFieldValue("roleId", value ? parseInt(value) : null)
+                                    }
+                                    error={announcementForm.errors.roleId}
+                                />
+                            )}
+
+                            {announcementForm.values.recipientType === "school" && (
+                                <Select
+                                    label="School"
+                                    placeholder="Select a school"
+                                    data={availableSchools.map((school) => ({
+                                        value: school.id?.toString() || "",
+                                        label: school.name || "",
+                                    }))}
+                                    required
+                                    value={announcementForm.values.schoolId?.toString() || null}
+                                    onChange={(value) =>
+                                        announcementForm.setFieldValue("schoolId", value ? parseInt(value) : null)
+                                    }
+                                    error={announcementForm.errors.schoolId}
+                                />
+                            )}
+
+                            {announcementForm.values.recipientType === "users" && (
+                                <MultiSelect
+                                    label="Users"
+                                    placeholder="Select users"
+                                    data={availableUsers.map((user) => ({
+                                        value: user.id,
+                                        label: `${user.nameFirst || ""} ${user.nameLast || ""} (${
+                                            user.username
+                                        })`.trim(),
+                                    }))}
+                                    required
+                                    searchable
+                                    clearable
+                                    {...announcementForm.getInputProps("userIds")}
+                                />
+                            )}
+
+                            <Select
+                                label="Notification Type"
+                                placeholder="Select notification type"
+                                data={[
+                                    { value: "info", label: "Information" },
+                                    { value: "success", label: "Success" },
+                                    { value: "warning", label: "Warning" },
+                                    { value: "error", label: "Error" },
+                                    { value: "mail", label: "Mail" },
+                                    { value: "security", label: "Security" },
+                                ]}
+                                {...announcementForm.getInputProps("notificationType")}
+                            />
+
+                            <Switch
+                                label="Mark as important"
+                                description="Important notifications will be highlighted for recipients"
+                                {...announcementForm.getInputProps("important", { type: "checkbox" })}
+                            />
+
+                            <Group justify="flex-end" mt="md">
+                                <Button
+                                    type="button"
+                                    variant="light"
+                                    onClick={announcementModalHandlers.close}
+                                    disabled={announcementLoading}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    loading={announcementLoading}
+                                    leftSection={<IconSpeakerphone size={16} />}
+                                >
+                                    Send Announcement
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </form>
+                </Modal>
             </Stack>
         </Container>
     );

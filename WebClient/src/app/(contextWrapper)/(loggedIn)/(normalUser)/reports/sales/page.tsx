@@ -14,11 +14,13 @@ import {
     Button,
     Card,
     Checkbox,
+    Container,
     Flex,
     Group,
     Image,
     Modal,
     NumberInput,
+    ScrollArea,
     SimpleGrid,
     Stack,
     Table,
@@ -1189,10 +1191,10 @@ function SalesandPurchasesContent() {
     );
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6">
+        <Container size="xl" py={{ base: "sm", md: "md" }}>
             <Stack gap="lg">
                 {/* Header */}
-                <Flex justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
+                <Flex justify="space-between" align="center" wrap="wrap" gap="md">
                     <Group gap="md">
                         <div className="p-2 bg-blue-100 rounded-lg">
                             <IconHistory size={28} />
@@ -1736,7 +1738,7 @@ function SalesandPurchasesContent() {
                     </Stack>
                 </Modal>
             </Stack>
-        </div>
+        </Container>
     );
 }
 

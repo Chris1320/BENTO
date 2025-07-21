@@ -13,6 +13,7 @@ import {
     Button,
     Card,
     Checkbox,
+    Container,
     Flex,
     Group,
     Image,
@@ -73,8 +74,26 @@ function SalesandPurchasesContent() {
 
     const effectiveSchoolId = getEffectiveSchoolId();
 
-    const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-    const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+    // Helper function to get initial month from URL parameters or default to current month
+    const getInitialMonth = useCallback(() => {
+        const yearParam = searchParams.get("year");
+        const monthParam = searchParams.get("month");
+
+        if (yearParam && monthParam) {
+            const year = parseInt(yearParam, 10);
+            const month = parseInt(monthParam, 10);
+
+            // Validate year and month
+            if (!isNaN(year) && !isNaN(month) && month >= 1 && month <= 12) {
+                return new Date(year, month - 1); // month is 0-indexed in Date constructor
+            }
+        }
+
+        return new Date(); // Default to current month
+    }, [searchParams]);
+
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [currentMonth, setCurrentMonth] = useState<Date>(getInitialMonth());
     const [dailyEntries, setDailyEntries] = useState<DailyEntry[]>([]);
     const [originalEntries, setOriginalEntries] = useState<DailyEntry[]>([]);
     const [editingEntry, setEditingEntry] = useState<DailyEntry | null>(null);
@@ -113,6 +132,28 @@ function SalesandPurchasesContent() {
             reportStatus === "archived"
         );
     }, [reportStatus]);
+
+    // Helper function to check if a date is a weekend (Saturday or Sunday)
+    const isWeekend = useCallback((date: Date) => {
+        const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
+        return dayOfWeek === 0 || dayOfWeek === 6;
+    }, []);
+
+    // Helper function to check if today is a weekend
+    const isTodayWeekend = useCallback(() => {
+        return isWeekend(new Date());
+    }, [isWeekend]);
+
+    // Update current month when URL parameters change
+    useEffect(() => {
+        const newMonth = getInitialMonth();
+        setCurrentMonth((prev) => {
+            if (newMonth.getTime() !== prev.getTime()) {
+                return newMonth;
+            }
+            return prev;
+        });
+    }, [getInitialMonth]);
 
     // Fetch entries for the current month
     useEffect(() => {
@@ -398,7 +439,7 @@ function SalesandPurchasesContent() {
     }, [effectiveSchoolId, notedBy, selectedNotedByUser]);
 
     const handleClose = () => {
-        router.push("/reports");
+        router.back();
     };
 
     const handleApprovalConfirm = async () => {
@@ -428,6 +469,18 @@ function SalesandPurchasesContent() {
     const handleDateSelect = useCallback(
         (date: Date | null) => {
             if (!date) return;
+
+            // Prevent creating entries for weekends (Saturday and Sunday)
+            if (isWeekend(date)) {
+                notifications.show({
+                    title: "Weekend Not Allowed",
+                    message:
+                        "Daily sales and purchases reports can only be created for weekdays (Monday to Friday). The canteen is closed on weekends.",
+                    color: "orange",
+                });
+                return;
+            }
+
             setSelectedDate(date);
             const dateObj = dayjs(date);
             if (!dateObj.isSame(currentMonth, "month")) {
@@ -458,7 +511,7 @@ function SalesandPurchasesContent() {
             }
             setModalOpened(true);
         },
-        [currentMonth, dailyEntries]
+        [currentMonth, dailyEntries, isWeekend]
     );
 
     const handleSaveEntry = async () => {
@@ -1174,10 +1227,10 @@ function SalesandPurchasesContent() {
     );
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6">
+        <Container size="xl" py={{ base: "sm", md: "md" }}>
             <Stack gap="lg">
                 {/* Header */}
-                <Flex justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
+                <Flex justify="space-between" align="center" wrap="wrap" gap="md">
                     <Group gap="md">
                         <div className="p-2 bg-blue-100 rounded-lg">
                             <IconHistory size={28} />
@@ -1276,29 +1329,54 @@ function SalesandPurchasesContent() {
                                     // e.date is always the first of the month (YYYY-MM-01), but e.day is the actual day
                                     // So reconstruct the real date string for comparison
                                     const dateStr = dayjs(date).format("YYYY-MM-DD");
-                                    if (
-                                        dailyEntries.some((e) => {
-                                            // Compose the real date from e.date (month) and e.day
-                                            const entryDate = dayjs(e.date).date(e.day).format("YYYY-MM-DD");
-                                            return entryDate === dateStr;
-                                        })
-                                    ) {
-                                        return {
-                                            style: {
-                                                backgroundColor: "#d1fadf", // light green
-                                            },
-                                        };
-                                    }
-                                    return {};
+                                    const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
+
+                                    // Check if the date is within the current month
+                                    const isCurrentMonth = dayjs(date).isSame(currentMonth, "month");
+
+                                    // Disable weekends (Saturday and Sunday)
+                                    const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
+
+                                    // Disable future dates (after today)
+                                    const isFutureDate = dayjs(date).isAfter(dayjs(), "day");
+
+                                    // Disable if not in current month, is weekend, or is future date
+                                    const shouldDisable = !isCurrentMonth || isWeekendDay || isFutureDate;
+
+                                    const hasEntry = dailyEntries.some((e) => {
+                                        // Compose the real date from e.date (month) and e.day
+                                        const entryDate = dayjs(e.date).date(e.day).format("YYYY-MM-DD");
+                                        return entryDate === dateStr;
+                                    });
+
+                                    return {
+                                        disabled: shouldDisable,
+                                        style: {
+                                            backgroundColor: hasEntry ? "#d1fadf" : undefined, // light green for entries
+                                            color: shouldDisable ? "#adb5bd" : undefined, // gray out disabled days
+                                        },
+                                    };
                                 }}
                             />
                             <ActionIcon
                                 variant="outline"
                                 color="blue"
                                 size="lg"
-                                onClick={() => !isReadOnly() && handleDateSelect(new Date())}
-                                title="Select today"
-                                disabled={isReadOnly()}
+                                onClick={() => {
+                                    const today = new Date();
+                                    const isTodayInCurrentMonth = dayjs(today).isSame(currentMonth, "month");
+                                    if (!isReadOnly() && !isTodayWeekend() && isTodayInCurrentMonth) {
+                                        handleDateSelect(today);
+                                    }
+                                }}
+                                title={
+                                    isTodayWeekend()
+                                        ? "Cannot select today - weekends not allowed"
+                                        : !dayjs().isSame(currentMonth, "month")
+                                        ? "Cannot select today - not in current month"
+                                        : "Select today"
+                                }
+                                disabled={isReadOnly() || isTodayWeekend() || !dayjs().isSame(currentMonth, "month")}
                             >
                                 <IconCalendar size={16} />
                             </ActionIcon>
@@ -1730,7 +1808,7 @@ function SalesandPurchasesContent() {
                     </Stack>
                 </Modal>
             </Stack>
-        </div>
+        </Container>
     );
 }
 

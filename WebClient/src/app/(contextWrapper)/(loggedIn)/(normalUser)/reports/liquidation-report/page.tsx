@@ -23,8 +23,8 @@
 
 import { CreatableUnitSelect } from "@/components/CreatableUnitSelect";
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
+import { SplitButton } from "@/components/SplitButton/SplitButton";
 import { ReportAttachmentManager } from "@/components/Reports/ReportAttachmentManager";
-import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import * as csclient from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { useUser } from "@/lib/providers/user";
@@ -57,7 +57,6 @@ import { notifications } from "@mantine/notifications";
 import {
     IconAlertCircle,
     IconCalendar,
-    IconDeviceFloppy,
     IconDownload,
     IconFileTypePdf,
     IconHistory,
@@ -775,7 +774,7 @@ function LiquidationReportContent() {
         }
     };
 
-    const handleSaveReport = async () => {
+    const handleSaveDraft = async () => {
         if (!effectiveSchoolId || !reportPeriod || !category) {
             notifications.show({
                 title: "Error",
@@ -1758,7 +1757,18 @@ function LiquidationReportContent() {
                             >
                                 Export PDF
                             </Button>
-                            <SubmitForReviewButton
+                            <SplitButton
+                                onSaveReport={handleSaveDraft}
+                                disabled={
+                                    isSaving ||
+                                    !reportPeriod ||
+                                    !category ||
+                                    expenseItems.some((item) => !item.date || !item.particulars) ||
+                                    expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
+                                    isReadOnly()
+                                }
+                                className="bg-blue-600 hover:bg-blue-700 hide-in-pdf"
+                                showPreview={false}
                                 reportType="liquidation"
                                 reportPeriod={{
                                     schoolId: effectiveSchoolId || 0,
@@ -1768,41 +1778,20 @@ function LiquidationReportContent() {
                                         : new Date().getMonth() + 1,
                                     category: category || "",
                                 }}
-                                disabled={
-                                    isSaving ||
-                                    !reportPeriod ||
-                                    !category ||
-                                    expenseItems.some((item) => !item.date || !item.particulars) ||
-                                    expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
-                                    isReadOnly() ||
-                                    (reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected")
-                                }
-                                onSuccess={() => {
+                                onSubmitForReviewSuccess={() => {
                                     notifications.show({
                                         title: "Status Updated",
                                         message: "Report status has been updated to 'Review'.",
                                         color: "green",
                                     });
+                                    // Redirect to reports page after successful submission
                                     setTimeout(() => {
                                         router.push("/reports");
                                     }, 1000);
                                 }}
-                            />
-                            <Button
-                                onClick={handleSaveReport}
-                                className="bg-blue-600 hover:bg-blue-700"
-                                leftSection={<IconDeviceFloppy size={16} />}
-                                disabled={
-                                    isSaving ||
-                                    !reportPeriod ||
-                                    !category ||
-                                    expenseItems.some((item) => !item.date || !item.particulars) ||
-                                    expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
-                                    isReadOnly()
-                                }
                             >
                                 {isSaving ? "Saving..." : "Save Report"}
-                            </Button>
+                            </SplitButton>
                         </Group>
                     </Stack>
 

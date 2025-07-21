@@ -1,7 +1,7 @@
 "use client";
 
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
-import { SubmitForReviewButton } from "@/components/SubmitForReview";
+import { SplitButton } from "@/components/SplitButton/SplitButton";
 import * as csclient from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { useUser } from "@/lib/providers/user";
@@ -28,15 +28,7 @@ import {
 import { DatePickerInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 import { notifications } from "@mantine/notifications";
-import {
-    IconAlertCircle,
-    IconCalendar,
-    IconDownload,
-    IconDeviceFloppy,
-    IconFileTypePdf,
-    IconHistory,
-    IconX,
-} from "@tabler/icons-react";
+import { IconAlertCircle, IconCalendar, IconDownload, IconFileTypePdf, IconHistory, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -669,7 +661,7 @@ function SalesandPurchasesContent() {
     const totals = calculateTotals();
 
     // Bulk save all entries for the month
-    const handleSaveReport = async () => {
+    const handleSaveDraft = async () => {
         if (!userCtx.userInfo) {
             notifications.show({
                 title: "Error",
@@ -1591,32 +1583,28 @@ function SalesandPurchasesContent() {
                     >
                         Export PDF
                     </Button>
-                    <SubmitForReviewButton
+                    <SplitButton
+                        onSaveReport={handleSaveDraft}
+                        disabled={isReadOnly() || dailyEntries.length === 0}
+                        className="hide-in-pdf"
+                        showPreview={false}
                         reportType="daily"
                         reportPeriod={{
                             schoolId: effectiveSchoolId || 0,
                             year: currentMonth.getFullYear(),
                             month: currentMonth.getMonth() + 1,
                         }}
-                        disabled={isReadOnly() || dailyEntries.length === 0}
-                        onSuccess={() => {
-                            // Redirect to reports page after successful submission
+                        onSubmitForReviewSuccess={() => {
                             notifications.show({
                                 title: "Status Updated",
-                                message: "Report has been submitted for review.",
+                                message: "Report status has been updated to 'Review'.",
                                 color: "green",
                             });
                             router.push("/reports");
                         }}
-                    />
-                    <Button
-                        disabled={isReadOnly() || dailyEntries.length === 0}
-                        onClick={handleSaveReport}
-                        className="hide-in-pdf"
-                        leftSection={<IconDeviceFloppy size={16} />}
                     >
                         Save Report
-                    </Button>
+                    </SplitButton>
                 </Group>
 
                 {/* Approval Confirmation Modal */}

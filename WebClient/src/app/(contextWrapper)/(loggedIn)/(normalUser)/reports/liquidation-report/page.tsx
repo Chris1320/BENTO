@@ -50,7 +50,6 @@ import {
     TextInput,
     Textarea,
     Title,
-    Tooltip,
 } from "@mantine/core";
 import { DateInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
@@ -1600,7 +1599,7 @@ function LiquidationReportContent() {
                         initialAttachmentUrns={receiptAttachmentUrns}
                         maxFiles={10}
                         maxFileSize={5 * 1024 * 1024} // 5MB
-                        disabled={isSubmitting || isReadOnly()}
+                        disabled={isSaving || isReadOnly()}
                         title="Supporting Documents"
                         description="Upload receipts, invoices, and other supporting documents for this liquidation report"
                     />
@@ -1742,9 +1741,23 @@ function LiquidationReportContent() {
                             Create Disbursement Voucher
                         </Button> */}
                         </Group>
-
-                        {/* Main Action Buttons */}
                         <Group justify="flex-end" gap="md">
+                            <Button
+                                variant="outline"
+                                onClick={handleClose}
+                                className="hover:bg-gray-100 hide-in-pdf"
+                                disabled={isSaving}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setPdfModalOpened(true)}
+                                className="hide-in-pdf"
+                                leftSection={<IconFileTypePdf size={16} />}
+                            >
+                                Export PDF
+                            </Button>
                             <SubmitForReviewButton
                                 reportType="liquidation"
                                 reportPeriod={{
@@ -1756,7 +1769,13 @@ function LiquidationReportContent() {
                                     category: category || "",
                                 }}
                                 disabled={
-                                    reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"
+                                    isSaving ||
+                                    !reportPeriod ||
+                                    !category ||
+                                    expenseItems.some((item) => !item.date || !item.particulars) ||
+                                    expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
+                                    isReadOnly() ||
+                                    (reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected")
                                 }
                                 onSuccess={() => {
                                     notifications.show({
@@ -1770,28 +1789,11 @@ function LiquidationReportContent() {
                                 }}
                             />
                             <Button
-                                variant="outline"
-                                onClick={handleClose}
-                                className="hover:bg-gray-100 hide-in-pdf"
-                                disabled={isSubmitting}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => setPdfModalOpened(true)}
-                                className="hide-in-pdf"
-                                leftSection={<IconFileTypePdf size={16} />}
-                            >
-                                Export PDF
-                            </Button>
-                            <SplitButton
-                                onSubmit={handleSubmitReport}
-                                onSaveDraft={handleSaveDraft}
-                                onPreview={handlePreview}
+                                onClick={handleSaveReport}
                                 className="bg-blue-600 hover:bg-blue-700"
+                                leftSection={<IconDeviceFloppy size={16} />}
                                 disabled={
-                                    isSubmitting ||
+                                    isSaving ||
                                     !reportPeriod ||
                                     !category ||
                                     expenseItems.some((item) => !item.date || !item.particulars) ||
@@ -1799,8 +1801,8 @@ function LiquidationReportContent() {
                                     isReadOnly()
                                 }
                             >
-                                {isSubmitting ? "Submitting..." : "Submit Report"}
-                            </SplitButton>
+                                {isSaving ? "Saving..." : "Save Report"}
+                            </Button>
                         </Group>
                     </Stack>
 

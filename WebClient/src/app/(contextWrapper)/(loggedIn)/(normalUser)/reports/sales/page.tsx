@@ -24,7 +24,6 @@ import {
     Table,
     Text,
     Title,
-    Tooltip,
 } from "@mantine/core";
 import { DatePickerInput, MonthPickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
@@ -669,12 +668,12 @@ function SalesandPurchasesContent() {
     };
     const totals = calculateTotals();
 
-    // Bulk submit all entries for the month
-    const handleSave = async () => {
+    // Bulk save all entries for the month
+    const handleSaveReport = async () => {
         if (!userCtx.userInfo) {
             notifications.show({
                 title: "Error",
-                message: "You must be logged in to submit entries.",
+                message: "You must be logged in to save the report.",
                 color: "red",
             });
             return;
@@ -1580,7 +1579,7 @@ function SalesandPurchasesContent() {
                 </SimpleGrid>
 
                 {/* Action Buttons */}
-                <Group justify="flex-end" gap="md">
+                <Group justify="flex-end" gap="xs">
                     <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
                         Cancel
                     </Button>
@@ -1592,56 +1591,32 @@ function SalesandPurchasesContent() {
                     >
                         Export PDF
                     </Button>
-                    <Tooltip
-                        label={
-                            isReadOnly()
-                                ? "Submission is disabled in read-only mode"
-                                : dailyEntries.length === 0
-                                ? "Add sales and purchase entries"
-                                : "Submit for review"
-                        }
-                        disabled={!isReadOnly() && dailyEntries.length > 0}
+                    <SubmitForReviewButton
+                        reportType="daily"
+                        reportPeriod={{
+                            schoolId: effectiveSchoolId || 0,
+                            year: currentMonth.getFullYear(),
+                            month: currentMonth.getMonth() + 1,
+                        }}
+                        disabled={isReadOnly() || dailyEntries.length === 0}
+                        onSuccess={() => {
+                            // Redirect to reports page after successful submission
+                            notifications.show({
+                                title: "Status Updated",
+                                message: "Report has been submitted for review.",
+                                color: "green",
+                            });
+                            router.push("/reports");
+                        }}
+                    />
+                    <Button
+                        disabled={isReadOnly() || dailyEntries.length === 0}
+                        onClick={handleSaveReport}
+                        className="hide-in-pdf"
+                        leftSection={<IconDeviceFloppy size={16} />}
                     >
-                        <div>
-                            <SubmitForReviewButton
-                                reportType="daily"
-                                reportPeriod={{
-                                    schoolId: effectiveSchoolId || 0,
-                                    year: currentMonth.getFullYear(),
-                                    month: currentMonth.getMonth() + 1,
-                                }}
-                                disabled={isReadOnly() || dailyEntries.length === 0}
-                                onSuccess={() => {
-                                    // Redirect to reports page after successful submission
-                                    notifications.show({
-                                        title: "Status Updated",
-                                        message: "Report has been submitted for review.",
-                                        color: "green",
-                                    });
-                                    router.push("/reports");
-                                }}
-                            />
-                        </div>
-                    </Tooltip>
-                    <Tooltip
-                        label={
-                            isReadOnly()
-                                ? "Edits are disabled in read-only mode"
-                                : dailyEntries.length === 0
-                                ? "Add sales and purchase entries"
-                                : "Save report"
-                        }
-                        disabled={!isReadOnly() && dailyEntries.length > 0}
-                    >
-                        <Button
-                            disabled={isReadOnly() || dailyEntries.length === 0}
-                            onClick={handleSave}
-                            className="hide-in-pdf"
-                            leftSection={<IconDeviceFloppy size={16} />}
-                        >
-                            Save
-                        </Button>
-                    </Tooltip>
+                        Save Report
+                    </Button>
                 </Group>
 
                 {/* Approval Confirmation Modal */}

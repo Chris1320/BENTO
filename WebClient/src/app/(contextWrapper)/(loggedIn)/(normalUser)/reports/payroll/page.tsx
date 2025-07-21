@@ -2177,6 +2177,17 @@ function PayrollPageContent() {
 
                     {/* Action Buttons */}
                     <Group justify="flex-end" gap="md">
+                        <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setPdfModalOpened(true)}
+                            className="hide-in-pdf"
+                            leftSection={<IconFileTypePdf size={16} />}
+                        >
+                            Export PDF
+                        </Button>
                         <SubmitForReviewButton
                             reportType="payroll"
                             reportPeriod={{
@@ -2184,7 +2195,13 @@ function PayrollPageContent() {
                                 year: selectedMonth?.getFullYear() || new Date().getFullYear(),
                                 month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
                             }}
-                            disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
+                            disabled={
+                                !selectedMonth ||
+                                weekPeriods.length === 0 ||
+                                employees.length === 0 ||
+                                isReadOnly() ||
+                                (reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected")
+                            }
                             onSuccess={() => {
                                 notifications.show({
                                     title: "Status Updated",
@@ -2198,18 +2215,6 @@ function PayrollPageContent() {
                                 }, 1000);
                             }}
                         />
-                        {/* Action Buttons */}
-                        <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => setPdfModalOpened(true)}
-                            className="hide-in-pdf"
-                            leftSection={<IconFileTypePdf size={16} />}
-                        >
-                            Export PDF
-                        </Button>
                         <SplitButton
                             onSubmit={handleSubmitReport}
                             onSaveDraft={handleSaveDraft}

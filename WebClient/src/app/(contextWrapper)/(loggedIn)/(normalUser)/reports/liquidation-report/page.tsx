@@ -23,9 +23,8 @@
 
 import { CreatableUnitSelect } from "@/components/CreatableUnitSelect";
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
-import { ReportAttachmentManager } from "@/components/Reports/ReportAttachmentManager";
 import { SplitButton } from "@/components/SplitButton/SplitButton";
-import { SubmitForReviewButton } from "@/components/SubmitForReview";
+import { ReportAttachmentManager } from "@/components/Reports/ReportAttachmentManager";
 import * as csclient from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { useUser } from "@/lib/providers/user";
@@ -172,7 +171,7 @@ function LiquidationReportContent() {
         }[]
     >([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Receipt attachment state management
     const [receiptAttachmentUrns, setReceiptAttachmentUrns] = useState<string[]>([]);
@@ -775,7 +774,7 @@ function LiquidationReportContent() {
         }
     };
 
-    const handleSubmitReport = async () => {
+    const handleSaveDraft = async () => {
         if (!effectiveSchoolId || !reportPeriod || !category) {
             notifications.show({
                 title: "Error",
@@ -804,7 +803,7 @@ function LiquidationReportContent() {
             return;
         }
 
-        setIsSubmitting(true);
+        setIsSaving(true);
         try {
             const year = reportPeriod.getFullYear();
             const month = reportPeriod.getMonth() + 1;
@@ -861,8 +860,8 @@ function LiquidationReportContent() {
             });
 
             notifications.show({
-                title: "Success",
-                message: "Liquidation report submitted successfully!",
+                title: "Saved",
+                message: "Liquidation report has been saved successfully!",
                 color: "green",
             });
 
@@ -871,104 +870,11 @@ function LiquidationReportContent() {
         } catch {
             notifications.show({
                 title: "Error",
-                message: "Failed to submit liquidation report. Please try again.",
+                message: "Failed to save liquidation report. Please try again.",
                 color: "red",
             });
         }
-        setIsSubmitting(false);
-    };
-
-    const handleSaveDraft = async () => {
-        if (!effectiveSchoolId || !reportPeriod || !category) {
-            notifications.show({
-                title: "Error",
-                message:
-                    "Missing required information. Please ensure you're logged in and have selected a report period.",
-                color: "red",
-            });
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            const year = reportPeriod.getFullYear();
-            const month = reportPeriod.getMonth() + 1;
-
-            // Prepare the entries data (even if some fields are empty for draft)
-            // Store attachments only in the first entry to avoid duplication
-            const allAttachmentUrns = [...receiptAttachmentUrns, ...reportAttachments.map((att) => att.file_urn)];
-            const receiptUrnString = allAttachmentUrns.length > 0 ? JSON.stringify(allAttachmentUrns) : null;
-
-            const entries: csclient.LiquidationReportEntryData[] = expenseItems
-                .filter((item) => item.particulars || item.unitPrice > 0) // Only include items with some data
-                .map((item, index) => {
-                    const isAmountOnly = AMOUNT_ONLY_FIELDS.includes(category || "");
-                    return {
-                        date: dayjs(item.date).format("YYYY-MM-DD"),
-                        particulars: item.particulars || "",
-                        receiptNumber: item.receiptNumber || null,
-                        quantity: item.quantity || null,
-                        unit: item.unit || null,
-                        // Use amount field for amount-only categories, unitPrice for others
-                        ...(isAmountOnly
-                            ? { amount: item.unitPrice, unitPrice: null }
-                            : { unitPrice: item.unitPrice, amount: null }),
-                        // Only store attachments in the first entry to avoid duplication
-                        receipt_attachment_urns: index === 0 ? receiptUrnString : null,
-                    };
-                });
-
-            // Prepare the report data
-            const reportData: csclient.LiquidationReportCreateRequest = {
-                schoolId: effectiveSchoolId,
-                entries,
-                notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
-                preparedBy: preparedById || null, // Use user ID - ensure it's a valid user ID
-                teacherInCharge: userCtx.userInfo?.id || null,
-                certifiedBy: [],
-                memo: notes || null, // Add memo field
-            };
-
-            // Validate that notedBy and preparedBy are valid user IDs (not names)
-            if (notedBy && typeof notedBy !== "string") {
-                throw new Error("Invalid notedBy user ID");
-            }
-            if (preparedById && typeof preparedById !== "string") {
-                throw new Error("Invalid preparedBy user ID");
-            }
-
-            await csclient.createOrUpdateLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryPatch({
-                path: {
-                    school_id: effectiveSchoolId,
-                    year,
-                    month,
-                    category,
-                },
-                body: reportData,
-            });
-
-            notifications.show({
-                title: "Draft Saved",
-                message: "Your liquidation report draft has been saved successfully!",
-                color: "blue",
-            });
-        } catch {
-            notifications.show({
-                title: "Error",
-                message: "Failed to save draft. Please try again.",
-                color: "red",
-            });
-        }
-        setIsSubmitting(false);
-    };
-
-    const handlePreview = () => {
-        // For now, just show a notification. Later this could open a preview modal
-        notifications.show({
-            title: "Preview",
-            message: "Preview functionality will be implemented soon.",
-            color: "blue",
-        });
+        setIsSaving(false);
     };
 
     const getFileName = () => {
@@ -1692,7 +1598,7 @@ function LiquidationReportContent() {
                         initialAttachmentUrns={receiptAttachmentUrns}
                         maxFiles={10}
                         maxFileSize={5 * 1024 * 1024} // 5MB
-                        disabled={isSubmitting || isReadOnly()}
+                        disabled={isSaving || isReadOnly()}
                         title="Supporting Documents"
                         description="Upload receipts, invoices, and other supporting documents for this liquidation report"
                     />
@@ -1829,43 +1735,17 @@ function LiquidationReportContent() {
                             onClick={() => router.push(`/reports/disbursement-voucher?category=${category}`)}
                             className="bg-blue-600 hover:bg-blue-700"
                             style={{ width: "270px" }}
-                            disabled={isSubmitting || isReadOnly() || !reportPeriod || !category}
+                            disabled={isSaving || isReadOnly() || !reportPeriod || !category}
                         >
                             Create Disbursement Voucher
                         </Button> */}
                         </Group>
-
-                        {/* Main Action Buttons */}
                         <Group justify="flex-end" gap="md">
-                            <SubmitForReviewButton
-                                reportType="liquidation"
-                                reportPeriod={{
-                                    schoolId: effectiveSchoolId || 0,
-                                    year: reportPeriod?.getFullYear() || new Date().getFullYear(),
-                                    month: reportPeriod?.getMonth()
-                                        ? reportPeriod.getMonth() + 1
-                                        : new Date().getMonth() + 1,
-                                    category: category || "",
-                                }}
-                                disabled={
-                                    reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"
-                                }
-                                onSuccess={() => {
-                                    notifications.show({
-                                        title: "Status Updated",
-                                        message: "Report status has been updated to 'Review'.",
-                                        color: "green",
-                                    });
-                                    setTimeout(() => {
-                                        router.push("/reports");
-                                    }, 1000);
-                                }}
-                            />
                             <Button
                                 variant="outline"
                                 onClick={handleClose}
                                 className="hover:bg-gray-100 hide-in-pdf"
-                                disabled={isSubmitting}
+                                disabled={isSaving}
                             >
                                 Cancel
                             </Button>
@@ -1878,20 +1758,39 @@ function LiquidationReportContent() {
                                 Export PDF
                             </Button>
                             <SplitButton
-                                onSubmit={handleSubmitReport}
-                                onSaveDraft={handleSaveDraft}
-                                onPreview={handlePreview}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                onSaveReport={handleSaveDraft}
                                 disabled={
-                                    isSubmitting ||
+                                    isSaving ||
                                     !reportPeriod ||
                                     !category ||
                                     expenseItems.some((item) => !item.date || !item.particulars) ||
                                     expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
                                     isReadOnly()
                                 }
+                                className="bg-blue-600 hover:bg-blue-700 hide-in-pdf"
+                                showPreview={false}
+                                reportType="liquidation"
+                                reportPeriod={{
+                                    schoolId: effectiveSchoolId || 0,
+                                    year: reportPeriod?.getFullYear() || new Date().getFullYear(),
+                                    month: reportPeriod?.getMonth()
+                                        ? reportPeriod.getMonth() + 1
+                                        : new Date().getMonth() + 1,
+                                    category: category || "",
+                                }}
+                                onSubmitForReviewSuccess={() => {
+                                    notifications.show({
+                                        title: "Status Updated",
+                                        message: "Report status has been updated to 'Review'.",
+                                        color: "green",
+                                    });
+                                    // Redirect to reports page after successful submission
+                                    setTimeout(() => {
+                                        router.push("/reports");
+                                    }, 1000);
+                                }}
                             >
-                                {isSubmitting ? "Submitting..." : "Submit Report"}
+                                {isSaving ? "Saving..." : "Save Report"}
                             </SplitButton>
                         </Group>
                     </Stack>

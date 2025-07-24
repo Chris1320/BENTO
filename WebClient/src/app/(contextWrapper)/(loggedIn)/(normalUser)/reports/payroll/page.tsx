@@ -3,7 +3,6 @@
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import { SignatureCanvas } from "@/components/SignatureCanvas/SignatureCanvas";
 import { SplitButton } from "@/components/SplitButton/SplitButton";
-import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import * as csclient from "@/lib/api/csclient";
 import {
     changePayrollReportStatusV1ReportsPayrollSchoolIdYearMonthStatusPatch,
@@ -928,7 +927,7 @@ function PayrollPageContent() {
     //     return employeeSignatures.find((sig) => sig.employeeId === employeeId);
     // };
 
-    const handleSubmitReport = async () => {
+    const handleSaveDraft = async () => {
         if (!selectedMonth || !userCtx.userInfo?.schoolId) {
             notifications.show({
                 title: "Error",
@@ -1045,7 +1044,7 @@ function PayrollPageContent() {
 
             notifications.show({
                 title: "Success",
-                message: "Payroll report has been successfully submitted for review.",
+                message: "Payroll report has been saved successfully.",
                 color: "green",
                 icon: <IconCheck size={18} />,
             });
@@ -1053,129 +1052,10 @@ function PayrollPageContent() {
             // Redirect back to reports page
             router.push("/reports");
         } catch (error) {
-            customLogger.error("Error submitting payroll report:", error);
+            customLogger.error("Error saving payroll report:", error);
             notifications.show({
                 title: "Error",
-                message: "Failed to submit the payroll report. Please try again.",
-                color: "red",
-                icon: <IconX size={18} />,
-            });
-        }
-    };
-
-    const handleSaveDraft = async () => {
-        if (!selectedMonth || !userCtx.userInfo?.schoolId) {
-            notifications.show({
-                title: "Error",
-                message: "Please select a month and ensure you are logged in.",
-                color: "red",
-                icon: <IconX size={18} />,
-            });
-            return;
-        }
-
-        try {
-            const year = selectedMonth.getFullYear();
-            const month = selectedMonth.getMonth() + 1;
-            const schoolId = userCtx.userInfo.schoolId;
-
-            // First, create or ensure the payroll report exists
-            await createSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthPatch({
-                path: {
-                    school_id: schoolId,
-                    year: year,
-                    month: month,
-                },
-                query: {
-                    noted_by: schoolData?.assignedNotedBy || userCtx.userInfo.id, // Use school's assigned principal or current user as fallback
-                },
-            });
-
-            // Convert our data to the format expected by the API
-            const payrollEntries = [];
-            for (const employee of employees) {
-                for (const week of weekPeriods) {
-                    const weekNumber = parseInt(week.id.split("-week-")[1]);
-
-                    // Calculate daily amounts for each day of the week
-                    const weeklyAmounts = { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 };
-
-                    for (const workDay of week.workingDays) {
-                        const dayOfWeek = dayjs(workDay).day();
-                        const record = attendanceRecords.find(
-                            (r) => r.employeeId === employee.id && r.date === dayjs(workDay).format("YYYY-MM-DD")
-                        );
-
-                        if (record?.isPresent) {
-                            const amount = record.customDailyRate || employee.defaultDailyRate;
-
-                            switch (dayOfWeek) {
-                                case 0:
-                                    weeklyAmounts.sun = amount;
-                                    break;
-                                case 1:
-                                    weeklyAmounts.mon = amount;
-                                    break;
-                                case 2:
-                                    weeklyAmounts.tue = amount;
-                                    break;
-                                case 3:
-                                    weeklyAmounts.wed = amount;
-                                    break;
-                                case 4:
-                                    weeklyAmounts.thu = amount;
-                                    break;
-                                case 5:
-                                    weeklyAmounts.fri = amount;
-                                    break;
-                                case 6:
-                                    weeklyAmounts.sat = amount;
-                                    break;
-                            }
-                        }
-                    }
-
-                    // Get employee signature if available
-                    const signature = employeeSignatures.find((sig) => sig.employeeId === employee.id);
-
-                    payrollEntries.push({
-                        week_number: weekNumber,
-                        employee_name: employee.name,
-                        sun: weeklyAmounts.sun,
-                        mon: weeklyAmounts.mon,
-                        tue: weeklyAmounts.tue,
-                        wed: weeklyAmounts.wed,
-                        thu: weeklyAmounts.thu,
-                        fri: weeklyAmounts.fri,
-                        sat: weeklyAmounts.sat,
-                        signature: signature?.signatureData || null,
-                    });
-                }
-            }
-
-            // Create bulk payroll entries
-            if (payrollEntries.length > 0) {
-                await createBulkPayrollReportEntriesV1ReportsPayrollSchoolIdYearMonthEntriesBulkPost({
-                    path: {
-                        school_id: schoolId,
-                        year: year,
-                        month: month,
-                    },
-                    body: payrollEntries,
-                });
-            }
-
-            notifications.show({
-                title: "Success",
-                message: "Payroll report draft has been saved successfully.",
-                color: "green",
-                icon: <IconCheck size={18} />,
-            });
-        } catch (error) {
-            customLogger.error("Error saving draft:", error);
-            notifications.show({
-                title: "Error",
-                message: "Failed to save the draft. Please try again.",
+                message: "Failed to save the payroll report. Please try again.",
                 color: "red",
                 icon: <IconX size={18} />,
             });
@@ -1235,10 +1115,6 @@ function PayrollPageContent() {
             averageRate,
             totalSalary,
         };
-    };
-
-    const handlePreview = () => {
-        setPreviewModalOpened(true);
     };
 
     const getFileName = () => {
@@ -2177,28 +2053,6 @@ function PayrollPageContent() {
 
                     {/* Action Buttons */}
                     <Group justify="flex-end" gap="md">
-                        <SubmitForReviewButton
-                            reportType="payroll"
-                            reportPeriod={{
-                                schoolId: effectiveSchoolId || 0,
-                                year: selectedMonth?.getFullYear() || new Date().getFullYear(),
-                                month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
-                            }}
-                            disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
-                            onSuccess={() => {
-                                notifications.show({
-                                    title: "Status Updated",
-                                    message: "Report status has been updated to 'Review'.",
-                                    color: "green",
-                                });
-
-                                // Redirect to reports page after successful submission
-                                setTimeout(() => {
-                                    router.push("/reports");
-                                }, 1000);
-                            }}
-                        />
-                        {/* Action Buttons */}
                         <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
                             Cancel
                         </Button>
@@ -2211,15 +2065,38 @@ function PayrollPageContent() {
                             Export PDF
                         </Button>
                         <SplitButton
-                            onSubmit={handleSubmitReport}
-                            onSaveDraft={handleSaveDraft}
-                            onPreview={handlePreview}
-                            className="bg-blue-600 hover:bg-blue-700 hide-in-pdf"
+                            onSaveReport={handleSaveDraft}
                             disabled={
-                                !selectedMonth || weekPeriods.length === 0 || employees.length === 0 || isReadOnly()
+                                !selectedMonth ||
+                                weekPeriods.length === 0 ||
+                                employees.length === 0 ||
+                                isReadOnly() ||
+                                (reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected")
                             }
+                            className="bg-blue-600 hover:bg-blue-700 hide-in-pdf"
+                            showPreview={true}
+                            onPreview={() => {
+                                setPreviewModalOpened(true);
+                            }}
+                            reportType="payroll"
+                            reportPeriod={{
+                                schoolId: effectiveSchoolId || 0,
+                                year: selectedMonth?.getFullYear() || new Date().getFullYear(),
+                                month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
+                            }}
+                            onSubmitForReviewSuccess={() => {
+                                notifications.show({
+                                    title: "Status Updated",
+                                    message: "Report status has been updated to 'Review'.",
+                                    color: "green",
+                                });
+                                // Redirect to reports page after successful submission
+                                setTimeout(() => {
+                                    router.push("/reports");
+                                }, 1000);
+                            }}
                         >
-                            Submit Report
+                            Save Report
                         </SplitButton>
                     </Group>
                 </Stack>

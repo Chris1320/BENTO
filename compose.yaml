@@ -30,7 +30,7 @@ services:
         ports:
             - "14333:14333"
         volumes:
-        - ./cloudflared.json:/config:rw
+        - ./CentralServer/system/cloudflared:/config:rw
 
 volumes:
     project_scars-centralserver-data:

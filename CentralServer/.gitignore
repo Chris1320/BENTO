@@ -1,4 +1,3 @@
-cloudflared.json
 data-dev/
 *.db
 config.*.json

@@ -6,9 +6,9 @@ import SchoolStatusFilter from "@/components/SchoolManagement/SchoolStatusFilter
 import { School } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools, GetSchoolLogo, GetSchoolQuantity } from "@/lib/api/school";
+import { useSchoolManagementWebSocket } from "@/lib/hooks/useSchoolManagementWebSocket";
 import { useUser } from "@/lib/providers/user";
 import { formatUTCDate, getRelativeTime } from "@/lib/utils/date";
-import { useSchoolManagementWebSocket } from "@/lib/hooks/useSchoolManagementWebSocket";
 import {
     ActionIcon,
     Anchor,
@@ -37,7 +37,6 @@ import {
     IconLock,
     IconLockOpen,
     IconPlus,
-    IconSearch,
     IconSelector,
     IconUser,
     IconUserExclamation,
@@ -163,10 +162,6 @@ export default function SchoolsPage(): JSX.Element {
         },
         enabled: true,
     });
-
-    const handleSearch = () => {
-        setCurrentPage(1);
-    };
 
     const handleSort = (field: string) => {
         if (sortField === field) {
@@ -415,9 +410,6 @@ export default function SchoolsPage(): JSX.Element {
                         onClick={() => setAddModalOpen(true)}
                     >
                         <IconPlus size={18} />
-                    </ActionIcon>
-                    <ActionIcon size="input-md" variant="default" onClick={handleSearch}>
-                        <IconSearch size={16} />
                     </ActionIcon>
                 </Flex>
             </Flex>

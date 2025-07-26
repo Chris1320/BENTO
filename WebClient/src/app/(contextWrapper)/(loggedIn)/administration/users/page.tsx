@@ -65,7 +65,6 @@ import {
     IconMailPlus,
     IconPlus,
     IconSchool,
-    IconSearch,
     IconSelector,
     IconSendOff,
     IconUser,
@@ -343,10 +342,6 @@ export default function UsersPage(): JSX.Element {
         } else {
             setSelected(new Set());
         }
-    };
-
-    const handleSearch = () => {
-        setCurrentPage(1);
     };
 
     const handleSort = (field: string) => {
@@ -863,9 +858,6 @@ export default function UsersPage(): JSX.Element {
                             onClick={handleCreate}
                         >
                             <IconPlus size={18} />
-                        </ActionIcon>
-                        <ActionIcon size="input-md" variant="default" onClick={handleSearch}>
-                            <IconSearch size={16} />
                         </ActionIcon>
                     </Flex>
                 </Flex>

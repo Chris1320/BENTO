@@ -201,6 +201,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     const [editUserSignature, setEditUserSignature] = useState<File | null>(null);
     const [editUserSignatureUrl, setEditUserSignatureUrl] = useState<string | null>(null);
     const [signatureRemoved, setSignatureRemoved] = useState(false);
+    const [avatarFileInputKey, setAvatarFileInputKey] = useState(0);
+    const [signatureFileInputKey, setSignatureFileInputKey] = useState(0);
     const [availableRoles, setAvailableRoles] = useState<string[]>([]);
     const [availableSchools, setAvailableSchools] = useState<string[]>([]);
     const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
@@ -349,6 +351,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             URL.revokeObjectURL(editUserAvatarUrl);
         }
         setEditUserAvatarUrl(null);
+        // Reset the file input by changing its key
+        setAvatarFileInputKey((prev) => prev + 1);
     };
 
     const handleChangeSignature = async (file: File | null) => {
@@ -1102,7 +1106,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     </Stack>
                 </Group>
                 <Group gap="sm">
-                    <FileButton onChange={handleChangeAvatar} accept="image/png,image/jpeg">
+                    <FileButton key={avatarFileInputKey} onChange={handleChangeAvatar} accept="image/png,image/jpeg">
                         {(props) => (
                             <Button variant="outline" size="sm" {...props}>
                                 Change Profile Picture
@@ -1353,7 +1357,11 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                 </Box>
                             )}
                             <Stack gap={5}>
-                                <FileButton onChange={handleChangeSignature} accept="image/png,image/jpeg">
+                                <FileButton
+                                    key={signatureFileInputKey}
+                                    onChange={handleChangeSignature}
+                                    accept="image/png,image/jpeg"
+                                >
                                     {(props) => (
                                         <Button variant="outline" size="sm" {...props}>
                                             {editUserSignatureUrl ? "Change Signature" : "Upload Signature"}
@@ -1375,6 +1383,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                                 URL.revokeObjectURL(editUserSignatureUrl);
                                             }
                                             setEditUserSignatureUrl(null);
+                                            // Reset the file input by changing its key
+                                            setSignatureFileInputKey((prev) => prev + 1);
                                         }}
                                     >
                                         Remove Signature

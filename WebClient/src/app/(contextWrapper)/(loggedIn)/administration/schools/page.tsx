@@ -37,6 +37,7 @@ import {
     IconLock,
     IconLockOpen,
     IconPlus,
+    IconRefresh,
     IconSelector,
     IconUser,
     IconUserExclamation,
@@ -185,6 +186,33 @@ export default function SchoolsPage(): JSX.Element {
     const handleEdit = (index: number, school: School) => {
         setEditIndex(index);
         setEditSchool(school);
+    };
+
+    const handleRefresh = async () => {
+        customLogger.debug("Refreshing schools data");
+        setSelected(new Set()); // Clear selections
+        try {
+            // Re-fetch all schools data
+            const data = await GetAllSchools(0, 10000);
+            setAllSchools(data);
+
+            notifications.show({
+                id: "schools-refresh-success",
+                title: "Success",
+                message: "Schools data refreshed successfully.",
+                color: "green",
+                icon: <IconRefresh />,
+            });
+        } catch (error) {
+            customLogger.error("Failed to refresh schools data:", error);
+            notifications.show({
+                id: "schools-refresh-error",
+                title: "Error",
+                message: "Failed to refresh schools data. Please try again.",
+                color: "red",
+                icon: <IconUserExclamation />,
+            });
+        }
     };
 
     const toggleSelected = (index: number) => {
@@ -402,6 +430,9 @@ export default function SchoolsPage(): JSX.Element {
 
                 <Flex ml="auto" gap="sm" align="center">
                     <SchoolStatusFilter statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
+                    <ActionIcon size="input-md" variant="filled" onClick={handleRefresh} title="Refresh data">
+                        <IconRefresh size={18} />
+                    </ActionIcon>
                     <ActionIcon
                         disabled={!userCtx.userPermissions?.includes("schools:create")}
                         size="input-md"

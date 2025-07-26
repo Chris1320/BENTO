@@ -64,6 +64,7 @@ import {
     IconMail,
     IconMailPlus,
     IconPlus,
+    IconRefresh,
     IconSchool,
     IconSelector,
     IconSendOff,
@@ -377,6 +378,53 @@ export default function UsersPage(): JSX.Element {
         setSelectedUser(null);
         setSelectedUserIndex(null);
         setOpenInviteUserModal(true);
+    };
+
+    const handleRefresh = async () => {
+        customLogger.debug("Refreshing users data");
+        setSelected(new Set()); // Clear selections
+        try {
+            // Re-fetch roles
+            const rolesResult = await getAllRolesV1AuthRolesGet({
+                headers: { Authorization: GetAccessTokenHeader() },
+            });
+            if (!rolesResult.error && rolesResult.data) {
+                setAvailableRoles(rolesResult.data);
+            }
+
+            // Re-fetch schools
+            const schoolsData = await GetAllSchools(0, 10000);
+            setAvailableSchools(schoolsData);
+
+            // Re-fetch all users
+            const usersResult = await getAllUsersEndpointV1UsersAllGet({
+                query: {
+                    offset: 0,
+                    limit: 10000,
+                },
+                headers: { Authorization: GetAccessTokenHeader() },
+            });
+            if (!usersResult.error && usersResult.data) {
+                setAllUsers(usersResult.data);
+            }
+
+            notifications.show({
+                id: "users-refresh-success",
+                title: "Success",
+                message: "Users data refreshed successfully.",
+                color: "green",
+                icon: <IconRefresh />,
+            });
+        } catch (error) {
+            customLogger.error("Failed to refresh users data:", error);
+            notifications.show({
+                id: "users-refresh-error",
+                title: "Error",
+                message: "Failed to refresh users data. Please try again.",
+                color: "red",
+                icon: <IconUserExclamation />,
+            });
+        }
     };
 
     const handleEdit = (index: number, user: UserPublic) => {
@@ -841,6 +889,9 @@ export default function UsersPage(): JSX.Element {
                         style={{ width: "400px" }}
                     />
                     <Flex ml="auto" gap="sm" align="center">
+                        <ActionIcon size="input-md" variant="filled" onClick={handleRefresh} title="Refresh data">
+                            <IconRefresh size={18} />
+                        </ActionIcon>
                         <ActionIcon
                             disabled={!userCtx.userPermissions?.includes("users:create")}
                             size="input-md"

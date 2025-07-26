@@ -269,7 +269,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
             setActive((current) => current + 1);
         } else if (active === maxSteps) {
             handleSubmit();
-            router.push("/");
         }
 
         handleButtonState(active + 1);
@@ -456,6 +455,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
 
             // Show completed step
             setActive(maxSteps + 1);
+            router.push("/dashboard");
         } catch (error) {
             customLogger.error("Error updating user information:", error);
             notifications.show({

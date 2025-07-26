@@ -153,7 +153,7 @@ function LiquidationReportContent() {
     const [expenseItems, setExpenseItems] = useState<ExpenseDetails[]>([
         {
             id: new Date(),
-            date: new Date(),
+            date: new Date(), // Will be updated to proper date in useEffect
             particulars: "",
             receiptNumber: RECEIPT_FIELDS_REQUIRED.includes(category || "") ? "" : undefined,
             quantity: QTY_FIELDS_REQUIRED.includes(category || "") ? 1 : undefined,
@@ -213,14 +213,20 @@ function LiquidationReportContent() {
         return dayOfWeek === 0 || dayOfWeek === 6;
     }, []);
 
-    // Helper function to get previous weekday (for new item defaults)
-    const getPreviousWeekday = useCallback(() => {
-        let date = new Date();
+    // Helper function to get previous weekday within the report month (for new item defaults)
+    const getPreviousWeekdayInReportMonth = useCallback(() => {
+        if (!reportPeriod) return new Date();
+        
+        const endOfMonth = dayjs(reportPeriod).endOf("month");
+        let date = endOfMonth.toDate();
+        
+        // Find the last weekday of the report month
         while (isWeekend(date)) {
             date = dayjs(date).subtract(1, "day").toDate();
         }
+        
         return date;
-    }, [isWeekend]);
+    }, [reportPeriod, isWeekend]);
 
     // Update report period when URL parameters change
     useEffect(() => {
@@ -237,20 +243,17 @@ function LiquidationReportContent() {
     useEffect(() => {
         setExpenseItems((prev) => {
             if (prev.length === 1 && prev[0].particulars === "" && prev[0].unitPrice === 0) {
-                // Only update if this looks like the initial default item
-                const initialDate = prev[0].date;
-                if (isWeekend(initialDate)) {
-                    return [
-                        {
-                            ...prev[0],
-                            date: getPreviousWeekday(),
-                        },
-                    ];
-                }
+                // Always update the initial item to use a date within the report month
+                return [
+                    {
+                        ...prev[0],
+                        date: getPreviousWeekdayInReportMonth(),
+                    },
+                ];
             }
             return prev; // Return unchanged if conditions not met
         });
-    }, [reportPeriod, isWeekend, getPreviousWeekday]);
+    }, [reportPeriod, getPreviousWeekdayInReportMonth]);
 
     const hasQtyUnit = QTY_FIELDS_REQUIRED.includes(category || "");
     const hasReceiptVoucher = RECEIPT_FIELDS_REQUIRED.includes(category || "");
@@ -712,7 +715,7 @@ function LiquidationReportContent() {
     const addNewItem = () => {
         const newItem: ExpenseDetails = {
             id: new Date(),
-            date: getPreviousWeekday(), // Use previous weekday for past receipts/invoices
+            date: getPreviousWeekdayInReportMonth(), // Use previous weekday within the report month
             particulars: "",
             receiptNumber: hasReceiptVoucher ? "" : undefined,
             quantity: hasQtyUnit ? 1 : undefined,
@@ -1457,7 +1460,7 @@ function LiquidationReportContent() {
                                     setExpenseItems([
                                         {
                                             id: new Date(),
-                                            date: getPreviousWeekday(), // Use previous weekday for past receipts/invoices
+                                            date: getPreviousWeekdayInReportMonth(), // Use previous weekday within the report month
                                             particulars: "",
                                             receiptNumber: RECEIPT_FIELDS_REQUIRED.includes(category || "")
                                                 ? ""

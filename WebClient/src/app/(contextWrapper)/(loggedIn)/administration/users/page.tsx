@@ -21,10 +21,10 @@ import {
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools } from "@/lib/api/school";
+import { useUserManagementWebSocket } from "@/lib/hooks/useUserManagementWebSocket";
 import { roles } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
-import { useUserManagementWebSocket } from "@/lib/hooks/useUserManagementWebSocket";
 import {
     ActionIcon,
     Alert,
@@ -66,8 +66,8 @@ import {
     IconPlus,
     IconSchool,
     IconSearch,
-    IconSendOff,
     IconSelector,
+    IconSendOff,
     IconUser,
     IconUserCheck,
     IconUserExclamation,
@@ -1366,7 +1366,7 @@ export default function UsersPage(): JSX.Element {
                         setModalOpen={setOpenInviteUserModal}
                         availableSchools={availableSchools}
                         availableRoles={availableRoles}
-                        onUserInvite={(newUser) => {
+                        onUserInvite={() => {
                             // setAllUsers((prev) => [newUser, ...prev]);
                         }}
                     />

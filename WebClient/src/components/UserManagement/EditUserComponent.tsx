@@ -81,7 +81,6 @@ export function EditUserComponent({
     UpdateUserInfo,
     UploadUserAvatar,
     RemoveUserAvatar,
-    DeleteUserInfo,
     fetchUserAvatar,
     onUserUpdate,
 }: EditUserProps) {
@@ -259,9 +258,6 @@ export function EditUserComponent({
             schoolId: values.school === null && user.schoolId !== null,
         };
 
-        const hasFieldsToDelete = Object.values(fieldsToDelete).some(
-            (field, index) => index > 0 && field === true // Skip the id field at index 0
-        );
         try {
             // First handle field deletions if any
             // if (hasFieldsToDelete) {

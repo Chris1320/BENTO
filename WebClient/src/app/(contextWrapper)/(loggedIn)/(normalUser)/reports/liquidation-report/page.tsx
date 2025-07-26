@@ -216,15 +216,15 @@ function LiquidationReportContent() {
     // Helper function to get previous weekday within the report month (for new item defaults)
     const getPreviousWeekdayInReportMonth = useCallback(() => {
         if (!reportPeriod) return new Date();
-        
+
         const endOfMonth = dayjs(reportPeriod).endOf("month");
         let date = endOfMonth.toDate();
-        
+
         // Find the last weekday of the report month
         while (isWeekend(date)) {
             date = dayjs(date).subtract(1, "day").toDate();
         }
-        
+
         return date;
     }, [reportPeriod, isWeekend]);
 

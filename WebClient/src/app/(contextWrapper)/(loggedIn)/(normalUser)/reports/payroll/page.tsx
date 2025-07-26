@@ -647,7 +647,7 @@ function PayrollPageContent() {
 
         // Start with the first Monday of the first week that contains any day of the month
         let currentWeekStart = startOfMonth.startOf("week").add(1, "day"); // First Monday of the week containing month start
-        
+
         // If the month starts after Monday, we still want to include that week
         if (currentWeekStart.isAfter(startOfMonth)) {
             currentWeekStart = currentWeekStart.subtract(7, "days"); // Go to previous Monday
@@ -965,7 +965,7 @@ function PayrollPageContent() {
 
             // Convert our data to the format expected by the API
             const payrollEntries = [];
-            
+
             for (const employee of employees) {
                 for (const week of weekPeriods) {
                     const weekNumber = parseInt(week.id.split("-week-")[1]);
@@ -976,7 +976,7 @@ function PayrollPageContent() {
                     for (const workDay of week.workingDays) {
                         const dayOfWeek = dayjs(workDay).day(); // 0 = Sunday, 1 = Monday, etc.
                         const workDayStr = dayjs(workDay).format("YYYY-MM-DD");
-                        
+
                         const record = attendanceRecords.find(
                             (r) => r.employeeId === employee.id && r.date === workDayStr
                         );

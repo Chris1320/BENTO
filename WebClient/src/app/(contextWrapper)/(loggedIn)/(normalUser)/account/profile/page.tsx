@@ -1177,14 +1177,27 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     />
                 </Tooltip>
                 <Tooltip
-                    disabled={userPermissions?.includes("users:self:modify:school")}
-                    label="School cannot be changed. Contact an administrator for assistance.. Contact an administrator for assistance."
+                    disabled={
+                        !(userInfo?.roleId === 2 || userInfo?.roleId === 3) &&
+                        userPermissions?.includes("users:self:modify:school")
+                    }
+                    label={
+                        userInfo?.roleId === 2 || userInfo?.roleId === 3
+                            ? "Administrators and Superintendents cannot be assigned to schools."
+                            : "School cannot be changed. Contact an administrator for assistance."
+                    }
                     withArrow
                 >
                     <Select
-                        disabled={!userPermissions?.includes("users:self:modify:school")}
+                        disabled={
+                            userInfo?.roleId === 2 ||
+                            userInfo?.roleId === 3 ||
+                            !userPermissions?.includes("users:self:modify:school")
+                        }
                         label="Assigned School"
-                        placeholder="School"
+                        placeholder={
+                            userInfo?.roleId === 2 || userInfo?.roleId === 3 ? "Not applicable for your role" : "School"
+                        }
                         data={availableSchools}
                         key={form.key("school")}
                         clearable

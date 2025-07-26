@@ -2,7 +2,6 @@
 
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import { SplitButton } from "@/components/SplitButton/SplitButton";
-import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import * as csclient from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { useUser } from "@/lib/providers/user";
@@ -661,12 +660,12 @@ function SalesandPurchasesContent() {
     };
     const totals = calculateTotals();
 
-    // Bulk submit all entries for the month
-    const handleSubmit = async () => {
+    // Bulk save all entries for the month
+    const handleSaveDraft = async () => {
         if (!userCtx.userInfo) {
             notifications.show({
                 title: "Error",
-                message: "You must be logged in to submit entries.",
+                message: "You must be logged in to save the report.",
                 color: "red",
             });
             return;
@@ -752,8 +751,8 @@ function SalesandPurchasesContent() {
             });
 
             notifications.show({
-                title: "Submission",
-                message: "Your entries have been submitted successfully.",
+                title: "Saved",
+                message: "Your entries have been saved successfully.",
                 color: "green",
             });
 
@@ -803,7 +802,7 @@ function SalesandPurchasesContent() {
             customLogger.error(err instanceof Error ? err.message : String(err));
             notifications.show({
                 title: "Error",
-                message: "Failed to submit entries.",
+                message: "Failed to save entries.",
                 color: "red",
             });
         }
@@ -1142,13 +1141,13 @@ function SalesandPurchasesContent() {
             dailyEntries
                 .slice()
                 .sort((a, b) => {
-                    // Sort by YYYY-MM (from date) then by day
+                    // Sort by YYYY-MM (from date) then by day - DESCENDING for table display (latest first)
                     const aMonth = dayjs(a.date).format("YYYY-MM");
                     const bMonth = dayjs(b.date).format("YYYY-MM");
                     if (aMonth !== bMonth) {
-                        return aMonth.localeCompare(bMonth);
+                        return bMonth.localeCompare(aMonth); // Reversed for descending
                     }
-                    return a.day - b.day;
+                    return b.day - a.day; // Reversed for descending
                 })
                 .map((entry) => (
                     <Table.Tr key={`${entry.date}-${entry.day}`}>
@@ -1291,6 +1290,7 @@ function SalesandPurchasesContent() {
                                 }}
                                 leftSection={<IconCalendar size={16} />}
                                 className="w-64"
+                                maxDate={new Date()}
                             />
                             <DatePickerInput
                                 placeholder="Select date"
@@ -1309,8 +1309,12 @@ function SalesandPurchasesContent() {
                                 }}
                                 leftSection={<IconCalendar size={16} />}
                                 className="w-64"
-                                minDate={currentMonth ? dayjs(currentMonth).startOf("month").toDate() : undefined}
-                                maxDate={currentMonth ? dayjs(currentMonth).endOf("month").toDate() : new Date()}
+                                minDate={dayjs(currentMonth).startOf("month").toDate()}
+                                maxDate={
+                                    dayjs(currentMonth).isSame(dayjs(), "month")
+                                        ? new Date() // Limit to today if current month is this month
+                                        : dayjs(currentMonth).endOf("month").toDate() // Otherwise allow full month
+                                }
                                 disabled={isReadOnly()}
                                 getDayProps={(date) => {
                                     // e.date is always the first of the month (YYYY-MM-01), but e.day is the actual day
@@ -1567,25 +1571,7 @@ function SalesandPurchasesContent() {
                 </SimpleGrid>
 
                 {/* Action Buttons */}
-                <Group justify="flex-end" gap="md">
-                    <SubmitForReviewButton
-                        reportType="daily"
-                        reportPeriod={{
-                            schoolId: effectiveSchoolId || 0,
-                            year: currentMonth.getFullYear(),
-                            month: currentMonth.getMonth() + 1,
-                        }}
-                        disabled={isReadOnly()}
-                        onSuccess={() => {
-                            // Redirect to reports page after successful submission
-                            notifications.show({
-                                title: "Status Updated",
-                                message: "Report has been submitted for review.",
-                                color: "green",
-                            });
-                            router.push("/reports");
-                        }}
-                    />
+                <Group justify="flex-end" gap="xs">
                     <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
                         Cancel
                     </Button>
@@ -1597,8 +1583,27 @@ function SalesandPurchasesContent() {
                     >
                         Export PDF
                     </Button>
-                    <SplitButton disabled={isReadOnly()} onSubmit={handleSubmit} className="hide-in-pdf">
-                        Submit
+                    <SplitButton
+                        onSaveReport={handleSaveDraft}
+                        disabled={isReadOnly() || dailyEntries.length === 0}
+                        className="hide-in-pdf"
+                        showPreview={false}
+                        reportType="daily"
+                        reportPeriod={{
+                            schoolId: effectiveSchoolId || 0,
+                            year: currentMonth.getFullYear(),
+                            month: currentMonth.getMonth() + 1,
+                        }}
+                        onSubmitForReviewSuccess={() => {
+                            notifications.show({
+                                title: "Status Updated",
+                                message: "Report status has been updated to 'Review'.",
+                                color: "green",
+                            });
+                            router.push("/reports");
+                        }}
+                    >
+                        Save Report
                     </SplitButton>
                 </Group>
 

@@ -26,7 +26,7 @@ export function SubmitForReviewButton({
     reportPeriod,
     onSuccess,
     disabled = false,
-    variant = "light",
+    variant = "filled",
     size = "sm",
     className = "",
 }: SubmitForReviewButtonProps) {

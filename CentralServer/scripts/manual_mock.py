@@ -383,16 +383,23 @@ async def main(endpoint: str) -> int:
     print("All schools processed.")
 
     if school_ids:
-        print("\nCreating users for each school...")
-        for school_name, school_id in school_ids.items():
-            success = await create_school_users(
-                school_id, school_name, endpoint, school_creation_token
-            )
-            if not success:
-                print(f"Failed to create users for school '{school_name}'.")
-                exit_code += 1
+        print("\nWould you like to populate the database with users for each school?")
+        print("This will create a principal and canteen manager for each school.")
+        create_users = input("Create users? (y/N): ").lower().strip() in ["y", "yes"]
 
-        print("All users processed.")
+        if create_users:
+            print("\nCreating users for each school...")
+            for school_name, school_id in school_ids.items():
+                success = await create_school_users(
+                    school_id, school_name, endpoint, school_creation_token
+                )
+                if not success:
+                    print(f"Failed to create users for school '{school_name}'.")
+                    exit_code += 1
+
+            print("All users processed.")
+        else:
+            print("Skipping user creation.")
 
     return exit_code
 

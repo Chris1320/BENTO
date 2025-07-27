@@ -1428,7 +1428,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                             </Button>
                         </Group>
                         <Group>
-                            {onDelete && (
+                            {onDelete && report && ["draft", "review", "rejected"].includes(report.reportStatus || "draft") && (
                                 <Button color="red" variant="outline" onClick={handleDeleteReport}>
                                     Delete Report
                                 </Button>

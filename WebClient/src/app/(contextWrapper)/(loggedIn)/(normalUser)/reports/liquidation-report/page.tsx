@@ -129,7 +129,7 @@ function LiquidationReportContent() {
 
     const effectiveSchoolId = getEffectiveSchoolId();
 
-    // Helper function to get initial period from URL parameters or default to current month
+    // Helper function to get initial period from URL parameters or default to current month if none provided
     const getInitialReportPeriod = useCallback(() => {
         const yearParam = searchParams.get("year");
         const monthParam = searchParams.get("month");
@@ -144,7 +144,9 @@ function LiquidationReportContent() {
             }
         }
 
-        return new Date(); // Default to current month
+        // Default to current month if no valid parameters provided
+        // This ensures the component always has a valid date to work with
+        return new Date();
     }, [searchParams]);
 
     const [reportPeriod, setReportPeriod] = useState<Date | null>(getInitialReportPeriod());

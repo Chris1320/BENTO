@@ -369,25 +369,30 @@ export default function ReportsPage() {
                                     >
                                         View
                                     </Menu.Item>
-                                    {canCreateReports &&
-                                        (report.reportStatus === "draft" || report.reportStatus === "rejected") && (
-                                            <>
+                                    {canCreateReports && (
+                                        <>
+                                            {(report.reportStatus === "draft" || report.reportStatus === "rejected") && (
                                                 <Menu.Item
                                                     leftSection={<IconPencil size={14} />}
                                                     onClick={() => handleOpenEditModal(report)}
                                                 >
                                                     Edit
                                                 </Menu.Item>
-                                                <Menu.Divider />
-                                                <Menu.Item
-                                                    color="red"
-                                                    leftSection={<IconTrash size={14} />}
-                                                    onClick={() => handleDeleteReport(report.id)}
-                                                >
-                                                    Delete
-                                                </Menu.Item>
-                                            </>
-                                        )}
+                                            )}
+                                            {(report.reportStatus === "draft" || report.reportStatus === "review" || report.reportStatus === "rejected") && (
+                                                <>
+                                                    <Menu.Divider />
+                                                    <Menu.Item
+                                                        color="red"
+                                                        leftSection={<IconTrash size={14} />}
+                                                        onClick={() => handleDeleteReport(report.id)}
+                                                    >
+                                                        Delete
+                                                    </Menu.Item>
+                                                </>
+                                            )}
+                                        </>
+                                    )}
                                     <Menu.Item leftSection={<IconDownload size={14} />}>Download</Menu.Item>
                                 </Menu.Dropdown>
                             </Menu>

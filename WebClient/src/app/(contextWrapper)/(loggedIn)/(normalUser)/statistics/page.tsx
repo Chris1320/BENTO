@@ -69,6 +69,16 @@ export default function StatisticsPage() {
     const [schoolInfo, setSchoolInfo] = useState<School | null>(null);
     const [includeDrafts, setIncludeDrafts] = useState(true);
     const [includeReviews, setIncludeReviews] = useState(true); // Default to include reviews
+    const [isFirefox, setIsFirefox] = useState(false);
+
+    // Detect Firefox browser
+    useEffect(() => {
+        const detectFirefox = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            return userAgent.includes("firefox");
+        };
+        setIsFirefox(detectFirefox());
+    }, []);
 
     // Determine if user can control filtering based on role
     const canControlFiltering = userInfo?.roleId && [4, 5].includes(userInfo.roleId); // Principals and Canteen Managers can control filtering
@@ -346,13 +356,19 @@ export default function StatisticsPage() {
             <div className={classes.root}>
                 {schoolInfo && (
                     <>
-                        <Title order={2} mb="lg" hiddenFrom="sm">
+                        <Title order={2} mb="lg" hiddenFrom="sm" style={{ display: isFirefox ? "none" : undefined }}>
                             Financial Statistics
                         </Title>
-                        <Title order={2} mb="lg" visibleFrom="sm">
+                        <Title order={2} mb="lg" visibleFrom="sm" style={{ display: isFirefox ? "block" : undefined }}>
                             Financial Statistics - {schoolInfo.name}
                         </Title>
-                        <Text size="sm" c="dimmed" mb="md" hiddenFrom="sm">
+                        <Text
+                            size="sm"
+                            c="dimmed"
+                            mb="md"
+                            hiddenFrom="sm"
+                            style={{ display: isFirefox ? "none" : undefined }}
+                        >
                             {schoolInfo.name}
                         </Text>
                     </>
@@ -362,7 +378,12 @@ export default function StatisticsPage() {
                 {canControlFiltering && (
                     <Card withBorder p={{ base: "sm", md: "md" }} mb="lg">
                         {/* Desktop Layout */}
-                        <Group justify="space-between" align="center" visibleFrom="md">
+                        <Group
+                            justify="space-between"
+                            align="center"
+                            visibleFrom="md"
+                            style={{ display: isFirefox ? "flex" : undefined }}
+                        >
                             <Group gap="xs">
                                 <IconFilter size={20} />
                                 <Text fw={500}>Report Filtering Options</Text>
@@ -388,7 +409,7 @@ export default function StatisticsPage() {
                         </Group>
 
                         {/* Mobile Layout */}
-                        <Stack gap="md" hiddenFrom="md">
+                        <Stack gap="md" hiddenFrom="md" style={{ display: isFirefox ? "none" : undefined }}>
                             <Group gap="xs" justify="center">
                                 <IconFilter size={20} />
                                 <Text fw={500} ta="center">

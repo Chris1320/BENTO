@@ -39,6 +39,16 @@ const DashboardContent = memo(function DashboardContent() {
     );
     const [isLoading, setIsLoading] = useState(true);
     const [isNotificationLoading, setIsNotificationLoading] = useState(true);
+    const [isFirefox, setIsFirefox] = useState(false);
+
+    // Detect Firefox browser
+    useEffect(() => {
+        const detectFirefox = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            return userAgent.includes("firefox");
+        };
+        setIsFirefox(detectFirefox());
+    }, []);
 
     // Handle step clicks to navigate to the profile page
     const handleStepClick = (index: number) => {
@@ -235,6 +245,10 @@ const DashboardContent = memo(function DashboardContent() {
                                     width: "100px",
                                     height: "100px",
                                 },
+                                ...(isFirefox && {
+                                    width: "100px",
+                                    height: "100px",
+                                }),
                             }}
                         />
                         <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
@@ -242,7 +256,7 @@ const DashboardContent = memo(function DashboardContent() {
                                 <Title
                                     order={3}
                                     style={{
-                                        fontSize: "1.5rem",
+                                        fontSize: isFirefox ? "2.5rem" : "1.5rem",
                                         "@media (min-width: 992px)": {
                                             fontSize: "2.5rem",
                                         },
@@ -254,7 +268,7 @@ const DashboardContent = memo(function DashboardContent() {
                                 <Title
                                     order={3}
                                     style={{
-                                        fontSize: "1.5rem",
+                                        fontSize: isFirefox ? "2.5rem" : "1.5rem",
                                         "@media (min-width: 992px)": {
                                             fontSize: "2.5rem",
                                         },
@@ -266,7 +280,7 @@ const DashboardContent = memo(function DashboardContent() {
                                 <Title
                                     order={3}
                                     style={{
-                                        fontSize: "1.5rem",
+                                        fontSize: isFirefox ? "2.5rem" : "1.5rem",
                                         "@media (min-width: 992px)": {
                                             fontSize: "2.5rem",
                                         },
@@ -291,8 +305,8 @@ const DashboardContent = memo(function DashboardContent() {
                                 align="center"
                                 style={{
                                     "@media (max-width: 991px)": {
-                                        flexDirection: "column",
-                                        gap: "1rem",
+                                        flexDirection: isFirefox ? "space-between" : "column",
+                                        gap: isFirefox ? "normal" : "1rem",
                                     },
                                 }}
                             >
@@ -304,15 +318,16 @@ const DashboardContent = memo(function DashboardContent() {
                                     transitionDuration={250}
                                     size={120}
                                     hiddenFrom="sm"
+                                    style={{ display: isFirefox ? "none" : undefined }}
                                 />
                                 <Stack
                                     style={{
                                         flex: 1,
-                                        marginLeft: "1rem",
+                                        marginLeft: isFirefox ? "1rem" : "1rem",
                                         "@media (max-width: 991px)": {
-                                            marginLeft: "0",
-                                            alignItems: "center",
-                                            textAlign: "center",
+                                            marginLeft: isFirefox ? "1rem" : "0",
+                                            alignItems: isFirefox ? "flex-start" : "center",
+                                            textAlign: isFirefox ? "left" : "center",
                                         },
                                     }}
                                 >

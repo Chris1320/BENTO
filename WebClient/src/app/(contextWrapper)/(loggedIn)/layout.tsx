@@ -7,7 +7,7 @@ import { useUser } from "@/lib/providers/user";
 import { AppShell, ScrollArea, Burger, Group, Image, Title, Code } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Program } from "@/lib/info";
 
 /**
@@ -30,6 +30,16 @@ function LoggedInContent({ children }: { children: React.ReactNode }) {
     const { isAuthenticated } = useAuth();
     const [opened, { toggle }] = useDisclosure();
     const router = useRouter();
+    const [isFirefox, setIsFirefox] = useState(false);
+
+    // Detect Firefox browser
+    useEffect(() => {
+        const detectFirefox = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            return userAgent.includes("firefox");
+        };
+        setIsFirefox(detectFirefox());
+    }, []);
 
     customLogger.debug("Rendering LoggedInContent", { isAuthenticated });
     useEffect(() => {
@@ -54,7 +64,13 @@ function LoggedInContent({ children }: { children: React.ReactNode }) {
             <AppShell.Header>
                 <Group h="100%" px="md" justify="space-between">
                     <Group>
-                        <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+                        <Burger
+                            opened={opened}
+                            onClick={toggle}
+                            hiddenFrom="sm"
+                            size="sm"
+                            style={{ display: isFirefox ? "none" : undefined }}
+                        />
                         <Image
                             src="/assets/logos/BENTO.svg"
                             alt="BENTO Logo"
@@ -63,10 +79,10 @@ function LoggedInContent({ children }: { children: React.ReactNode }) {
                             w="auto"
                             fit="contain"
                         />
-                        <Title order={3} visibleFrom="sm">
+                        <Title order={3} visibleFrom="sm" style={{ display: isFirefox ? "block" : undefined }}>
                             {Program.name}
                         </Title>
-                        <Code fw={700} visibleFrom="md">
+                        <Code fw={700} visibleFrom="md" style={{ display: isFirefox ? "inline" : undefined }}>
                             {Program.version}
                         </Code>
                     </Group>

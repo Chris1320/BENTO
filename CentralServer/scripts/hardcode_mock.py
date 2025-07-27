@@ -122,14 +122,14 @@ LIQUIDATION_ENTRIES: list[LiquidationEntry] = [
         unit_price=528.00,
     ),
     # Administrative Expenses - from actual liquidation report for January 2025
-    LiquidationEntry(
-        category="administrative_expenses",
-        date="2025-01-31",
-        description="UTILITY",
-        quantity=1.0,
-        unit="pcs",
-        unit_price=1000.00,
-    ),
+    # LiquidationEntry(
+    #     category="administrative_expenses",
+    #     date="2025-01-31",
+    #     description="UTILITY",
+    #     quantity=1.0,
+    #     unit="pcs",
+    #     unit_price=1000.00,
+    # ),
     # Supplementary Feeding Fund - from actual liquidation report for January 2025
     LiquidationEntry(
         category="supplementary_feeding_fund",
@@ -405,9 +405,11 @@ async def upload_liquidation_data(
             liquidation_entry["unitPrice"] = entry.unit_price
         else:
             # This should not happen with the corrected data structure
-            print(f"Warning: Missing quantity/unit/unit_price for entry: {entry.description}")
+            print(
+                f"Warning: Missing quantity/unit/unit_price for entry: {entry.description}"
+            )
             continue
-        
+
         monthly_data[month_key][entry.category].append(liquidation_entry)
 
     # Process each month

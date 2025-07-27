@@ -7,6 +7,7 @@ import {
     getSchoolEndpointV1SchoolsGet,
     getSchoolLogoEndpointV1SchoolsLogoGet,
     getSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthGet,
+    getSchoolPayrollReportEntriesV1ReportsPayrollSchoolIdYearMonthEntriesGet,
     LiquidationReportResponse,
     MonthlyReport,
     ReportStatus,
@@ -306,22 +307,68 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                 }
             }
 
+            // Fetch payroll entries for administrative expenses
+            let payrollTotal = 0;
+            try {
+                const { data: payrollEntries } =
+                    await getSchoolPayrollReportEntriesV1ReportsPayrollSchoolIdYearMonthEntriesGet({
+                        path: {
+                            school_id: report.submittedBySchool,
+                            year,
+                            month,
+                        },
+                    });
+
+                // Debug logging to see the payroll entries structure
+                console.log("Payroll entries data:", payrollEntries);
+
+                // Calculate total from payroll entries
+                if (payrollEntries && Array.isArray(payrollEntries)) {
+                    payrollTotal = payrollEntries.reduce((total, entry) => {
+                        // Sum all days of the week for each entry
+                        const entryTotal =
+                            (entry.sun || 0) +
+                            (entry.mon || 0) +
+                            (entry.tue || 0) +
+                            (entry.wed || 0) +
+                            (entry.thu || 0) +
+                            (entry.fri || 0) +
+                            (entry.sat || 0);
+                        return total + entryTotal;
+                    }, 0);
+                    console.log("Calculated payroll total from entries:", payrollTotal);
+                } else {
+                    console.log("No payroll entries found");
+                }
+
+                console.log("Final payroll total:", payrollTotal);
+            } catch (error) {
+                customLogger.warn("Failed to fetch payroll entries:", error);
+            }
+
             // Calculate financial data
             const netSales = typeof dailySummary?.total_sales === "number" ? dailySummary.total_sales : 0;
             const costOfSales = typeof dailySummary?.total_purchases === "number" ? dailySummary.total_purchases : 0;
             const grossProfit = netSales - costOfSales;
 
             const operatingExpenses = liquidationReports.operating_expenses?.totalAmount || 0;
-            const administrativeExpenses = liquidationReports.administrative_expenses?.totalAmount || 0;
+            const liquidationAdminExpenses = liquidationReports.administrative_expenses?.totalAmount || 0;
+            const administrativeExpenses = liquidationAdminExpenses + payrollTotal;
+
+            // Debug logging
+            console.log("Liquidation admin expenses:", liquidationAdminExpenses);
+            console.log("Payroll total:", payrollTotal);
+            console.log("Total administrative expenses:", administrativeExpenses);
+
             const netIncomeFromOperations = grossProfit - operatingExpenses - administrativeExpenses;
 
             // Calculate utilization breakdown
             const utilizationBreakdown = {
                 supplementaryFeeding: {
-                    percentage: 30,
+                    percentage: 35,
                     actual: liquidationReports.supplementary_feeding_fund?.totalAmount || 0,
                     balance:
-                        netIncomeFromOperations * 0.3 -
+                        netIncomeFromOperations * 0.35 -
                         (liquidationReports.supplementary_feeding_fund?.totalAmount || 0),
                 },
                 clinicFund: {
@@ -347,9 +394,9 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                         netIncomeFromOperations * 0.25 - (liquidationReports.school_operations_fund?.totalAmount || 0),
                 },
                 revolvingCapital: {
-                    percentage: 15,
+                    percentage: 10,
                     actual: liquidationReports.revolving_fund?.totalAmount || 0,
-                    balance: netIncomeFromOperations * 0.15 - (liquidationReports.revolving_fund?.totalAmount || 0),
+                    balance: netIncomeFromOperations * 0.1 - (liquidationReports.revolving_fund?.totalAmount || 0),
                 },
             };
 
@@ -1052,7 +1099,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                                     </Table.Td>
                                     <Table.Td>
                                         <Text size="sm" c="dimmed">
-                                            30%
+                                            35%
                                         </Text>
                                     </Table.Td>
                                     <Table.Td>
@@ -1204,7 +1251,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                                     </Table.Td>
                                     <Table.Td>
                                         <Text size="sm" c="dimmed">
-                                            15%
+                                            10%
                                         </Text>
                                     </Table.Td>
                                     <Table.Td>

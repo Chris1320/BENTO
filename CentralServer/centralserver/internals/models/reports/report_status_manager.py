@@ -379,10 +379,8 @@ class ReportStatusManager:
         """
         Send notifications to appropriate users based on status changes.
 
-        Notification rules:
-        - Draft to Review:
-          * Always notify Canteen Manager (preparedBy)
-          * Only notify Principal (notedBy) for monthly reports
+        Notification rules (only for monthly reports):
+        - Draft to Review: Notify Canteen Manager (preparedBy) and Principal (notedBy)
         - Review to Approved/Rejected: Notify Canteen Manager (preparedBy)
         - Approved to Received: Notify Principal (notedBy) and Canteen Manager (preparedBy)
 
@@ -397,21 +395,28 @@ class ReportStatusManager:
             category: Category (for liquidation reports)
             comments: Optional comments about the status change
         """
+        # Only send notifications for monthly reports
+        if report_type != "monthly":
+            logger.debug(
+                "Skipping notifications for %s report - only monthly reports trigger notifications",
+                report_type,
+            )
+            return
+
         # Get the users to notify based on status change
         users_to_notify: List[Tuple[str, str]] = []
 
-        # Draft to Review: Notify both Canteen Manager and Principal (only for monthly reports)
+        # Draft to Review: Notify both Canteen Manager and Principal
         if old_status == ReportStatus.DRAFT and new_status == ReportStatus.REVIEW:
-            # Notify Canteen Manager (preparedBy) for all report types
+            # Notify Canteen Manager (preparedBy)
             prepared_by = getattr(report, "preparedBy", None)
             if prepared_by:
                 users_to_notify.append(("canteen_manager", prepared_by))
 
-            # Notify Principal (notedBy) only for monthly reports
-            if report_type == "monthly":
-                noted_by = getattr(report, "notedBy", None)
-                if noted_by:
-                    users_to_notify.append(("principal", noted_by))
+            # Notify Principal (notedBy)
+            noted_by = getattr(report, "notedBy", None)
+            if noted_by:
+                users_to_notify.append(("principal", noted_by))
 
         # Review to Approved/Rejected: Notify Canteen Manager
         elif old_status == ReportStatus.REVIEW and new_status in [
@@ -435,12 +440,6 @@ class ReportStatusManager:
             prepared_by = getattr(report, "preparedBy", None)
             if prepared_by:
                 users_to_notify.append(("canteen_manager", prepared_by))
-
-        # For other status changes, notify preparedBy (legacy behavior)
-        else:
-            prepared_by = getattr(report, "preparedBy", None)
-            if prepared_by:
-                users_to_notify.append(("preparedBy", prepared_by))
 
         if not users_to_notify:
             logger.debug(

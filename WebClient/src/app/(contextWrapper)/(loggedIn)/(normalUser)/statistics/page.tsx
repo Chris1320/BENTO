@@ -457,9 +457,13 @@ export default function StatisticsPage() {
                 <Grid gutter={{ base: "sm", md: "md" }}>
                     <Grid.Col span={{ base: 12, md: 6 }}>
                         <Card withBorder p={{ base: "sm", md: "lg" }}>
-                            <Title order={4} mb="sm">
+                            <Title order={4} mb="xs">
                                 Monthly Net Sales
                             </Title>
+                            <Text size="sm" c="dimmed" mb="md">
+                                Track your school&apos;s total sales revenue over the past 12 months. This shows the
+                                overall income generated from canteen operations.
+                            </Text>
                             <LineChart
                                 h={{ base: 250, md: 300 }}
                                 data={statsData.monthlySalesData}
@@ -474,9 +478,13 @@ export default function StatisticsPage() {
 
                     <Grid.Col span={{ base: 12, md: 6 }}>
                         <Card withBorder p={{ base: "sm", md: "lg" }}>
-                            <Title order={4} mb="sm">
+                            <Title order={4} mb="xs">
                                 Monthly Net Income
                             </Title>
+                            <Text size="sm" c="dimmed" mb="md">
+                                Shows your actual profit after all expenses. This is calculated as total sales minus
+                                total purchases and represents your bottom line.
+                            </Text>
                             <LineChart
                                 h={{ base: 250, md: 300 }}
                                 data={statsData.monthlyNetIncomeData}
@@ -491,9 +499,13 @@ export default function StatisticsPage() {
 
                     <Grid.Col span={{ base: 12, md: 6 }}>
                         <Card withBorder p={{ base: "sm", md: "lg" }}>
-                            <Title order={4} mb="sm">
+                            <Title order={4} mb="xs">
                                 Sales vs Purchases
                             </Title>
+                            <Text size="sm" c="dimmed" mb="md">
+                                Compare your monthly sales (green) against purchases (red). A healthy canteen should
+                                have sales consistently higher than purchases.
+                            </Text>
                             <BarChart
                                 h={{ base: 250, md: 300 }}
                                 data={combinedSalesData}
@@ -511,9 +523,13 @@ export default function StatisticsPage() {
 
                     <Grid.Col span={{ base: 12, md: 6 }}>
                         <Card withBorder p={{ base: "sm", md: "lg" }}>
-                            <Title order={4} mb="sm">
+                            <Title order={4} mb="xs">
                                 Monthly Gross Profit
                             </Title>
+                            <Text size="sm" c="dimmed" mb="md">
+                                Your gross profit before operational expenses. This is sales minus cost of goods sold
+                                (purchases) and indicates your markup efficiency.
+                            </Text>
                             <LineChart
                                 h={{ base: 250, md: 300 }}
                                 data={combinedSalesData}
@@ -532,9 +548,13 @@ export default function StatisticsPage() {
                 <Grid gutter={{ base: "sm", md: "md" }}>
                     <Grid.Col span={{ base: 12, md: 4 }}>
                         <Card withBorder p={{ base: "sm", md: "lg" }}>
-                            <Title order={5} mb="sm">
+                            <Title order={5} mb="xs">
                                 Profit Margin Over Time (%)
                             </Title>
+                            <Text size="xs" c="dimmed" mb="sm">
+                                Shows what percentage of each sale becomes profit. Higher percentages indicate better
+                                pricing and cost control.
+                            </Text>
                             <LineChart
                                 h={{ base: 200, md: 250 }}
                                 data={profitMarginData}
@@ -548,9 +568,13 @@ export default function StatisticsPage() {
                     </Grid.Col>
                     <Grid.Col span={{ base: 12, md: 4 }}>
                         <Card withBorder p={{ base: "sm", md: "lg" }}>
-                            <Title order={5} mb="sm">
+                            <Title order={5} mb="xs">
                                 Cost-to-Sales Ratio (%)
                             </Title>
+                            <Text size="xs" c="dimmed" mb="sm">
+                                Shows what percentage of sales goes to purchasing inventory. Lower percentages mean
+                                better profitability.
+                            </Text>
                             <LineChart
                                 h={{ base: 200, md: 250 }}
                                 data={costToSalesData}
@@ -564,9 +588,12 @@ export default function StatisticsPage() {
                     </Grid.Col>
                     <Grid.Col span={{ base: 12, md: 4 }}>
                         <Card withBorder p={{ base: "sm", md: "lg" }}>
-                            <Title order={5} mb="sm">
+                            <Title order={5} mb="xs">
                                 Monthly Summary
                             </Title>
+                            <Text size="xs" c="dimmed" mb="sm">
+                                Key performance indicators for the current month compared to the previous month.
+                            </Text>
                             <div style={{ padding: "1rem 0" }}>
                                 <Text size="sm" c="dimmed">
                                     Current Month Summary

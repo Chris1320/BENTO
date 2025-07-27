@@ -2,6 +2,7 @@
 
 import { Role, School, UserPublic, createNewUserV1AuthCreatePost } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
+import { parseAPIError } from "@/lib/utils/errorParser";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { Button, Modal, PasswordInput, Select, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
@@ -111,7 +112,8 @@ export function CreateUserComponent({
                     },
                 });
                 if (result.error) {
-                    throw new Error(`Failed to create user: ${result.response.status} ${result.response.statusText}`);
+                    // Let the error parser handle the detailed error message instead of creating a generic one
+                    throw result;
                 }
                 const newUser = result.data;
 
@@ -127,12 +129,16 @@ export function CreateUserComponent({
                 if (onUserCreate) onUserCreate(newUser);
             } catch (err) {
                 customLogger.error(err instanceof Error ? err.message : "Failed to create user");
+
+                const parsedError = parseAPIError(err, "createUser", "Failed to Create User");
+
                 notifications.show({
                     id: "create-user-error",
-                    title: "Error",
-                    message: err instanceof Error ? `Failed to create user: ${err.message}` : "Failed to create user",
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconUserExclamation />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
             } finally {
                 buttonStateHandler.close();

@@ -3,6 +3,7 @@
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
+import { parseAPIError } from "@/lib/utils/errorParser";
 import {
     Anchor,
     Button,
@@ -227,11 +228,14 @@ export function MainLoginComponent(): React.ReactElement {
             });
             router.push("/dashboard");
         } catch (error) {
+            const parsedError = parseAPIError(error, "login", "Login Failed");
+
+            // Check if this is an MFA-related error by examining the original error
             if (error instanceof Error && error.message.includes("status code 401")) {
                 if (showMFAInput || values.otpCode) {
                     notifications.show({
                         id: "otp-validation-failed",
-                        title: "OTP Validation failed",
+                        title: "OTP Validation Failed",
                         message: "Please check your OTP code and try again.",
                         color: "red",
                         icon: <IconX />,
@@ -240,36 +244,22 @@ export function MainLoginComponent(): React.ReactElement {
                 } else {
                     notifications.show({
                         id: "login-failed",
-                        title: "Login failed",
-                        message: "Please check your username and password.",
+                        title: parsedError.title,
+                        message: parsedError.message,
                         color: "red",
                         icon: <IconX />,
+                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                     });
                 }
-            } else if (error instanceof Error && error.message.includes("status code 429")) {
-                notifications.show({
-                    id: "login-too-many-attempts",
-                    title: "Login failed",
-                    message: "Too many attempts, please try again later.",
-                    color: "red",
-                    icon: <IconX />,
-                });
-            } else if (error instanceof Error && error.message.includes("status code 403")) {
-                notifications.show({
-                    id: "login-forbidden",
-                    title: "Login failed",
-                    message: "This user account is not allowed to log in.",
-                    color: "red",
-                    icon: <IconX />,
-                });
             } else {
-                customLogger.error("Error logging in:", error);
+                // Use the parsed error for all other cases
                 notifications.show({
                     id: "login-error",
-                    title: "Login failed",
-                    message: `${error}`,
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconX />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
             }
             buttonStateHandler.close();
@@ -284,12 +274,14 @@ export function MainLoginComponent(): React.ReactElement {
                 customLogger.debug("OAuth support response:", result);
                 if (result.error) {
                     customLogger.error("OAuth support error:", result.error);
+                    const parsedError = parseAPIError(result.error, "oauth_config", "OAuth Configuration Error");
                     notifications.show({
                         id: "oauth-support-error",
-                        title: "OAuth Support Error",
-                        message: "Could not retrieve OAuth support information from the server.",
+                        title: parsedError.title,
+                        message: parsedError.message,
                         color: "yellow",
                         icon: <IconX />,
+                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                     });
                     return;
                 }
@@ -302,23 +294,31 @@ export function MainLoginComponent(): React.ReactElement {
                     customLogger.info("OAuth support updated", response);
                 } else {
                     customLogger.warn("No OAuth support information received from server.");
+                    const parsedError = parseAPIError(
+                        new Error("No OAuth data received"),
+                        "oauth_config",
+                        "OAuth Configuration Error"
+                    );
                     notifications.show({
                         id: "oauth-support-error",
-                        title: "OAuth Support Error",
-                        message: "Could not retrieve OAuth support information from the server.",
+                        title: parsedError.title,
+                        message: parsedError.message,
                         color: "yellow",
                         icon: <IconX />,
+                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                     });
                 }
             })
             .catch((error) => {
                 customLogger.error("Error fetching OAuth support:", error);
+                const parsedError = parseAPIError(error, "oauth_config", "OAuth Configuration Error");
                 notifications.show({
                     id: "oauth-support-fetch-error",
-                    title: "OAuth Support Fetch Error",
-                    message: "Failed to fetch OAuth support information.",
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconX />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
             });
     }, []);
@@ -477,11 +477,17 @@ export function MainLoginComponent(): React.ReactElement {
                                             popup.close();
                                             window.removeEventListener("message", messageListener);
                                             setOauthLoading(false);
+                                            const parsedError = parseAPIError(
+                                                new Error(event.data.error || "OAuth login failed"),
+                                                "oauth",
+                                                "Google Sign-in Failed"
+                                            );
                                             notifications.show({
-                                                title: "Login failed",
-                                                message: event.data.error || "Google login failed",
+                                                title: parsedError.title,
+                                                message: parsedError.message,
                                                 color: "red",
                                                 icon: <IconX />,
+                                                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                                             });
                                         }
                                     };
@@ -496,24 +502,29 @@ export function MainLoginComponent(): React.ReactElement {
                                         if (popup && !popup.closed) {
                                             popup.close();
                                         }
+                                        const parsedError = parseAPIError(
+                                            new Error("OAuth login timeout"),
+                                            "oauth",
+                                            "Google Sign-in Timeout"
+                                        );
                                         notifications.show({
-                                            title: "Login timeout",
-                                            message: "Google login timed out. Please try again.",
+                                            title: parsedError.title,
+                                            message: parsedError.message,
                                             color: "yellow",
                                             icon: <IconX />,
+                                            autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                                         });
                                     }, 5 * 60 * 1000);
                                 } catch (error) {
                                     setOauthLoading(false);
                                     customLogger.error("Error starting Google OAuth login:", error);
+                                    const parsedError = parseAPIError(error, "oauth", "Google Sign-in Error");
                                     notifications.show({
-                                        title: "Login failed",
-                                        message:
-                                            error instanceof Error
-                                                ? error.message
-                                                : "Failed to start Google login process.",
+                                        title: parsedError.title,
+                                        message: parsedError.message,
                                         color: "red",
                                         icon: <IconX />,
+                                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                                     });
                                 }
                             }}

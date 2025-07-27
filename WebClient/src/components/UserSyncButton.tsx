@@ -3,6 +3,7 @@ import { useUserSyncControls } from "@/lib/hooks/useUserSyncControls";
 import { IconRefresh } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { customLogger } from "@/lib/api/customLogger";
+import { parseAPIError } from "@/lib/utils/errorParser";
 
 interface UserSyncButtonProps {
     variant?: "default" | "filled" | "outline" | "light" | "subtle" | "transparent";
@@ -32,18 +33,26 @@ export function UserSyncButton({
                     color: "green",
                 });
             } else {
+                const parsedError = parseAPIError(
+                    new Error("Profile refresh failed"),
+                    "profile_refresh",
+                    "Profile Refresh Failed"
+                );
                 notifications.show({
-                    title: "Refresh Failed",
-                    message: "Failed to refresh profile data. Please try again.",
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
             }
         } catch (error) {
             customLogger.error("Error refreshing user data:", error);
+            const parsedError = parseAPIError(error, "profile_refresh", "Profile Refresh Error");
             notifications.show({
-                title: "Error",
-                message: "An error occurred while refreshing profile data",
+                title: parsedError.title,
+                message: parsedError.message,
                 color: "red",
+                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
             });
         }
     };

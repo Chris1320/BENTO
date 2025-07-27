@@ -1,6 +1,8 @@
 export interface UserPreferences {
     accentColor: string;
     language: string;
+    mobileOptimizations?: boolean;
+    reducedMotion?: boolean;
 }
 
 export type ServerMessageType = {

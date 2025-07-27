@@ -137,6 +137,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     const [localPreferences, setLocalPreferences] = useState({
         accentColor: userPreferences.accentColor,
         language: userPreferences.language,
+        mobileOptimizations: userPreferences.mobileOptimizations ?? false,
+        reducedMotion: userPreferences.reducedMotion ?? false,
     });
 
     // Sync localPreferences with userPreferences when userPreferences change
@@ -144,6 +146,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
         setLocalPreferences({
             accentColor: userPreferences.accentColor,
             language: userPreferences.language,
+            mobileOptimizations: userPreferences.mobileOptimizations ?? false,
+            reducedMotion: userPreferences.reducedMotion ?? false,
         });
     }, [userPreferences]);
     const form = useForm<EditProfileValues>({
@@ -906,7 +910,9 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
         // Check if preferences have changed
         const hasPreferenceChanges =
             localPreferences.accentColor !== userPreferences.accentColor ||
-            localPreferences.language !== userPreferences.language;
+            localPreferences.language !== userPreferences.language ||
+            localPreferences.mobileOptimizations !== (userPreferences.mobileOptimizations ?? false) ||
+            localPreferences.reducedMotion !== (userPreferences.reducedMotion ?? false);
 
         setHasUnsavedChanges(hasFormChanges || hasFileChanges || hasPreferenceChanges);
     }, [
@@ -920,8 +926,12 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
         signatureRemoved,
         localPreferences.accentColor,
         localPreferences.language,
+        localPreferences.mobileOptimizations,
+        localPreferences.reducedMotion,
         userPreferences.accentColor,
         userPreferences.language,
+        userPreferences.mobileOptimizations,
+        userPreferences.reducedMotion,
     ]);
 
     useEffect(() => {
@@ -1418,8 +1428,21 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     <Stack>
                         <Switch
                             label="Dark Mode"
+                            description="Switch between light and dark themes"
                             checked={colorScheme === "dark"}
                             onChange={(e) => setColorScheme(e.currentTarget.checked ? "dark" : "light")}
+                        />
+                        <Switch
+                            label="Mobile Optimizations"
+                            description="Optimize performance for mobile devices (simplified animations, faster loading)"
+                            checked={localPreferences.mobileOptimizations}
+                            onChange={(e) => handlePreferenceChange("mobileOptimizations", e.currentTarget.checked)}
+                        />
+                        <Switch
+                            label="Reduced Motion"
+                            description="Disable animations and motion effects for accessibility or performance"
+                            checked={localPreferences.reducedMotion}
+                            onChange={(e) => handlePreferenceChange("reducedMotion", e.currentTarget.checked)}
                         />
                         <Group align="end">
                             <ColorInput

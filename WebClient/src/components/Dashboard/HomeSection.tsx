@@ -360,15 +360,17 @@ export const HomeSection = memo(() => {
                             </Text>
                         )}
                     </div>
-                    <Button
-                        variant="light"
-                        color="blue"
-                        leftSection={<IconBrain size={16} />}
-                        onClick={() => setChatModalOpened(true)}
-                        disabled={!aiAvailable}
-                    >
-                        AI Chat
-                    </Button>
+                    {userInfo?.schoolId && (
+                        <Button
+                            variant="light"
+                            color="blue"
+                            leftSection={<IconBrain size={16} />}
+                            onClick={() => setChatModalOpened(true)}
+                            disabled={!aiAvailable}
+                        >
+                            AI Chat
+                        </Button>
+                    )}
                 </Group>
 
                 {/* Mobile Header */}
@@ -384,18 +386,20 @@ export const HomeSection = memo(() => {
                             {stats.schoolName} • {dayjs().format("MMM YYYY")}
                         </Text>
                     )}
-                    <Group justify="center">
-                        <Button
-                            variant="light"
-                            color="blue"
-                            leftSection={<IconBrain size={16} />}
-                            onClick={() => setChatModalOpened(true)}
-                            disabled={!aiAvailable}
-                            size="sm"
-                        >
-                            AI Chat
-                        </Button>
-                    </Group>
+                    {userInfo?.schoolId && (
+                        <Group justify="center">
+                            <Button
+                                variant="light"
+                                color="blue"
+                                leftSection={<IconBrain size={16} />}
+                                onClick={() => setChatModalOpened(true)}
+                                disabled={!aiAvailable}
+                                size="sm"
+                            >
+                                AI Chat
+                            </Button>
+                        </Group>
+                    )}
                 </Stack>
             </Stack>
 

@@ -62,7 +62,13 @@ function OAuthGoogleContent() {
                             icon: <IconCheck />,
                         });
                         setSuccess(true);
-                        router.push("/dashboard");
+                        // If in popup, communicate with parent window
+                        if (window.opener) {
+                            window.opener.postMessage({ type: "OAUTH_SUCCESS" }, window.location.origin);
+                            window.close();
+                        } else {
+                            router.push("/dashboard");
+                        }
                         handlers.close();
                         return;
                     } catch (error) {
@@ -85,7 +91,19 @@ function OAuthGoogleContent() {
                             });
                         }
                         setSuccess(true);
-                        router.push("/profile");
+                        // If in popup, communicate with parent window
+                        if (window.opener) {
+                            window.opener.postMessage(
+                                {
+                                    type: "OAUTH_ERROR",
+                                    error: error instanceof Error ? error.message : String(error),
+                                },
+                                window.location.origin
+                            );
+                            window.close();
+                        } else {
+                            router.push("/profile");
+                        }
                         handlers.close();
                         return;
                     }
@@ -142,7 +160,13 @@ function OAuthGoogleContent() {
                     color: "green",
                     icon: <IconCheck />,
                 });
-                router.push("/dashboard");
+                // If in popup, communicate with parent window
+                if (window.opener) {
+                    window.opener.postMessage({ type: "OAUTH_SUCCESS" }, window.location.origin);
+                    window.close();
+                } else {
+                    router.push("/dashboard");
+                }
             } catch (error) {
                 if (error instanceof Error) {
                     notifications.show({
@@ -162,7 +186,19 @@ function OAuthGoogleContent() {
                         icon: <IconX />,
                     });
                 }
-                handlers.close();
+                // If in popup, communicate with parent window
+                if (window.opener) {
+                    window.opener.postMessage(
+                        {
+                            type: "OAUTH_ERROR",
+                            error: error instanceof Error ? error.message : String(error),
+                        },
+                        window.location.origin
+                    );
+                    window.close();
+                } else {
+                    handlers.close();
+                }
             }
             setSuccess(true);
         };

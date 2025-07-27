@@ -442,19 +442,66 @@ export function MainLoginComponent(): React.ReactElement {
                                     const checkClosed = setInterval(() => {
                                         if (popup.closed) {
                                             clearInterval(checkClosed);
+                                            clearTimeout(timeoutId);
+                                            window.removeEventListener("message", messageListener);
                                             setOauthLoading(false);
-                                            // Refresh the page to check if login was successful
+                                            // Check if login was successful by checking for tokens
                                             window.location.reload();
                                         }
                                     }, 1000);
 
+                                    // Listen for messages from the popup
+                                    const messageListener = (event: MessageEvent) => {
+                                        // Verify origin for security
+                                        if (event.origin !== window.location.origin) {
+                                            return;
+                                        }
+
+                                        if (event.data.type === "OAUTH_SUCCESS") {
+                                            clearInterval(checkClosed);
+                                            clearTimeout(timeoutId);
+                                            popup.close();
+                                            window.removeEventListener("message", messageListener);
+                                            setOauthLoading(false);
+
+                                            // Check if we're already authenticated and redirect accordingly
+                                            if (authCtx.isAuthenticated) {
+                                                router.push("/dashboard");
+                                            } else {
+                                                // Reload to pick up new authentication state
+                                                window.location.reload();
+                                            }
+                                        } else if (event.data.type === "OAUTH_ERROR") {
+                                            clearInterval(checkClosed);
+                                            clearTimeout(timeoutId);
+                                            popup.close();
+                                            window.removeEventListener("message", messageListener);
+                                            setOauthLoading(false);
+                                            notifications.show({
+                                                title: "Login failed",
+                                                message: event.data.error || "Google login failed",
+                                                color: "red",
+                                                icon: <IconX />,
+                                            });
+                                        }
+                                    };
+
+                                    window.addEventListener("message", messageListener);
+
                                     // Timeout after 5 minutes
-                                    setTimeout(() => {
+                                    const timeoutId = setTimeout(() => {
                                         clearInterval(checkClosed);
+                                        window.removeEventListener("message", messageListener);
                                         setOauthLoading(false);
                                         if (popup && !popup.closed) {
                                             popup.close();
                                         }
+                                        notifications.show({
+                                            title: "Login timeout",
+                                            message: "Google login timed out. Please try again.",
+                                            color: "yellow",
+                                            icon: <IconX />,
+                                        });
                                     }, 5 * 60 * 1000);
                                 } catch (error) {
                                     setOauthLoading(false);

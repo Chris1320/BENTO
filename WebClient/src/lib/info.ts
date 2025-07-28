@@ -11,7 +11,7 @@ import {
 export const Program = {
     name: "BENTO",
     description: "Baliwag Enhanced Network for Tracking Operations",
-    version: "0.7.0",
+    version: "1.0.0",
 };
 
 export const Connections = {

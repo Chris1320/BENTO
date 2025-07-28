@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 import { codecovNextJSWebpackPlugin } from "@codecov/nextjs-webpack-plugin";
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin();
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const withPWA = require("next-pwa")({
@@ -72,4 +75,4 @@ const nextConfig: NextConfig = {
     },
 };
 
-export default withPWA(nextConfig);
+export default withNextIntl(withPWA(nextConfig));

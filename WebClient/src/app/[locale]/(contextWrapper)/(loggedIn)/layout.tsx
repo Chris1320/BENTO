@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
 import { AppShell, ScrollArea, Burger, Group, Image, Title, Code } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { Program } from "@/lib/info";
 

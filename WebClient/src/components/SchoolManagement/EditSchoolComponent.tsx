@@ -45,6 +45,7 @@ export function EditSchoolComponent({
     const [editSchoolLogo, setEditSchoolLogo] = useState<File | null>(null);
     const [editSchoolLogoUrl, setEditSchoolLogoUrl] = useState<string | null>(null);
     const [logoToRemove, setLogoToRemove] = useState(false);
+    const [logoFileInputKey, setLogoFileInputKey] = useState(0);
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
     const [users, setUsers] = useState<UserPublic[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
@@ -102,6 +103,9 @@ export function EditSchoolComponent({
                 assignedNotedBy: editSchool.assignedNotedBy,
             };
             try {
+                // Track successful operations for consolidated notification
+                const successfulOperations: string[] = [];
+
                 // Handle value removal first
                 const valuesToRemove: SchoolDelete = {
                     id: editSchool.id,
@@ -133,6 +137,8 @@ export function EditSchoolComponent({
                 // update school info first
                 await UpdateSchoolInfo(newSchoolInfo);
                 let updatedSchool = { ...editSchool };
+                successfulOperations.push("School information updated");
+
                 // logo removal
                 if (logoToRemove && editSchool.logoUrn) {
                     customLogger.debug("Removing logo...");
@@ -142,6 +148,7 @@ export function EditSchoolComponent({
                             updatedSchool = schoolAfterLogoRemoval;
                         }
                         customLogger.debug("Logo removed successfully.");
+                        successfulOperations.push("Logo removed");
                     } catch (error) {
                         customLogger.error("Failed to remove school logo:", error);
                         notifications.show({
@@ -165,6 +172,7 @@ export function EditSchoolComponent({
                             fetchSchoolLogo(schoolAfterLogoUpload.logoUrn);
                         }
                         customLogger.debug("Logo uploaded successfully.");
+                        successfulOperations.push("Logo uploaded");
                     } catch (error) {
                         customLogger.error("Failed to upload school logo:", error);
                         notifications.show({
@@ -177,13 +185,23 @@ export function EditSchoolComponent({
                     }
                 }
 
-                notifications.show({
-                    id: "school-update-success",
-                    title: "Success",
-                    message: "School information updated successfully.",
-                    color: "green",
-                    icon: <IconPencilCheck />,
-                });
+                // Show consolidated success notification
+                if (successfulOperations.length > 0) {
+                    const message =
+                        successfulOperations.length === 1
+                            ? `${successfulOperations[0]} successfully.`
+                            : `${successfulOperations.slice(0, -1).join(", ")} and ${
+                                  successfulOperations[successfulOperations.length - 1]
+                              } successfully.`;
+
+                    notifications.show({
+                        id: "school-update-success",
+                        title: "Success",
+                        message: message,
+                        color: "green",
+                        icon: <IconPencilCheck />,
+                    });
+                }
 
                 if (onSchoolUpdate) onSchoolUpdate(updatedSchool);
             } catch (error) {
@@ -238,6 +256,8 @@ export function EditSchoolComponent({
         setEditSchoolLogo(null);
         setEditSchoolLogoUrl(null);
         setLogoToRemove(true);
+        // Reset the file input by changing its key
+        setLogoFileInputKey((prev) => prev + 1);
     }, [editSchoolLogoUrl]);
 
     return (
@@ -254,7 +274,7 @@ export function EditSchoolComponent({
                                 cursor: "pointer",
                             }}
                         >
-                            <FileButton onChange={setLogo} accept="image/png,image/jpeg">
+                            <FileButton key={logoFileInputKey} onChange={setLogo} accept="image/png,image/jpeg">
                                 {(props) => (
                                     <motion.div
                                         whileHover={{ scale: 1.05 }}

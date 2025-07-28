@@ -10,8 +10,8 @@ import {
 // Used for exporting the program information and connection details into NavBar Component
 export const Program = {
     name: "BENTO",
-    description: "Baliwag's Enhanced Network for Tracking Operations",
-    version: "0.7.0",
+    description: "Baliwag Enhanced Network for Tracking Operations",
+    version: "1.0.0",
 };
 
 export const Connections = {

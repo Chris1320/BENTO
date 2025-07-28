@@ -1,0 +1,75 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "cancel": "Cancel",
+        "save": "Save",
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirm": "Confirm",
+        "back": "Back",
+        "next": "Next",
+        "previous": "Previous",
+        "search": "Search",
+        "filter": "Filter",
+        "sort": "Sort",
+        "select": "Select",
+        "close": "Close",
+        "open": "Open",
+        "view": "View",
+        "download": "Download",
+        "upload": "Upload",
+        "submit": "Submit",
+        "reset": "Reset"
+    },
+    "navigation": {
+        "home": "Home",
+        "dashboard": "Dashboard",
+        "reports": "Reports",
+        "profile": "Profile",
+        "settings": "Settings",
+        "logout": "Logout",
+        "login": "Login"
+    },
+    "auth": {
+        "signIn": "Sign In",
+        "signOut": "Sign Out",
+        "username": "Username",
+        "password": "Password",
+        "email": "Email",
+        "forgotPassword": "Forgot Password?",
+        "rememberMe": "Remember Me",
+        "createAccount": "Create Account",
+        "alreadyHaveAccount": "Already have an account?",
+        "dontHaveAccount": "Don't have an account?"
+    },
+    "reports": {
+        "title": "Reports",
+        "monthlyReport": "Monthly Report",
+        "payrollReport": "Payroll Report",
+        "liquidationReport": "Liquidation Report",
+        "dailyFinancialReport": "Daily Financial Report",
+        "create": "Create Report",
+        "view": "View Report",
+        "edit": "Edit Report",
+        "submit": "Submit Report",
+        "approve": "Approve Report",
+        "reject": "Reject Report",
+        "status": "Status",
+        "createdDate": "Created Date",
+        "lastModified": "Last Modified"
+    },
+    "program": {
+        "name": "BENTO",
+        "description": "Baliwag Enhanced Network for Tracking Operations",
+        "welcome": "Welcome to BENTO",
+        "subtitle": "Streamline your school operations with our comprehensive tracking system"
+    },
+    "language": {
+        "select": "Select Language",
+        "english": "English",
+        "filipino": "Filipino",
+        "changeLanguage": "Change Language"
+    }
+}

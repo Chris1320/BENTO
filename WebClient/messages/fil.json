@@ -1,0 +1,75 @@
+{
+    "common": {
+        "loading": "Naglo-load...",
+        "error": "Pagkakamali",
+        "success": "Tagumpay",
+        "cancel": "Kanselahin",
+        "save": "I-save",
+        "edit": "I-edit",
+        "delete": "Tanggalin",
+        "confirm": "Kumpirmahin",
+        "back": "Bumalik",
+        "next": "Susunod",
+        "previous": "Nakaraan",
+        "search": "Maghanap",
+        "filter": "Salain",
+        "sort": "Pagkakaayos",
+        "select": "Piliin",
+        "close": "Isara",
+        "open": "Buksan",
+        "view": "Tingnan",
+        "download": "I-download",
+        "upload": "I-upload",
+        "submit": "Ipasa",
+        "reset": "I-reset"
+    },
+    "navigation": {
+        "home": "Tahanan",
+        "dashboard": "Dashboard",
+        "reports": "Mga Ulat",
+        "profile": "Profile",
+        "settings": "Mga Setting",
+        "logout": "Mag-logout",
+        "login": "Mag-login"
+    },
+    "auth": {
+        "signIn": "Mag-sign In",
+        "signOut": "Mag-sign Out",
+        "username": "Username",
+        "password": "Password",
+        "email": "Email",
+        "forgotPassword": "Nakalimutan ang Password?",
+        "rememberMe": "Tandaan Ako",
+        "createAccount": "Gumawa ng Account",
+        "alreadyHaveAccount": "May account na?",
+        "dontHaveAccount": "Walang account?"
+    },
+    "reports": {
+        "title": "Mga Ulat",
+        "monthlyReport": "Buwanang Ulat",
+        "payrollReport": "Ulat ng Payroll",
+        "liquidationReport": "Ulat ng Liquidation",
+        "dailyFinancialReport": "Araw-araw na Pinansyang Ulat",
+        "create": "Gumawa ng Ulat",
+        "view": "Tingnan ang Ulat",
+        "edit": "I-edit ang Ulat",
+        "submit": "Ipasa ang Ulat",
+        "approve": "Aprubahan ang Ulat",
+        "reject": "Tanggihan ang Ulat",
+        "status": "Katayuan",
+        "createdDate": "Petsa ng Pagkakagawa",
+        "lastModified": "Huling Binago"
+    },
+    "program": {
+        "name": "BENTO",
+        "description": "Baliwag Enhanced Network for Tracking Operations",
+        "welcome": "Maligayang pagdating sa BENTO",
+        "subtitle": "Gawing mas madali ang inyong mga operasyon sa paaralan gamit ang aming komprehensibong tracking system"
+    },
+    "language": {
+        "select": "Piliin ang Wika",
+        "english": "Ingles",
+        "filipino": "Filipino",
+        "changeLanguage": "Baguhin ang Wika"
+    }
+}

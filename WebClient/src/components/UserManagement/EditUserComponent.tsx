@@ -5,6 +5,7 @@ import { Role, School, UserDelete, UserPublic, UserUpdate } from "@/lib/api/cscl
 import { userAvatarConfig } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { formatUTCDate } from "@/lib/utils/date";
+import { GetAccessTokenHeader } from "@/lib/utils/token";
 import {
     Badge,
     Box,
@@ -33,6 +34,7 @@ import {
     IconCircleDashedCheck,
     IconCircleDashedX,
     IconDeviceFloppy,
+    IconMail,
     IconPencilCheck,
     IconSendOff,
     IconTrash,
@@ -81,7 +83,6 @@ export function EditUserComponent({
     UpdateUserInfo,
     UploadUserAvatar,
     RemoveUserAvatar,
-    DeleteUserInfo,
     fetchUserAvatar,
     onUserUpdate,
 }: EditUserProps) {
@@ -89,6 +90,7 @@ export function EditUserComponent({
     const [editUserAvatarUrl, setEditUserAvatarUrl] = useState<string | null>(null);
     const [currentAvatarUrn, setCurrentAvatarUrn] = useState<string | null>(null);
     const [avatarRemoved, setAvatarRemoved] = useState(false);
+    const [avatarFileInputKey, setAvatarFileInputKey] = useState(0);
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
     const [passwordValue, setPasswordValue] = useState("");
     const userCtx = useUser();
@@ -182,6 +184,8 @@ export function EditUserComponent({
             URL.revokeObjectURL(editUserAvatarUrl);
         }
         setEditUserAvatarUrl(null);
+        // Reset the file input by changing its key
+        setAvatarFileInputKey((prev) => prev + 1);
     };
 
     const handleSave = async (values: EditUserValues): Promise<void> => {
@@ -259,21 +263,9 @@ export function EditUserComponent({
             schoolId: values.school === null && user.schoolId !== null,
         };
 
-        const hasFieldsToDelete = Object.values(fieldsToDelete).some(
-            (field, index) => index > 0 && field === true // Skip the id field at index 0
-        );
         try {
-            // First handle field deletions if any
-            if (hasFieldsToDelete) {
-                await DeleteUserInfo(fieldsToDelete);
-                notifications.show({
-                    id: "user-delete-fields-success",
-                    title: "Success",
-                    message: "Selected fields cleared successfully.",
-                    color: "green",
-                    icon: <IconPencilCheck />,
-                });
-            }
+            // Track successful operations for consolidated notification
+            const successfulOperations: string[] = [];
 
             // Filter out fields that were deleted from the update object to avoid conflicts
             const filteredUserInfo: UserUpdate = { ...newUserInfo };
@@ -286,26 +278,14 @@ export function EditUserComponent({
 
             // Then handle regular updates
             let updatedUser = await UpdateUserInfo(filteredUserInfo);
-            notifications.show({
-                id: "user-update-success",
-                title: "Success",
-                message: "User information updated successfully.",
-                color: "green",
-                icon: <IconPencilCheck />,
-            });
+            successfulOperations.push("User information updated");
 
             if (avatarRemoved && currentAvatarUrn) {
                 try {
                     customLogger.debug("Removing avatar...");
                     await RemoveUserAvatar(values.id);
                     customLogger.debug("Avatar removed successfully.");
-                    notifications.show({
-                        id: "avatar-remove-success",
-                        title: "Success",
-                        message: "Avatar removed successfully.",
-                        color: "green",
-                        icon: <IconPencilCheck />,
-                    });
+                    successfulOperations.push("Avatar removed");
                 } catch (error) {
                     if (error instanceof Error) {
                         const detail = error.message || "Failed to remove avatar.";
@@ -327,13 +307,7 @@ export function EditUserComponent({
                     if (updatedUser.avatarUrn) {
                         fetchUserAvatar(updatedUser.avatarUrn);
                         customLogger.debug("Avatar uploaded successfully.");
-                        notifications.show({
-                            id: "avatar-upload-success",
-                            title: "Success",
-                            message: "Avatar uploaded successfully.",
-                            color: "green",
-                            icon: <IconPencilCheck />,
-                        });
+                        successfulOperations.push("Avatar uploaded");
                     }
                 } catch (error) {
                     if (error instanceof Error) {
@@ -354,6 +328,25 @@ export function EditUserComponent({
             if (updatedUser.avatarUrn && updatedUser.avatarUrn.trim() !== "" && !avatarRemoved) {
                 fetchUserAvatar(updatedUser.avatarUrn);
             }
+
+            // Show consolidated success notification
+            if (successfulOperations.length > 0) {
+                const message =
+                    successfulOperations.length === 1
+                        ? `${successfulOperations[0]} successfully.`
+                        : `${successfulOperations.slice(0, -1).join(", ")} and ${
+                              successfulOperations[successfulOperations.length - 1]
+                          } successfully.`;
+
+                notifications.show({
+                    id: "user-update-success",
+                    title: "Success",
+                    message: message,
+                    color: "green",
+                    icon: <IconPencilCheck />,
+                });
+            }
+
             if (onUserUpdate) onUserUpdate(updatedUser);
             setIndex(null);
         } catch (error) {
@@ -382,7 +375,58 @@ export function EditUserComponent({
         }
     };
 
+    const handleResendInvitation = async () => {
+        buttonStateHandler.open();
+        try {
+            // Call the new resend invitation endpoint
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/resend-invite`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: GetAccessTokenHeader(),
+                },
+                body: JSON.stringify({ user_id: user.id }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            await response.json(); // Parse response but don't need to use it
+
+            notifications.show({
+                id: "invitation-resent",
+                title: "Invitation Resent",
+                message: `User invitation has been resent to ${user.email}. The user should check their email for new login credentials.`,
+                color: "blue",
+                icon: <IconMail />,
+            });
+        } catch (error) {
+            if (error instanceof Error) {
+                notifications.show({
+                    id: "invitation-resend-error",
+                    title: "Error",
+                    message: `Failed to resend invitation: ${error.message}`,
+                    color: "red",
+                    icon: <IconSendOff />,
+                });
+            } else {
+                notifications.show({
+                    id: "invitation-resend-error-unknown",
+                    title: "Error",
+                    message: "Failed to resend invitation. Please try again later.",
+                    color: "red",
+                    icon: <IconSendOff />,
+                });
+            }
+        } finally {
+            buttonStateHandler.close();
+        }
+    };
+
     const showRemoveButton = editUserAvatar || (currentAvatarUrn && !avatarRemoved);
+    const shouldShowResendInvitation = user.email && user.email.trim() !== "" && user.lastLoggedInTime === null;
 
     return (
         <Modal opened={index !== null} onClose={() => setIndex(null)} title="Edit User" centered size="auto">
@@ -390,7 +434,7 @@ export function EditUserComponent({
                 <Flex direction="column" gap="md" p="lg" style={{ flex: 1, minWidth: "300px" }}>
                     <Center>
                         <Card shadow="sm" radius="xl" withBorder style={{ position: "relative", cursor: "pointer" }}>
-                            <FileButton onChange={setAvatar} accept="image/png,image/jpeg">
+                            <FileButton key={avatarFileInputKey} onChange={setAvatar} accept="image/png,image/jpeg">
                                 {(props) => (
                                     <motion.div
                                         whileHover={{ scale: 1.05 }}
@@ -437,6 +481,18 @@ export function EditUserComponent({
                     {showRemoveButton && (
                         <Button variant="outline" color="red" mt="md" onClick={removeProfilePicture}>
                             Remove Profile Picture
+                        </Button>
+                    )}
+                    {shouldShowResendInvitation && (
+                        <Button
+                            variant="outline"
+                            color="blue"
+                            mt="md"
+                            onClick={handleResendInvitation}
+                            loading={buttonLoading}
+                            leftSection={<IconMail size={16} />}
+                        >
+                            Resend User Invitation
                         </Button>
                     )}
                     <Table mt="md" verticalSpacing="xs" withRowBorders p="md">

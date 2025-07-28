@@ -5,6 +5,7 @@ import { useLocalStorage } from "@mantine/hooks";
 import { generateColors } from "@mantine/colors-generator";
 import { UserPreferences } from "@/lib/types";
 import { LocalStorage } from "@/lib/info";
+import { isMobileDevice, prefersReducedMotion } from "@/lib/utils/deviceUtils";
 
 interface ThemeContextType {
     userPreferences: UserPreferences;
@@ -31,12 +32,49 @@ export const DynamicThemeProvider = ({ children }: ThemeProviderProps) => {
         defaultValue: {
             accentColor: "#228be6",
             language: "en",
+            mobileOptimizations: undefined, // Will be auto-detected on first load
+            reducedMotion: undefined, // Will be auto-detected on first load
         },
     });
 
     const updatePreference = (key: keyof UserPreferences, value: string | boolean | null) => {
         setUserPreferences((prev) => ({ ...prev, [key]: value }));
     };
+
+    // Auto-detect mobile optimizations and reduced motion preferences on first load only
+    useEffect(() => {
+        const AUTO_DETECT_KEY = `${LocalStorage.userPreferences}_autoDetected`;
+
+        if (typeof window !== "undefined") {
+            // Check if we've already done auto-detection
+            const hasAlreadyDetected = localStorage.getItem(AUTO_DETECT_KEY) === "true";
+
+            if (!hasAlreadyDetected) {
+                let needsUpdate = false;
+                const updates: Partial<UserPreferences> = {};
+
+                // Only auto-detect if not explicitly set by user (undefined means never set)
+                if (userPreferences.mobileOptimizations === undefined) {
+                    const isMobile = isMobileDevice();
+                    updates.mobileOptimizations = isMobile;
+                    needsUpdate = true;
+                }
+
+                if (userPreferences.reducedMotion === undefined) {
+                    const prefersReduced = prefersReducedMotion();
+                    updates.reducedMotion = prefersReduced;
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    setUserPreferences((prev) => ({ ...prev, ...updates }));
+                }
+
+                // Mark that we've done auto-detection
+                localStorage.setItem(AUTO_DETECT_KEY, "true");
+            }
+        }
+    }, [userPreferences, setUserPreferences]); // Include dependencies but use localStorage flag to prevent re-runs
 
     // Update CSS variables when accent color changes
     useEffect(() => {

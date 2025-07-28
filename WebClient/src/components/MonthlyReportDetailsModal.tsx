@@ -573,7 +573,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                         <div style={{ width: "80px", height: "80px" }}>
                             {/* DepEd Logo */}
                             <img
-                                src="/assets/logos/deped.svg"
+                                src="/assets/logos/deped.png"
                                 alt="Deped Logo"
                                 style={{
                                     width: "100%",
@@ -1428,11 +1428,13 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                             </Button>
                         </Group>
                         <Group>
-                            {onDelete && report && ["draft", "review", "rejected"].includes(report.reportStatus || "draft") && (
-                                <Button color="red" variant="outline" onClick={handleDeleteReport}>
-                                    Delete Report
-                                </Button>
-                            )}
+                            {onDelete &&
+                                report &&
+                                ["draft", "review", "rejected"].includes(report.reportStatus || "draft") && (
+                                    <Button color="red" variant="outline" onClick={handleDeleteReport}>
+                                        Delete Report
+                                    </Button>
+                                )}
                             <Button variant="default" onClick={onClose}>
                                 Close
                             </Button>

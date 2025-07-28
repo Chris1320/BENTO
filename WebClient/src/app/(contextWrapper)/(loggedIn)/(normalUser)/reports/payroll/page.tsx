@@ -1263,7 +1263,7 @@ function PayrollPageContent() {
                         <div style={{ width: "80px", height: "80px" }}>
                             {/* DepEd Logo */}
                             <Image
-                                src="/assets/logos/deped.svg"
+                                src="/assets/logos/deped.png"
                                 alt="Deped Logo"
                                 style={{
                                     width: "100%",

@@ -7,9 +7,9 @@ import { theme, defaultColorscheme, notificationLimit, notificationAutoClose } f
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { setRequestLocale } from "next-intl/server";
-import { hasLocale } from 'next-intl';
-import { notFound } from 'next/navigation';
-import { routing } from '@/i18n/routing';
+import { hasLocale } from "next-intl";
+import { notFound } from "next/navigation";
+import { routing } from "@/i18n/routing";
 import type { Metadata, Viewport } from "next";
 
 import "@mantine/core/styles.css";
@@ -74,7 +74,7 @@ interface LocaleLayoutProps {
  */
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
     const { locale } = await params;
-    
+
     // Ensure that the incoming `locale` is valid
     if (!hasLocale(routing.locales, locale)) {
         notFound();

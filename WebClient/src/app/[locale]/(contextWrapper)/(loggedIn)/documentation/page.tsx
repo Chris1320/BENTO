@@ -1,6 +1,6 @@
 "use client";
 
-import classes from "@/app/(contextWrapper)/(loggedIn)/documentation/DocumentationPage.module.css";
+import classes from "./DocumentationPage.module.css";
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import { customLogger } from "@/lib/api/customLogger";
 import { useAuth } from "@/lib/providers/auth";

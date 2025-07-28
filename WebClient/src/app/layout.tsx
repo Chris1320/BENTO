@@ -1,6 +1,6 @@
 // NOTE: react-scan must be the top-most import
 import { ReactScan } from "@/components/dev/ReactScan";
-import { PWAConnectionStatus, PWAUpdateNotification } from "@/components/pwa";
+import { PWAConnectionStatus, PWAUpdateNotification, PWAInstallPrompt, PWADebugInfo } from "@/components/pwa";
 
 import { Program } from "@/lib/info";
 import { theme, defaultColorscheme, notificationLimit, notificationAutoClose } from "@/lib/theme";
@@ -80,6 +80,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 <ReactScan />
                 <MantineProvider theme={theme} defaultColorScheme={defaultColorscheme}>
                     <PWAConnectionStatus />
+                    <PWAInstallPrompt />
                     {children}
                     <Notifications limit={notificationLimit} autoClose={notificationAutoClose} />
                     <PWAUpdateNotification />

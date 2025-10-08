@@ -35,7 +35,7 @@ export default function DocumentationPage() {
                 Introduction
             </Title>
             <Text>
-                Bento is a School Canteen Automated Reporting System for the Department of Education (DepEd) Schools
+                BENTO is a School Canteen Automated Reporting System for the Department of Education (DepEd) Schools
                 Division Office (SDO) of the City of Baliwag in the Philippines.
             </Text>
             <Title order={2} pb={15}>

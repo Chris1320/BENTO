@@ -28,7 +28,7 @@ class AnnouncementRecipients(Enum):
 class Program:
     """General program information."""
 
-    name: Final[str] = "Bento Central Server"
+    name: Final[str] = "BENTO Central Server"
     version: Final[tuple[int, int, int]] = (1, 0, 0)
 
 

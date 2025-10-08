@@ -1,28 +1,28 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
 <div align="center">
-    <a href="https://github.com/Bento-Project-SCARS/ProjectSCARS">
-        <img src="https://raw.githubusercontent.com/Bento-Project-SCARS/ProjectSCARS/3686d8959946b31114ca8e45afde372896ad672f/WebClient/public/assets/logos/BENTO.svg" alt="Bento Logo" width="15%" height="auto" />
+    <a href="https://github.com/BENTO-Project-SCARS/BENTO">
+        <img src="https://raw.githubusercontent.com/BENTO-Project-SCARS/BENTO/3686d8959946b31114ca8e45afde372896ad672f/WebClient/public/assets/logos/BENTO.svg" alt="BENTO Logo" width="15%" height="auto" />
     </a>
     <h1>
-        Bento
-        <a href="https://github.com/Bento-Project-SCARS/ProjectSCARS/tags">
-            <img src="https://img.shields.io/github/v/tag/Bento-Project-SCARS/ProjectSCARS?sort=semver&filter=v*&style=flat&label=&color=0a0a0a" alt="Latest Version" />
+        BENTO
+        <a href="https://github.com/BENTO-Project-SCARS/BENTO/tags">
+            <img src="https://img.shields.io/github/v/tag/BENTO-Project-SCARS/BENTO?sort=semver&filter=v*&style=flat&label=&color=0a0a0a" alt="Latest Version" />
         </a>
     </h1>
-    <a href="https://github.com/Bento-Project-SCARS/ProjectSCARS/commits"><img src="https://img.shields.io/github/last-commit/Bento-Project-SCARS/ProjectSCARS?label=Last%20Commit&style=flat" alt="GitHub Last Commit" /></a>
-    <a href="https://github.com/Bento-Project-SCARS/ProjectSCARS/issues"><img src="https://img.shields.io/github/issues/Bento-Project-SCARS/ProjectSCARS?label=Issues&style=flat" alt="GitHub Issues or Pull Requests" /></a>
-    <a href="https://github.com/Bento-Project-SCARS/ProjectSCARS/actions/workflows/lint.yml"><img src="https://img.shields.io/github/actions/workflow/status/Bento-Project-SCARS/ProjectSCARS/lint.yml?flat&label=Codebase%20Style" alt="Linter Results" /></a>
-    <a href="https://codecov.io/gh/Bento-Project-SCARS/ProjectSCARS"><img src="https://img.shields.io/codecov/c/github/Bento-Project-SCARS/ProjectSCARS?token=BJWS49M1DI&style=flat&label=Code%20Coverage" alt="Code Coverage" /></a>
-    <a href="https://github.com/Bento-Project-SCARS/ProjectSCARS"><img src="https://img.shields.io/github/languages/code-size/Bento-Project-SCARS/ProjectSCARS?label=Repo%20Size&style=flat" alt="GitHub Repository Size" /></a>
-    <a href="https://github.com/Bento-Project-SCARS/ProjectSCARS/milestone/2"><img src="https://img.shields.io/github/milestones/progress-percent/Bento-Project-SCARS/ProjectSCARS/2?style=flat&label=Completed&color=orange" alt="Project Milestone Progress" /></a>
+    <a href="https://github.com/BENTO-Project-SCARS/BENTO/commits"><img src="https://img.shields.io/github/last-commit/BENTO-Project-SCARS/BENTO?label=Last%20Commit&style=flat" alt="GitHub Last Commit" /></a>
+    <a href="https://github.com/BENTO-Project-SCARS/BENTO/issues"><img src="https://img.shields.io/github/issues/BENTO-Project-SCARS/BENTO?label=Issues&style=flat" alt="GitHub Issues or Pull Requests" /></a>
+    <a href="https://github.com/BENTO-Project-SCARS/BENTO/actions/workflows/lint.yml"><img src="https://img.shields.io/github/actions/workflow/status/BENTO-Project-SCARS/BENTO/lint.yml?flat&label=Codebase%20Style" alt="Linter Results" /></a>
+    <a href="https://codecov.io/gh/BENTO-Project-SCARS/BENTO"><img src="https://img.shields.io/codecov/c/github/BENTO-Project-SCARS/BENTO?token=BJWS49M1DI&style=flat&label=Code%20Coverage" alt="Code Coverage" /></a>
+    <a href="https://github.com/BENTO-Project-SCARS/BENTO"><img src="https://img.shields.io/github/languages/code-size/BENTO-Project-SCARS/BENTO?label=Repo%20Size&style=flat" alt="GitHub Repository Size" /></a>
+    <a href="https://github.com/BENTO-Project-SCARS/BENTO/milestone/2"><img src="https://img.shields.io/github/milestones/progress-percent/BENTO-Project-SCARS/BENTO/2?style=flat&label=Completed&color=orange" alt="Project Milestone Progress" /></a>
 </div>
 
-**Bento** is a School Canteen Automated Reporting System for the Department
+**BENTO** is a School Canteen Automated Reporting System for the Department
 of Education (DepEd) Schools Division Office (SDO) of the City of Baliwag in
 the Philippines.
 
-> _Why Bento?_
+> _Why BENTO?_
 >
 > BENTO stands for **B**aliuag's **E**nhanced **N**etwork for School Canteen **T**racking **O**perations.
 >
@@ -31,17 +31,17 @@ the Philippines.
 > > The term bento is derived from the Chinese term biandang, which means
 > > "convenient" or "convenience"."
 > >
-> > \- [Wikipedia](https://en.wikipedia.org/wiki/Bento)
+> > \- [Wikipedia](https://en.wikipedia.org/wiki/BENTO)
 
-| Component      | Open Issues                                                                                                                                                                                                                                                                                                                                | Last Commit                                                                                                                                                                                                                                      | Test Results                                                                                                                                                                                                                                                 | Code Coverage                                                                                                                                                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Central Server | [![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues-raw/Bento-Project-SCARS/ProjectSCARS/scope%20%3E%20central%20server?style=for-the-badge&label=&color=%2300000000)](https://github.com/Bento-Project-SCARS/ProjectSCARS/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22scope%20%3E%20central%20server%22) | [![GitHub last commit](https://img.shields.io/github/last-commit/Bento-Project-SCARS/ProjectSCARS?path=CentralServer&style=for-the-badge&label=&color=%2300000000)](https://github.com/Bento-Project-SCARS/ProjectSCARS/tree/main/CentralServer) | [![Central Server Tests](https://img.shields.io/github/actions/workflow/status/Bento-Project-SCARS/ProjectSCARS/central-server-tests.yml?style=flat&label=)](https://github.com/Bento-Project-SCARS/ProjectSCARS/actions/workflows/central-server-tests.yml) | [![Central Server Code Coverage](https://img.shields.io/codecov/c/github/Bento-Project-SCARS/ProjectSCARS?token=BJWS49M1DI&flag=central-server&label=&style=flat)](https://app.codecov.io/gh/Bento-Project-SCARS/ProjectSCARS/flags) |
-| Web Client     | [![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues-raw/Bento-Project-SCARS/ProjectSCARS/scope%20%3E%20web%20client?style=for-the-badge&label=&color=%2300000000)](https://github.com/Bento-Project-SCARS/ProjectSCARS/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22scope%20%3E%20web%20client%22)         | [![GitHub last commit](https://img.shields.io/github/last-commit/Bento-Project-SCARS/ProjectSCARS?path=WebClient&style=for-the-badge&label=&color=%2300000000)](https://github.com/Bento-Project-SCARS/ProjectSCARS/tree/main/WebClient)         | [![Web Client Tests](https://img.shields.io/github/actions/workflow/status/Bento-Project-SCARS/ProjectSCARS/web-client-tests.yml?style=flat&label=)](https://github.com/Bento-Project-SCARS/ProjectSCARS/actions/workflows/web-client-tests.yml)             | [![Web Client Code Coverage](https://img.shields.io/codecov/c/github/Bento-Project-SCARS/ProjectSCARS?token=BJWS49M1DI&flag=web-client&label=&style=flat)](https://app.codecov.io/gh/Bento-Project-SCARS/ProjectSCARS/flags)         |
+| Component      | Open Issues                                                                                                                                                                                                                                                                                                                  | Last Commit                                                                                                                                                                                                                        | Test Results                                                                                                                                                                                                                                   | Code Coverage                                                                                                                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Central Server | [![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues-raw/BENTO-Project-SCARS/BENTO/scope%20%3E%20central%20server?style=for-the-badge&label=&color=%2300000000)](https://github.com/BENTO-Project-SCARS/BENTO/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22scope%20%3E%20central%20server%22) | [![GitHub last commit](https://img.shields.io/github/last-commit/BENTO-Project-SCARS/BENTO?path=CentralServer&style=for-the-badge&label=&color=%2300000000)](https://github.com/BENTO-Project-SCARS/BENTO/tree/main/CentralServer) | [![Central Server Tests](https://img.shields.io/github/actions/workflow/status/BENTO-Project-SCARS/BENTO/central-server-tests.yml?style=flat&label=)](https://github.com/BENTO-Project-SCARS/BENTO/actions/workflows/central-server-tests.yml) | [![Central Server Code Coverage](https://img.shields.io/codecov/c/github/BENTO-Project-SCARS/BENTO?token=BJWS49M1DI&flag=central-server&label=&style=flat)](https://app.codecov.io/gh/BENTO-Project-SCARS/BENTO/flags) |
+| Web Client     | [![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues-raw/BENTO-Project-SCARS/BENTO/scope%20%3E%20web%20client?style=for-the-badge&label=&color=%2300000000)](https://github.com/BENTO-Project-SCARS/BENTO/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22scope%20%3E%20web%20client%22)         | [![GitHub last commit](https://img.shields.io/github/last-commit/BENTO-Project-SCARS/BENTO?path=WebClient&style=for-the-badge&label=&color=%2300000000)](https://github.com/BENTO-Project-SCARS/BENTO/tree/main/WebClient)         | [![Web Client Tests](https://img.shields.io/github/actions/workflow/status/BENTO-Project-SCARS/BENTO/web-client-tests.yml?style=flat&label=)](https://github.com/BENTO-Project-SCARS/BENTO/actions/workflows/web-client-tests.yml)             | [![Web Client Code Coverage](https://img.shields.io/codecov/c/github/BENTO-Project-SCARS/BENTO?token=BJWS49M1DI&flag=web-client&label=&style=flat)](https://app.codecov.io/gh/BENTO-Project-SCARS/BENTO/flags)         |
 
 <details>
     <summary>Code Coverage Graph</summary>
-    <a href="https://codecov.io/gh/Bento-Project-SCARS/ProjectSCARS">
-        <img src="https://codecov.io/gh/Bento-Project-SCARS/ProjectSCARS/graphs/sunburst.svg?token=BJWS49M1DI" alt="Code Coverage Graph" />
+    <a href="https://codecov.io/gh/BENTO-Project-SCARS/BENTO">
+        <img src="https://codecov.io/gh/BENTO-Project-SCARS/BENTO/graphs/sunburst.svg?token=BJWS49M1DI" alt="Code Coverage Graph" />
     </a>
     <p>
         The inner-most circle is the entire project, moving away from the center
@@ -53,7 +53,7 @@ the Philippines.
 
 ## Documentation
 
-The documentation has been migrated to [the GitHub Wiki](https://github.com/Bento-Project-SCARS/ProjectSCARS/wiki).
+The documentation has been migrated to [the GitHub Wiki](https://github.com/BENTO-Project-SCARS/BENTO/wiki).
 
 ## Authors
 

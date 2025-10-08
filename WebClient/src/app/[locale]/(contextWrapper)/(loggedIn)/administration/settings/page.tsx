@@ -352,7 +352,7 @@ export default function SettingsPage() {
                         <Text
                             size="sm"
                             component="a"
-                            href="https://github.com/Bento-Project-SCARS/ProjectSCARS"
+                            href="https://github.com/BENTO-Project-SCARS/BENTO"
                             target="_blank"
                         >
                             View on GitHub

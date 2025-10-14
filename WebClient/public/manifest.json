@@ -1,7 +1,7 @@
 {
-    "name": "BENTO - Baliwag Enhanced Network for Tracking Operations",
+    "name": "BENTO - Baliwag Education Network for Tracking Canteen Operations",
     "short_name": "BENTO",
-    "description": "Baliwag Enhanced Network for Tracking Operations",
+    "description": "Baliwag Education Network for Tracking Canteen Operations",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",

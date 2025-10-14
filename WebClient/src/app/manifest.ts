@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
     return {
         name: "BENTO",
         short_name: "BENTO",
-        description: "Baliwag Enhanced Network for Tracking Operations",
+        description: "Baliwag Education Network for Tracking Canteen Operations",
         start_url: "/",
         display: "standalone",
         background_color: "#ffffff",

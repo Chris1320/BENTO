@@ -10,12 +10,12 @@ the Philippines.
 [![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues-raw/BENTO-Project-SCARS/BENTO/scope%20%3E%20central%20server?style=flat&label=Open%20Issues)](https://github.com/BENTO-Project-SCARS/BENTO/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22scope%20%3E%20central%20server%22)
 [![Central Server Tests](https://img.shields.io/github/actions/workflow/status/BENTO-Project-SCARS/BENTO/central-server-tests.yml?style=flat&label=Central%20Server%20Tests)](https://github.com/BENTO-Project-SCARS/BENTO/actions/workflows/central-server-tests.yml)
 [![Linter Results](https://img.shields.io/github/actions/workflow/status/BENTO-Project-SCARS/BENTO/lint.yml?flat&label=Codebase%20Style)](https://github.com/BENTO-Project-SCARS/BENTO/actions/workflows/lint.yml)
-[![Central Server Code Coverage](https://img.shields.io/codecov/c/github/BENTO-Project-SCARS/BENTO?token=BJWS49M1DI&flag=central-server&label=Code%20Coverage&style=flat)](https://app.codecov.io/gh/BENTO-Project-SCARS/BENTO/flags)
+[![Central Server Code Coverage](https://img.shields.io/codecov/c/github/BENTO-Project-SCARS/BENTO?token=vO9G5hZmUr&flag=central-server&label=Code%20Coverage&style=flat)](https://app.codecov.io/gh/BENTO-Project-SCARS/BENTO/flags)
 
 <details>
     <summary>Code Coverage Graph</summary>
     <a href="https://codecov.io/gh/BENTO-Project-SCARS/BENTO">
-        <img src="https://codecov.io/gh/BENTO-Project-SCARS/BENTO/graphs/sunburst.svg?token=BJWS49M1DI" alt="Code Coverage Graph" />
+        <img src="https://codecov.io/gh/BENTO-Project-SCARS/BENTO/graphs/sunburst.svg?token=vO9G5hZmUr" alt="Code Coverage Graph" />
     </a>
     <p>
         The inner-most circle is the entire project, moving away from the center

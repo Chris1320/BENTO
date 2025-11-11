@@ -43,6 +43,13 @@ async def get_llm_model():
     """Get the LLM model configured for the application."""
 
     try:
+        # Check if AI is enabled
+        if not app_config.ai.enabled:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI features are disabled",
+            )
+
         gemini_api_key = app_config.ai.gemini_api_key
         if not gemini_api_key:
             raise HTTPException(
@@ -502,6 +509,14 @@ async def get_ai_status() -> Dict[str, Any]:
     """Get AI service status."""
 
     try:
+        # Check if AI is enabled
+        if not app_config.ai.enabled:
+            return {
+                "status": "disabled",
+                "message": "AI features are disabled in configuration",
+                "features": {"insights": False, "chat": False},
+            }
+
         # Check if Gemini API key is configured
         gemini_api_key = app_config.ai.gemini_api_key
         if not gemini_api_key:

@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import BackgroundTasks, HTTPException, UploadFile, status
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
@@ -29,6 +29,57 @@ from centralserver.internals.models.user import (
 from centralserver.internals.notification_handler import push_notification
 from centralserver.internals.permissions import DEFAULT_ROLES
 from centralserver.internals.school_handler import clear_assigned_noted_by_for_user
+from centralserver.internals.websocket_manager import websocket_manager
+
+
+# Helper function for background notifications that creates its own session
+async def send_welcome_notification(user_id: str, user_name: str):
+    """Send welcome notification to a user with a new database session."""
+    try:
+        # Import here to avoid circular import
+        from centralserver.internals.db_handler import get_db_session
+
+        # Create a new session for this background task
+        with next(get_db_session()) as session:
+            await push_notification(
+                owner_id=user_id,
+                title="Please add an email address",
+                content=f"Welcome to {user_name}! Please add an email address to your account to receive important notifications.",
+                important=True,
+                notification_type=NotificationType.MAIL,
+                session=session,
+            )
+    except Exception as e:
+        logger.error("Failed to send welcome notification to user %s: %s", user_id, e)
+
+
+async def send_email_update_notification(user_id: str):
+    """Send email update notification to a user with a new database session."""
+    try:
+        # Import here to avoid circular import
+        from centralserver.internals.db_handler import get_db_session
+
+        # Create a new session for this background task
+        with next(get_db_session()) as session:
+            await push_notification(
+                owner_id=user_id,
+                title="Email address updated",
+                content="Your email address has been updated. Please verify it to receive notifications.",
+                important=True,
+                notification_type=NotificationType.MAIL,
+                session=session,
+            )
+    except Exception as e:
+        logger.error(
+            "Failed to send email update notification to user %s: %s", user_id, e
+        )
+
+
+# Import for WebSocket notifications (avoid circular import by importing here)
+def get_websocket_manager():
+    """Get the WebSocket manager instance to avoid circular imports."""
+    return websocket_manager
+
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -79,14 +130,20 @@ async def validate_password(password: str) -> tuple[bool, str | None]:
 async def create_user(
     new_user: UserCreate,
     session: Session,
+    background_tasks: BackgroundTasks,
     commit: bool = True,
+    send_notification: bool = True,
+    email_verified: bool = False,
 ) -> User:
     """Create a new user in the database.
 
     Args:
         new_user: The new user's information.
         session: The database session to use.
+        background_tasks: The background tasks to use for sending notifications.
         commit: Whether to commit the changes to the database.
+        send_notification: Whether to send a notification to the user.
+        email_verified: Whether the email should be marked as verified (for invited users).
 
     Returns:
         A new user object.
@@ -128,23 +185,57 @@ async def create_user(
         username=new_user.username,
         password=crypt_ctx.hash(new_user.password),
         roleId=new_user.roleId,
+        email=new_user.email,
+        nameFirst=new_user.nameFirst,
+        nameMiddle=new_user.nameMiddle,
+        nameLast=new_user.nameLast,
+        position=new_user.position,
+        schoolId=new_user.schoolId,
+        emailVerified=email_verified
+        or new_user.email is None,  # Auto-verify if explicitly set or if no email
     )
     session.add(user)
     if commit:
         session.commit()
 
     session.refresh(user)
-
-    await push_notification(
-        owner_id=user.id,
-        title="Please add an email address",
-        content=f"Welcome to {Program.name}! Please add an email address to your account to receive important notifications.",
-        important=True,
-        notification_type=NotificationType.MAIL,
-        session=session,
-    )
+    # Only send notification about missing email if email is not provided and send_notification is True
+    # Don't send notifications for users that have email pre-filled (they can verify it separately)
+    if send_notification and not user.email:
+        # Create a separate task for notification without passing the session
+        # to avoid connection pool exhaustion
+        background_tasks.add_task(
+            send_welcome_notification,
+            user_id=user.id,
+            user_name=Program.name,
+        )
 
     logger.info("User `%s` created.", new_user.username)
+
+    # Send WebSocket notification about new user creation in a separate task
+    if commit:  # Only send notification if we're committing the transaction
+
+        async def send_websocket_notification():
+            try:
+                await websocket_manager.broadcast_to_all(
+                    {
+                        "type": "user_management",
+                        "management_type": "user_created",
+                        "user_id": str(user.id),
+                        "data": {"user": UserPublic.model_validate(user).model_dump()},
+                        "timestamp": int(datetime.datetime.now().timestamp()),
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to send WebSocket notification for user creation: %s", e
+                )
+
+        # Use asyncio to run the WebSocket notification without blocking
+        import asyncio
+
+        asyncio.create_task(send_websocket_notification())
+
     return user
 
 
@@ -200,6 +291,29 @@ async def update_user_avatar(
 
     session.commit()
     session.refresh(selected_user)
+
+    # Send WebSocket notification for avatar update in a separate task
+    async def send_websocket_notification():
+        try:
+            wm = get_websocket_manager()
+            await wm.send_user_update(
+                user_id=selected_user.id,
+                update_type="avatar_updated",
+                data={
+                    "avatarUrn": selected_user.avatarUrn,
+                    "lastModified": selected_user.lastModified.isoformat(),
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for avatar update: %s", e
+            )
+
+    # Use asyncio to run the WebSocket notification without blocking
+    import asyncio
+
+    asyncio.create_task(send_websocket_notification())
+
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
 
@@ -234,18 +348,35 @@ async def update_user_signature(
             logger.warning("No e-signature to delete for user: %s", target_user)
             raise ValueError("No e-signature to delete.")
 
-        await object_store_manager.delete(
-            BucketNames.ESIGNATURES, selected_user.signatureUrn
-        )
+        try:
+            await object_store_manager.delete(
+                BucketNames.ESIGNATURES, selected_user.signatureUrn
+            )
+
+        except Exception as e:
+            logger.error(
+                "Failed to delete e-signature for user %s: %s (ignored)",
+                target_user,
+                str(e),
+            )
+
         selected_user.signatureUrn = None
 
     else:
         processed_img = await validate_and_process_signature(await img.read())
         if selected_user.signatureUrn is not None:
             logger.debug("Deleting old e-signature for user: %s", target_user)
-            await object_store_manager.delete(
-                BucketNames.ESIGNATURES, selected_user.signatureUrn
-            )
+            try:
+                await object_store_manager.delete(
+                    BucketNames.ESIGNATURES, selected_user.signatureUrn
+                )
+
+            except Exception as e:
+                logger.error(
+                    "Failed to delete old e-signature for user %s: %s (ignored)",
+                    target_user,
+                    str(e),
+                )
 
         logger.debug("Updating e-signature for user: %s", target_user)
         bucket_object = await object_store_manager.put(
@@ -258,6 +389,29 @@ async def update_user_signature(
 
     session.commit()
     session.refresh(selected_user)
+
+    # Send WebSocket notification for signature update in a separate task
+    async def send_websocket_notification():
+        try:
+            wm = get_websocket_manager()
+            await wm.send_user_update(
+                user_id=selected_user.id,
+                update_type="signature_updated",
+                data={
+                    "signatureUrn": selected_user.signatureUrn,
+                    "lastModified": selected_user.lastModified.isoformat(),
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for signature update: %s", e
+            )
+
+    # Use asyncio to run the WebSocket notification without blocking
+    import asyncio
+
+    asyncio.create_task(send_websocket_notification())
+
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
 
@@ -274,6 +428,7 @@ async def update_user_info(
     """
 
     email_changed = False
+    user_was_deactivated = False
     selected_user = session.get(User, target_user.id)
 
     if not selected_user:  # Check if user exists
@@ -645,7 +800,11 @@ async def update_user_info(
             )
 
         logger.debug("Updating deactivated status for user: %s", target_user.id)
+        old_deactivated_status = selected_user.deactivated
         selected_user.deactivated = target_user.deactivated
+
+        # Check if user was just deactivated (changed from False/None to True)
+        user_was_deactivated = (not old_deactivated_status) and target_user.deactivated
 
     if (  # Update onboarding status if provided
         target_user.finishedTutorials is not None
@@ -689,6 +848,51 @@ async def update_user_info(
     session.commit()
     session.refresh(selected_user)
 
+    # Send WebSocket notification for general user update
+    if not user_was_deactivated:  # Don't send if deactivation notification will be sent
+        try:
+            await websocket_manager.broadcast_to_all(
+                {
+                    "type": "user_management",
+                    "management_type": "user_updated",
+                    "user_id": str(selected_user.id),
+                    "data": {
+                        "user": UserPublic.model_validate(selected_user).model_dump()
+                    },
+                    "timestamp": int(datetime.datetime.now().timestamp()),
+                }
+            )
+            logger.info(
+                "Sent WebSocket user update notification for user: %s", selected_user.id
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for user update: %s", e
+            )
+
+    # Send WebSocket notification for user deactivation (must be sent before profile update)
+    if user_was_deactivated:
+        try:
+            await websocket_manager.broadcast_to_all(
+                {
+                    "type": "user_management",
+                    "management_type": "user_deactivated",
+                    "user_id": str(selected_user.id),
+                    "data": {
+                        "user": UserPublic.model_validate(selected_user).model_dump()
+                    },
+                    "timestamp": int(datetime.datetime.now().timestamp()),
+                }
+            )
+            logger.info(
+                "Sent WebSocket deactivation notification for user: %s",
+                selected_user.id,
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to send WebSocket notification for user deactivation: %s", e
+            )
+
     # Send notification if user was updated by someone else
     # if not updating_self:
     #     await push_notification(
@@ -701,14 +905,36 @@ async def update_user_info(
     #     )
 
     if email_changed:
-        await push_notification(
-            owner_id=selected_user.id,
-            title="Email address updated",
-            content="Your email address has been updated. Please verify it to receive notifications.",
-            important=True,
-            notification_type=NotificationType.MAIL,
-            session=session,
+        # Use a background task to avoid session sharing issues
+        try:
+            await send_email_update_notification(selected_user.id)
+        except Exception as e:
+            logger.warning("Failed to send email update notification: %s", e)
+
+    # Send WebSocket notification for profile update
+    try:
+        wm = get_websocket_manager()
+        await wm.send_user_update(
+            user_id=selected_user.id,
+            update_type="profile_updated",
+            data={
+                "username": selected_user.username,
+                "nameFirst": selected_user.nameFirst,
+                "nameMiddle": selected_user.nameMiddle,
+                "nameLast": selected_user.nameLast,
+                "email": selected_user.email,
+                "position": selected_user.position,
+                "schoolId": selected_user.schoolId,
+                "roleId": selected_user.roleId,
+                "lastModified": selected_user.lastModified.isoformat(),
+                "emailChanged": email_changed,
+            },
         )
+    except Exception as e:
+        logger.warning(
+            "Failed to send WebSocket notification for profile update: %s", e
+        )
+
     logger.info("User info for `%s` updated.", selected_user.username)
     return UserPublic.model_validate(selected_user)
 

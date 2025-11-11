@@ -8,7 +8,7 @@ updates:
     - package-ecosystem: "uv" # See documentation for possible values
       directory: "/CentralServer" # Location of package manifests
       schedule:
-          interval: "daily"
+          interval: "weekly"
       open-pull-requests-limit: 10
       labels:
           - "tag > bot"
@@ -17,7 +17,7 @@ updates:
     - package-ecosystem: "npm" # See documentation for possible values
       directory: "/WebClient" # Location of package manifests
       schedule:
-          interval: "daily"
+          interval: "weekly"
       open-pull-requests-limit: 10
       groups:
           mantine:

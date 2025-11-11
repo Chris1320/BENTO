@@ -3,6 +3,7 @@
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
+import { parseAPIError } from "@/lib/utils/errorParser";
 import {
     Anchor,
     Button,
@@ -65,11 +66,8 @@ export function MainLoginComponent(): React.ReactElement {
     const [showMFAInput, setShowMFAInput] = useState(false);
     const [showOTPRecoveryInput, setShowOTPRecoveryInput] = useState(false);
     const [mfaNonce, setMFANonce] = useState<string | null>(null);
-    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
+    const [oauthSupport, setOAuthSupport] = useState<{ google: boolean }>({
         google: false,
-        // TODO: OAuth adapters below are not implemented yet.
-        microsoft: false,
-        facebook: false,
     });
     const form = useForm<LoginFormValues>({
         mode: "uncontrolled",
@@ -85,6 +83,7 @@ export function MainLoginComponent(): React.ReactElement {
     });
     const [otpFormHasError, setOtpFormHasError] = useState(false);
     const [otpRecoveryFormHasError, setOtpRecoveryFormHasError] = useState(false);
+    const [oauthLoading, setOauthLoading] = useState(false);
 
     /**
      * Handles the login process for the user.
@@ -229,11 +228,14 @@ export function MainLoginComponent(): React.ReactElement {
             });
             router.push("/dashboard");
         } catch (error) {
+            const parsedError = parseAPIError(error, "login", "Login Failed");
+
+            // Check if this is an MFA-related error by examining the original error
             if (error instanceof Error && error.message.includes("status code 401")) {
                 if (showMFAInput || values.otpCode) {
                     notifications.show({
                         id: "otp-validation-failed",
-                        title: "OTP Validation failed",
+                        title: "OTP Validation Failed",
                         message: "Please check your OTP code and try again.",
                         color: "red",
                         icon: <IconX />,
@@ -242,28 +244,22 @@ export function MainLoginComponent(): React.ReactElement {
                 } else {
                     notifications.show({
                         id: "login-failed",
-                        title: "Login failed",
-                        message: "Please check your username and password.",
+                        title: parsedError.title,
+                        message: parsedError.message,
                         color: "red",
                         icon: <IconX />,
+                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                     });
                 }
-            } else if (error instanceof Error && error.message.includes("status code 429")) {
-                notifications.show({
-                    id: "login-too-many-attempts",
-                    title: "Login failed",
-                    message: "Too many attempts, please try again later.",
-                    color: "red",
-                    icon: <IconX />,
-                });
             } else {
-                customLogger.error("Error logging in:", error);
+                // Use the parsed error for all other cases
                 notifications.show({
                     id: "login-error",
-                    title: "Login failed",
-                    message: `${error}`,
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconX />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
             }
             buttonStateHandler.close();
@@ -278,43 +274,51 @@ export function MainLoginComponent(): React.ReactElement {
                 customLogger.debug("OAuth support response:", result);
                 if (result.error) {
                     customLogger.error("OAuth support error:", result.error);
+                    const parsedError = parseAPIError(result.error, "oauth_config", "OAuth Configuration Error");
                     notifications.show({
                         id: "oauth-support-error",
-                        title: "OAuth Support Error",
-                        message: "Could not retrieve OAuth support information from the server.",
+                        title: parsedError.title,
+                        message: parsedError.message,
                         color: "yellow",
                         icon: <IconX />,
+                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                     });
                     return;
                 }
 
                 if (result.data) {
-                    const response = result.data as { google: boolean; microsoft: boolean; facebook: boolean };
+                    const response = result.data as { google: boolean };
                     setOAuthSupport({
                         google: response.google,
-                        microsoft: response.microsoft,
-                        facebook: response.facebook,
                     });
                     customLogger.info("OAuth support updated", response);
                 } else {
                     customLogger.warn("No OAuth support information received from server.");
+                    const parsedError = parseAPIError(
+                        new Error("No OAuth data received"),
+                        "oauth_config",
+                        "OAuth Configuration Error"
+                    );
                     notifications.show({
                         id: "oauth-support-error",
-                        title: "OAuth Support Error",
-                        message: "Could not retrieve OAuth support information from the server.",
+                        title: parsedError.title,
+                        message: parsedError.message,
                         color: "yellow",
                         icon: <IconX />,
+                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                     });
                 }
             })
             .catch((error) => {
                 customLogger.error("Error fetching OAuth support:", error);
+                const parsedError = parseAPIError(error, "oauth_config", "OAuth Configuration Error");
                 notifications.show({
                     id: "oauth-support-fetch-error",
-                    title: "OAuth Support Fetch Error",
-                    message: "Failed to fetch OAuth support information.",
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconX />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
             });
     }, []);
@@ -371,6 +375,7 @@ export function MainLoginComponent(): React.ReactElement {
                         fullWidth
                         mt="xl"
                         loading={buttonLoading}
+                        disabled={oauthLoading}
                         rightSection={<IconLogin />}
                         component={motion.button}
                         transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
@@ -382,11 +387,13 @@ export function MainLoginComponent(): React.ReactElement {
                     >
                         Sign in
                     </Button>
-                    <Divider my="lg" label="Or continue with" labelPosition="center" />
+                    <Divider my="lg" label="or" labelPosition="center" />
                     <Group justify="center" mt="md">
                         <Button
                             variant="light"
-                            disabled={!oauthSupport.google}
+                            fullWidth
+                            disabled={!oauthSupport.google || buttonLoading}
+                            loading={oauthLoading}
                             component={motion.button}
                             transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
                             whileHover={{ scale: 1.05 }}
@@ -396,21 +403,128 @@ export function MainLoginComponent(): React.ReactElement {
                             dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
                             onClick={async (e: React.MouseEvent) => {
                                 e.preventDefault();
+                                setOauthLoading(true);
                                 try {
                                     const response = await fetch(
                                         `${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/oauth/google/login`
                                     );
-                                    const data = await response.json();
-                                    if (data.url) {
-                                        window.location.href = data.url;
+
+                                    if (!response.ok) {
+                                        throw new Error(
+                                            `Failed to get OAuth URL: ${response.status} ${response.statusText}`
+                                        );
                                     }
+
+                                    const data = await response.json();
+                                    if (!data.url) {
+                                        throw new Error("No OAuth authorization URL received");
+                                    }
+
+                                    // Open OAuth in popup window
+                                    const width = 500;
+                                    const height = 600;
+                                    const left = window.screen.width / 2 - width / 2;
+                                    const top = window.screen.height / 2 - height / 2;
+
+                                    const popup = window.open(
+                                        data.url,
+                                        "google_oauth_login",
+                                        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+                                    );
+
+                                    if (!popup) {
+                                        throw new Error(
+                                            "Failed to open popup window. Please allow popups for this site."
+                                        );
+                                    }
+
+                                    // Listen for popup to close (login completed)
+                                    const checkClosed = setInterval(() => {
+                                        if (popup.closed) {
+                                            clearInterval(checkClosed);
+                                            clearTimeout(timeoutId);
+                                            window.removeEventListener("message", messageListener);
+                                            setOauthLoading(false);
+                                            // Check if login was successful by checking for tokens
+                                            window.location.reload();
+                                        }
+                                    }, 1000);
+
+                                    // Listen for messages from the popup
+                                    const messageListener = (event: MessageEvent) => {
+                                        // Verify origin for security
+                                        if (event.origin !== window.location.origin) {
+                                            return;
+                                        }
+
+                                        if (event.data.type === "OAUTH_SUCCESS") {
+                                            clearInterval(checkClosed);
+                                            clearTimeout(timeoutId);
+                                            popup.close();
+                                            window.removeEventListener("message", messageListener);
+                                            setOauthLoading(false);
+
+                                            // Check if we're already authenticated and redirect accordingly
+                                            if (authCtx.isAuthenticated) {
+                                                router.push("/dashboard");
+                                            } else {
+                                                // Reload to pick up new authentication state
+                                                window.location.reload();
+                                            }
+                                        } else if (event.data.type === "OAUTH_ERROR") {
+                                            clearInterval(checkClosed);
+                                            clearTimeout(timeoutId);
+                                            popup.close();
+                                            window.removeEventListener("message", messageListener);
+                                            setOauthLoading(false);
+                                            const parsedError = parseAPIError(
+                                                new Error(event.data.error || "OAuth login failed"),
+                                                "oauth",
+                                                "Google Sign-in Failed"
+                                            );
+                                            notifications.show({
+                                                title: parsedError.title,
+                                                message: parsedError.message,
+                                                color: "red",
+                                                icon: <IconX />,
+                                                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
+                                            });
+                                        }
+                                    };
+
+                                    window.addEventListener("message", messageListener);
+
+                                    // Timeout after 5 minutes
+                                    const timeoutId = setTimeout(() => {
+                                        clearInterval(checkClosed);
+                                        window.removeEventListener("message", messageListener);
+                                        setOauthLoading(false);
+                                        if (popup && !popup.closed) {
+                                            popup.close();
+                                        }
+                                        const parsedError = parseAPIError(
+                                            new Error("OAuth login timeout"),
+                                            "oauth",
+                                            "Google Sign-in Timeout"
+                                        );
+                                        notifications.show({
+                                            title: parsedError.title,
+                                            message: parsedError.message,
+                                            color: "yellow",
+                                            icon: <IconX />,
+                                            autoClose: parsedError.isUserFriendly ? 5000 : 10000,
+                                        });
+                                    }, 5 * 60 * 1000);
                                 } catch (error) {
-                                    customLogger.error("Error starting OAuth:", error);
+                                    setOauthLoading(false);
+                                    customLogger.error("Error starting Google OAuth login:", error);
+                                    const parsedError = parseAPIError(error, "oauth", "Google Sign-in Error");
                                     notifications.show({
-                                        title: "Login failed",
-                                        message: "Failed to start Google login process.",
+                                        title: parsedError.title,
+                                        message: parsedError.message,
                                         color: "red",
                                         icon: <IconX />,
+                                        autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                                     });
                                 }
                             }}
@@ -428,65 +542,10 @@ export function MainLoginComponent(): React.ReactElement {
                                         : { pointerEvents: "none" }
                                 }
                             />
+                            <Text ml={10} size="sm" style={{ pointerEvents: "none" }}>
+                                Sign in with Google
+                            </Text>
                         </Button>
-                        {/* TODO: Not implemented yet */}
-                        <Button
-                            variant="light"
-                            disabled={!oauthSupport.microsoft}
-                            component={motion.button}
-                            transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            drag
-                            dragElastic={0.1}
-                            dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
-                            onClick={async (e: React.MouseEvent) => {
-                                e.preventDefault();
-                            }}
-                        >
-                            <Image
-                                src="/assets/logos/microsoft.svg"
-                                alt="Log In with Microsoft"
-                                height={20}
-                                width="auto"
-                                radius="sm"
-                                fit="contain"
-                                style={
-                                    !oauthSupport.microsoft
-                                        ? { filter: "grayscale(100%)", pointerEvents: "none" }
-                                        : { pointerEvents: "none" }
-                                }
-                            />
-                        </Button>
-                        {/* TODO: Not implemented yet */}
-                        {/* <Button
-                            variant="light"
-                            disabled={!oauthSupport.facebook}
-                            component={motion.button}
-                            transition={{ type: "spring", stiffness: 500, damping: 30, mass: 1 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            drag
-                            dragElastic={0.1}
-                            dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
-                            onClick={async (e: React.MouseEvent) => {
-                                e.preventDefault();
-                            }}
-                        >
-                            <Image
-                                src="/assets/logos/facebook.svg"
-                                alt="Log In with Facebook"
-                                height={20}
-                                width="auto"
-                                radius="sm"
-                                fit="contain"
-                                style={
-                                    !oauthSupport.facebook
-                                        ? { filter: "grayscale(100%)", pointerEvents: "none" }
-                                        : { pointerEvents: "none" }
-                                }
-                            />
-                        </Button> */}
                     </Group>
                 </form>
             </Paper>

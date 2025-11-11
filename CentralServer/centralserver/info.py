@@ -28,8 +28,8 @@ class AnnouncementRecipients(Enum):
 class Program:
     """General program information."""
 
-    name: Final[str] = "Bento Central Server"
-    version: Final[tuple[int, int, int]] = (0, 7, 0)
+    name: Final[str] = "BENTO Central Server"
+    version: Final[tuple[int, int, int]] = (1, 0, 0)
 
 
 class Database:

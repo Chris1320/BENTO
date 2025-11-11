@@ -2,7 +2,8 @@
 
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import { requestPasswordRecoveryV1AuthEmailRecoveryRequestPost } from "@/lib/api/csclient";
-import { Button, Container, Paper, Text, TextInput } from "@mantine/core";
+import { parseAPIError } from "@/lib/utils/errorParser";
+import { Anchor, Button, Container, Paper, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -46,24 +47,32 @@ export function ForgotPasswordComponent(): React.ReactElement {
 
         // make sure the user has entered both username and email.
         if (!values.username || !values.email) {
+            const parsedError = parseAPIError(
+                new Error("Username and email required"),
+                "password_recovery",
+                "Missing Information"
+            );
             notifications.show({
                 id: "forgot-password-error",
-                title: "Account recovery failed",
-                message: "Please enter both username and email.",
+                title: parsedError.title,
+                message: parsedError.message,
                 color: "red",
                 icon: <IconX />,
+                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
             });
             buttonStateHandler.close();
             return;
         }
 
         if (!values.email.includes("@")) {
+            const parsedError = parseAPIError(new Error("Invalid email format"), "password_recovery", "Invalid Email");
             notifications.show({
                 id: "forgot-password-invalid-email",
-                title: "Account recovery failed",
-                message: "Please enter a valid email address.",
+                title: parsedError.title,
+                message: parsedError.message,
                 color: "red",
                 icon: <IconX />,
+                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
             });
             buttonStateHandler.close();
             return;
@@ -118,34 +127,32 @@ export function ForgotPasswordComponent(): React.ReactElement {
                 });
                 buttonStateHandler.close();
             } else {
+                const parsedError = parseAPIError(
+                    new Error(response?.message || "Unknown recovery error"),
+                    "password_recovery",
+                    "Password Recovery Failed"
+                );
                 notifications.show({
                     id: "forgot-password-error",
-                    title: "Account recovery failed",
-                    message: "An error occurred while sending the recovery email. Please try again.",
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconX />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
                 buttonStateHandler.close();
             }
         } catch (error) {
             customLogger.error("Unexpected error sending recovery email:", error);
-            if (error instanceof Error) {
-                notifications.show({
-                    id: "forgot-password-error",
-                    title: "Account recovery failed",
-                    message: `An error occurred: ${error.message}`,
-                    color: "red",
-                    icon: <IconX />,
-                });
-            } else {
-                notifications.show({
-                    id: "forgot-password-error",
-                    title: "Account recovery failed",
-                    message: "An error occurred while sending the recovery email. Please try again.",
-                    color: "red",
-                    icon: <IconX />,
-                });
-            }
+            const parsedError = parseAPIError(error, "password_recovery", "Password Recovery Failed");
+            notifications.show({
+                id: "forgot-password-error",
+                title: parsedError.title,
+                message: parsedError.message,
+                color: "red",
+                icon: <IconX />,
+                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
+            });
             buttonStateHandler.close();
         }
     };
@@ -191,6 +198,9 @@ export function ForgotPasswordComponent(): React.ReactElement {
                                 If you have forgotten your password, enter your username and email address to receive a
                                 recovery link.
                             </Text>
+                            <Anchor size="xs" mt="md" c="dimmed" onClick={() => router.back()}>
+                                Go back to previous page
+                            </Anchor>
                         </form>
                     </Paper>
                 </Container>

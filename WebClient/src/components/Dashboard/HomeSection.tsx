@@ -53,6 +53,7 @@ const StatCard = memo(
         subtitle,
         color = "blue",
         loading = false,
+        isFirefox = false,
     }: {
         icon: typeof IconFileText;
         title: string;
@@ -60,6 +61,7 @@ const StatCard = memo(
         subtitle?: string;
         color?: string;
         loading?: boolean;
+        isFirefox?: boolean;
     }) => (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -80,7 +82,10 @@ const StatCard = memo(
                         <Text size="xs" tt="uppercase" fw={700} c="dimmed">
                             {title}
                         </Text>
-                        <Text size="xl" fw={700}>
+                        <Text size="xl" fw={700} hiddenFrom="sm" style={{ display: isFirefox ? "none" : undefined }}>
+                            {loading ? <Skeleton height={24} width="60%" /> : value}
+                        </Text>
+                        <Text size="xl" fw={700} visibleFrom="sm" style={{ display: isFirefox ? "block" : undefined }}>
                             {loading ? <Skeleton height={28} width="60%" /> : value}
                         </Text>
                         {subtitle && (
@@ -97,61 +102,88 @@ const StatCard = memo(
 
 StatCard.displayName = "StatCard";
 
-const CalendarCard = memo(({ salesEntryDates, loading = false }: { salesEntryDates: string[]; loading?: boolean }) => {
-    const getDayProps = useCallback(
-        (date: string) => {
-            const hasEntry = salesEntryDates.includes(date);
-            const isToday = dayjs(date).isSame(dayjs(), "day");
+const CalendarCard = memo(
+    ({
+        salesEntryDates,
+        loading = false,
+        isFirefox = false,
+    }: {
+        salesEntryDates: string[];
+        loading?: boolean;
+        isFirefox?: boolean;
+    }) => {
+        const getDayProps = useCallback(
+            (date: string) => {
+                const hasEntry = salesEntryDates.includes(date);
+                const isToday = dayjs(date).isSame(dayjs(), "day");
 
-            return {
-                style: {
-                    backgroundColor: hasEntry
-                        ? isToday
-                            ? "var(--mantine-color-green-6)"
-                            : "var(--mantine-color-green-5)"
-                        : undefined,
-                    color: hasEntry ? "white" : undefined,
-                    fontWeight: hasEntry ? 700 : undefined,
-                },
-            };
-        },
-        [salesEntryDates]
-    );
+                return {
+                    style: {
+                        backgroundColor: hasEntry
+                            ? isToday
+                                ? "var(--mantine-color-green-6)"
+                                : "var(--mantine-color-green-5)"
+                            : undefined,
+                        color: hasEntry ? "white" : undefined,
+                        fontWeight: hasEntry ? 700 : undefined,
+                    },
+                };
+            },
+            [salesEntryDates]
+        );
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            drag
-            dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
-            dragElastic={0.05}
-            dragSnapToOrigin
-        >
-            <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
-                <Stack gap="md" align="center">
-                    <Group gap="sm">
-                        <IconCalendarStats size={24} color="var(--mantine-color-teal-6)" />
-                        <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                            Daily Sales Reports
-                        </Text>
-                    </Group>
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                drag
+                dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
+                dragElastic={0.05}
+                dragSnapToOrigin
+            >
+                <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
+                    <Stack gap="md" align="center">
+                        <Group gap="sm">
+                            <IconCalendarStats size={24} color="var(--mantine-color-teal-6)" />
+                            <Text size="xs" tt="uppercase" fw={700} c="dimmed" ta="center">
+                                Daily Sales Reports
+                            </Text>
+                        </Group>
 
-                    <Box pos="relative">
-                        <LoadingOverlay visible={loading} />
-                        <Calendar
-                            getDayProps={getDayProps}
-                            size="sm"
-                            firstDayOfWeek={1}
-                            hideOutsideDates
-                            highlightToday
-                        />
-                    </Box>
-                </Stack>
-            </Card>
-        </motion.div>
-    );
-});
+                        <Box pos="relative" w="100%">
+                            <LoadingOverlay visible={loading} />
+                            {/* Desktop Calendar */}
+                            <Group
+                                justify="center"
+                                visibleFrom="sm"
+                                style={{ display: isFirefox ? "flex" : undefined }}
+                            >
+                                <Calendar
+                                    getDayProps={getDayProps}
+                                    size="sm"
+                                    firstDayOfWeek={1}
+                                    hideOutsideDates
+                                    highlightToday
+                                />
+                            </Group>
+                            {/* Mobile Calendar */}
+                            <Group justify="center" hiddenFrom="sm" style={{ display: isFirefox ? "none" : undefined }}>
+                                <Calendar
+                                    getDayProps={getDayProps}
+                                    size="xs"
+                                    firstDayOfWeek={1}
+                                    hideOutsideDates
+                                    highlightToday
+                                />
+                            </Group>
+                        </Box>
+                    </Stack>
+                </Card>
+            </motion.div>
+        );
+    }
+);
 
 CalendarCard.displayName = "CalendarCard";
 
@@ -167,6 +199,16 @@ export const HomeSection = memo(() => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [chatModalOpened, setChatModalOpened] = useState(false);
+    const [isFirefox, setIsFirefox] = useState(false);
+
+    // Detect Firefox browser
+    useEffect(() => {
+        const detectFirefox = () => {
+            const userAgent = navigator.userAgent.toLowerCase();
+            return userAgent.includes("firefox");
+        };
+        setIsFirefox(detectFirefox());
+    }, []);
 
     // AI Insights hook
     const {
@@ -297,10 +339,16 @@ export const HomeSection = memo(() => {
     const netIncome = stats.currentMonthSales - stats.currentMonthExpenses;
 
     return !error ? (
-        <Container size="xl" mt={50}>
+        <Container size="xl" mt={{ base: 20, md: 50 }}>
             {/* Header */}
-            <Group justify="space-between" align="flex-start" mb="xl">
-                <Stack gap="xl">
+            <Stack gap="xl" mb="xl">
+                {/* Desktop Header */}
+                <Group
+                    justify="space-between"
+                    align="flex-start"
+                    visibleFrom="sm"
+                    style={{ display: isFirefox ? "flex" : undefined }}
+                >
                     <div>
                         <Group gap="sm" mb="xs">
                             <IconSchool size={28} color="var(--mantine-color-blue-6)" />
@@ -312,24 +360,53 @@ export const HomeSection = memo(() => {
                             </Text>
                         )}
                     </div>
+                    {userInfo?.schoolId && (
+                        <Button
+                            variant="light"
+                            color="blue"
+                            leftSection={<IconBrain size={16} />}
+                            onClick={() => setChatModalOpened(true)}
+                            disabled={!aiAvailable}
+                        >
+                            AI Chat
+                        </Button>
+                    )}
+                </Group>
+
+                {/* Mobile Header */}
+                <Stack gap="sm" hiddenFrom="sm" style={{ display: isFirefox ? "none" : undefined }}>
+                    <Group gap="sm" justify="center">
+                        <IconSchool size={24} color="var(--mantine-color-blue-6)" />
+                        <Title order={3} ta="center">
+                            Canteen Finance Overview
+                        </Title>
+                    </Group>
+                    {stats.schoolName && (
+                        <Text size="md" c="dimmed" ta="center">
+                            {stats.schoolName} • {dayjs().format("MMM YYYY")}
+                        </Text>
+                    )}
+                    {userInfo?.schoolId && (
+                        <Group justify="center">
+                            <Button
+                                variant="light"
+                                color="blue"
+                                leftSection={<IconBrain size={16} />}
+                                onClick={() => setChatModalOpened(true)}
+                                disabled={!aiAvailable}
+                                size="sm"
+                            >
+                                AI Chat
+                            </Button>
+                        </Group>
+                    )}
                 </Stack>
-                {!aiAvailable && (
-                    <Button
-                        variant="light"
-                        color="blue"
-                        leftSection={<IconBrain size={16} />}
-                        onClick={() => setChatModalOpened(true)}
-                        disabled={!aiAvailable}
-                    >
-                        AI Chat
-                    </Button>
-                )}
-            </Group>
+            </Stack>
 
             {/* Bento Grid */}
-            <Grid gutter="lg">
+            <Grid gutter={{ base: "sm", md: "lg" }}>
                 {/* Row 1: Stats Cards */}
-                <Grid.Col span={{ base: 12, md: 3 }}>
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                     <StatCard
                         icon={IconFileText}
                         title="Total Reports"
@@ -337,9 +414,10 @@ export const HomeSection = memo(() => {
                         subtitle="Monthly reports submitted"
                         color="blue"
                         loading={loading}
+                        isFirefox={isFirefox}
                     />
                 </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 3 }}>
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                     <StatCard
                         icon={IconFileCheck}
                         title="Draft Reports"
@@ -347,9 +425,10 @@ export const HomeSection = memo(() => {
                         subtitle="Pending submissions"
                         color="orange"
                         loading={loading}
+                        isFirefox={isFirefox}
                     />
                 </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 3 }}>
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                     <StatCard
                         icon={IconCoin}
                         title="This Month Sales"
@@ -357,9 +436,10 @@ export const HomeSection = memo(() => {
                         subtitle="Total revenue"
                         color="green"
                         loading={loading}
+                        isFirefox={isFirefox}
                     />
                 </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 3 }}>
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                     <StatCard
                         icon={IconTrendingUp}
                         title="Net Income"
@@ -367,16 +447,17 @@ export const HomeSection = memo(() => {
                         subtitle="Sales minus expenses"
                         color={netIncome >= 0 ? "green" : "red"}
                         loading={loading}
+                        isFirefox={isFirefox}
                     />
                 </Grid.Col>
 
-                {/* Row 2: Calendar */}
-                <Grid.Col span={{ base: 12, lg: 6 }}>
-                    <CalendarCard salesEntryDates={stats.salesEntryDates} loading={loading} />
+                {/* Row 2: Calendar and Overview */}
+                <Grid.Col span={{ base: 12, lg: 6 }} order={{ base: 2, lg: 1 }}>
+                    <CalendarCard salesEntryDates={stats.salesEntryDates} loading={loading} isFirefox={isFirefox} />
                 </Grid.Col>
 
                 {/* Row 2: Quick Actions */}
-                <Grid.Col span={{ base: 12, lg: 6 }}>
+                <Grid.Col span={{ base: 12, lg: 6 }} order={{ base: 1, lg: 2 }}>
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -428,68 +509,146 @@ export const HomeSection = memo(() => {
                                     </Group>
 
                                     {!loading && netIncome !== 0 && (
-                                        <Group justify="space-between" align="flex-start" mt="md">
-                                            <Stack align="center" gap="xs">
-                                                <RingProgress
-                                                    size={120}
-                                                    thickness={12}
-                                                    sections={[
-                                                        {
-                                                            value:
-                                                                stats.currentMonthSales > 0
-                                                                    ? (Math.abs(netIncome) / stats.currentMonthSales) *
-                                                                      100
-                                                                    : 0,
-                                                            color: netIncome >= 0 ? "green" : "red",
-                                                        },
-                                                    ]}
-                                                    label={
-                                                        <Text ta="center" fw={700} size="sm">
-                                                            {stats.currentMonthSales > 0
-                                                                ? `${(
-                                                                      (Math.abs(netIncome) / stats.currentMonthSales) *
-                                                                      100
-                                                                  ).toFixed(1)}%`
-                                                                : "0%"}
+                                        <Stack gap="md" mt="md">
+                                            {/* Desktop Layout */}
+                                            <Group
+                                                justify="space-between"
+                                                align="flex-start"
+                                                visibleFrom="md"
+                                                style={{ display: isFirefox ? "flex" : undefined }}
+                                            >
+                                                <Stack align="center" gap="xs">
+                                                    <RingProgress
+                                                        size={120}
+                                                        thickness={12}
+                                                        sections={[
+                                                            {
+                                                                value:
+                                                                    stats.currentMonthSales > 0
+                                                                        ? (Math.abs(netIncome) /
+                                                                              stats.currentMonthSales) *
+                                                                          100
+                                                                        : 0,
+                                                                color: netIncome >= 0 ? "green" : "red",
+                                                            },
+                                                        ]}
+                                                        label={
+                                                            <Text ta="center" fw={700} size="sm">
+                                                                {stats.currentMonthSales > 0
+                                                                    ? `${(
+                                                                          (Math.abs(netIncome) /
+                                                                              stats.currentMonthSales) *
+                                                                          100
+                                                                      ).toFixed(1)}%`
+                                                                    : "0%"}
+                                                            </Text>
+                                                        }
+                                                    />
+                                                    <Text size="xs" c="dimmed" ta="center">
+                                                        {netIncome >= 0 ? "Profit margin" : "Loss margin"}
+                                                    </Text>
+                                                </Stack>
+                                                <Box style={{ flex: 1 }} ml="md">
+                                                    {aiAvailable ? (
+                                                        <>
+                                                            {aiLoading ? (
+                                                                <Group gap="sm">
+                                                                    <Loader size="sm" />
+                                                                    <Text size="sm" c="dimmed">
+                                                                        Generating AI insights...
+                                                                    </Text>
+                                                                </Group>
+                                                            ) : aiError ? (
+                                                                <Text size="sm" c="red">
+                                                                    Unable to generate AI insights: {aiError}
+                                                                </Text>
+                                                            ) : aiInsights ? (
+                                                                <Text size="sm">{aiInsights.insights}</Text>
+                                                            ) : (
+                                                                <Text size="sm" c="dimmed">
+                                                                    No insights available
+                                                                </Text>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <Text size="sm" c="dimmed">
+                                                            AI insights are not available. Please configure the Gemini
+                                                            API key.
                                                         </Text>
-                                                    }
-                                                />
-                                                <Text size="xs" c="dimmed" ta="center">
-                                                    {netIncome >= 0
-                                                        ? "Profit margin"
-                                                        : "Loss margin (expenses exceed sales)"}
-                                                </Text>
-                                            </Stack>
-                                            <Box style={{ flex: 1 }} ml="md">
+                                                    )}
+                                                </Box>
+                                            </Group>
+
+                                            {/* Mobile Layout */}
+                                            <Stack
+                                                gap="md"
+                                                hiddenFrom="md"
+                                                style={{ display: isFirefox ? "none" : undefined }}
+                                            >
+                                                <Group justify="center">
+                                                    <Stack align="center" gap="xs">
+                                                        <RingProgress
+                                                            size={100}
+                                                            thickness={10}
+                                                            sections={[
+                                                                {
+                                                                    value:
+                                                                        stats.currentMonthSales > 0
+                                                                            ? (Math.abs(netIncome) /
+                                                                                  stats.currentMonthSales) *
+                                                                              100
+                                                                            : 0,
+                                                                    color: netIncome >= 0 ? "green" : "red",
+                                                                },
+                                                            ]}
+                                                            label={
+                                                                <Text ta="center" fw={700} size="xs">
+                                                                    {stats.currentMonthSales > 0
+                                                                        ? `${(
+                                                                              (Math.abs(netIncome) /
+                                                                                  stats.currentMonthSales) *
+                                                                              100
+                                                                          ).toFixed(1)}%`
+                                                                        : "0%"}
+                                                                </Text>
+                                                            }
+                                                        />
+                                                        <Text size="xs" c="dimmed" ta="center">
+                                                            {netIncome >= 0 ? "Profit margin" : "Loss margin"}
+                                                        </Text>
+                                                    </Stack>
+                                                </Group>
                                                 {aiAvailable ? (
                                                     <>
                                                         {aiLoading ? (
-                                                            <Group gap="sm">
+                                                            <Group gap="sm" justify="center">
                                                                 <Loader size="sm" />
                                                                 <Text size="sm" c="dimmed">
                                                                     Generating AI insights...
                                                                 </Text>
                                                             </Group>
                                                         ) : aiError ? (
-                                                            <Text size="sm" c="red">
+                                                            <Text size="sm" c="red" ta="center">
                                                                 Unable to generate AI insights: {aiError}
                                                             </Text>
                                                         ) : aiInsights ? (
-                                                            <Text size="sm">{aiInsights.insights}</Text>
+                                                            <Text size="sm" ta="center">
+                                                                {aiInsights.insights}
+                                                            </Text>
                                                         ) : (
-                                                            <Text size="sm" c="dimmed">
+                                                            <Text size="sm" c="dimmed" ta="center">
                                                                 No insights available
                                                             </Text>
                                                         )}
                                                     </>
                                                 ) : (
-                                                    <Text size="sm" c="dimmed">
+                                                    <Text size="sm" c="dimmed" ta="center">
                                                         AI insights are not available. Please configure the Gemini API
                                                         key.
                                                     </Text>
                                                 )}
-                                            </Box>
-                                        </Group>
+                                            </Stack>
+                                        </Stack>
                                     )}
                                 </Stack>
                             </Stack>

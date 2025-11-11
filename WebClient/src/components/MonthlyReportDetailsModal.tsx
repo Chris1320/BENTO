@@ -1,20 +1,23 @@
 "use client";
 
 import {
-    MonthlyReport,
-    ReportStatus,
+    getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet,
     getLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryGet,
     getSchoolDailyReportV1ReportsDailySchoolIdYearMonthGet,
-    getSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthGet,
-    getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet,
-    LiquidationReportResponse,
     getSchoolEndpointV1SchoolsGet,
     getSchoolLogoEndpointV1SchoolsLogoGet,
+    getSchoolPayrollReportEntriesV1ReportsPayrollSchoolIdYearMonthEntriesGet,
+    getSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthGet,
+    LiquidationReportResponse,
+    MonthlyReport,
+    ReportStatus,
     School,
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
+import { useUser } from "@/lib/providers/user";
 import { formatUTCDateOnlyLocalized } from "@/lib/utils/date";
 import { ActionIcon, Alert, Badge, Button, Group, Image, Modal, Stack, Table, Text, Title } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconAlertCircle, IconCalendar, IconCash, IconExternalLink, IconReceipt, IconUsers } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
@@ -22,7 +25,6 @@ import { jsPDF } from "jspdf";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { notifications } from "@mantine/notifications";
 
 interface LiquidationReportData {
     reportStatus?: string;
@@ -77,6 +79,7 @@ const liquidationCategories = [
 
 export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }: MonthlyReportDetailsModalProps) {
     const router = useRouter();
+    const userCtx = useUser();
     const [linkedReports, setLinkedReports] = useState<LinkedReport[]>([]);
     const [loading, setLoading] = useState(false);
     const [financialData, setFinancialData] = useState<FinancialData | null>(null);
@@ -143,7 +146,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "daily",
                     status: dailyReport?.reportStatus || "not-created",
                     icon: IconCash,
-                    route: `/reports/sales`,
+                    route: `/reports/sales?year=${year}&month=${month}`,
                 });
             } catch (error) {
                 customLogger.warn("Daily report not found or error fetching:", error);
@@ -154,7 +157,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "daily",
                     status: "not-created",
                     icon: IconCash,
-                    route: `/reports/sales`,
+                    route: `/reports/sales?year=${year}&month=${month}`,
                 });
             }
 
@@ -174,7 +177,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "payroll",
                     status: payrollReport?.reportStatus || "not-created",
                     icon: IconUsers,
-                    route: `/reports/payroll`,
+                    route: `/reports/payroll?year=${year}&month=${month}`,
                 });
             } catch (error) {
                 customLogger.warn("Payroll report not found or error fetching:", error);
@@ -185,7 +188,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "payroll",
                     status: "not-created",
                     icon: IconUsers,
-                    route: `/reports/payroll`,
+                    route: `/reports/payroll?year=${year}&month=${month}`,
                 });
             }
 
@@ -214,7 +217,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                             category: category.key,
                             status: reportStatus,
                             icon: IconReceipt,
-                            route: `/reports/liquidation-report?category=${category.key}`,
+                            route: `/reports/liquidation-report?category=${category.key}&year=${year}&month=${month}`,
                         });
                     } else {
                         // API succeeded but returned empty/null data - report doesn't exist
@@ -225,7 +228,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                             category: category.key,
                             status: "not-created",
                             icon: IconReceipt,
-                            route: `/reports/liquidation-report?category=${category.key}`,
+                            route: `/reports/liquidation-report?category=${category.key}&year=${year}&month=${month}`,
                         });
                     }
                 } catch (error) {
@@ -238,7 +241,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                         category: category.key,
                         status: "not-created",
                         icon: IconReceipt,
-                        route: `/reports/liquidation-report?category=${category.key}`,
+                        route: `/reports/liquidation-report?category=${category.key}&year=${year}&month=${month}`,
                     });
                 }
             }
@@ -304,22 +307,68 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                 }
             }
 
+            // Fetch payroll entries for administrative expenses
+            let payrollTotal = 0;
+            try {
+                const { data: payrollEntries } =
+                    await getSchoolPayrollReportEntriesV1ReportsPayrollSchoolIdYearMonthEntriesGet({
+                        path: {
+                            school_id: report.submittedBySchool,
+                            year,
+                            month,
+                        },
+                    });
+
+                // Debug logging to see the payroll entries structure
+                console.log("Payroll entries data:", payrollEntries);
+
+                // Calculate total from payroll entries
+                if (payrollEntries && Array.isArray(payrollEntries)) {
+                    payrollTotal = payrollEntries.reduce((total, entry) => {
+                        // Sum all days of the week for each entry
+                        const entryTotal =
+                            (entry.sun || 0) +
+                            (entry.mon || 0) +
+                            (entry.tue || 0) +
+                            (entry.wed || 0) +
+                            (entry.thu || 0) +
+                            (entry.fri || 0) +
+                            (entry.sat || 0);
+                        return total + entryTotal;
+                    }, 0);
+                    console.log("Calculated payroll total from entries:", payrollTotal);
+                } else {
+                    console.log("No payroll entries found");
+                }
+
+                console.log("Final payroll total:", payrollTotal);
+            } catch (error) {
+                customLogger.warn("Failed to fetch payroll entries:", error);
+            }
+
             // Calculate financial data
             const netSales = typeof dailySummary?.total_sales === "number" ? dailySummary.total_sales : 0;
             const costOfSales = typeof dailySummary?.total_purchases === "number" ? dailySummary.total_purchases : 0;
             const grossProfit = netSales - costOfSales;
 
             const operatingExpenses = liquidationReports.operating_expenses?.totalAmount || 0;
-            const administrativeExpenses = liquidationReports.administrative_expenses?.totalAmount || 0;
+            const liquidationAdminExpenses = liquidationReports.administrative_expenses?.totalAmount || 0;
+            const administrativeExpenses = liquidationAdminExpenses + payrollTotal;
+
+            // Debug logging
+            console.log("Liquidation admin expenses:", liquidationAdminExpenses);
+            console.log("Payroll total:", payrollTotal);
+            console.log("Total administrative expenses:", administrativeExpenses);
+
             const netIncomeFromOperations = grossProfit - operatingExpenses - administrativeExpenses;
 
             // Calculate utilization breakdown
             const utilizationBreakdown = {
                 supplementaryFeeding: {
-                    percentage: 30,
+                    percentage: 35,
                     actual: liquidationReports.supplementary_feeding_fund?.totalAmount || 0,
                     balance:
-                        netIncomeFromOperations * 0.3 -
+                        netIncomeFromOperations * 0.35 -
                         (liquidationReports.supplementary_feeding_fund?.totalAmount || 0),
                 },
                 clinicFund: {
@@ -345,9 +394,9 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                         netIncomeFromOperations * 0.25 - (liquidationReports.school_operations_fund?.totalAmount || 0),
                 },
                 revolvingCapital: {
-                    percentage: 15,
+                    percentage: 10,
                     actual: liquidationReports.revolving_fund?.totalAmount || 0,
-                    balance: netIncomeFromOperations * 0.15 - (liquidationReports.revolving_fund?.totalAmount || 0),
+                    balance: netIncomeFromOperations * 0.1 - (liquidationReports.revolving_fund?.totalAmount || 0),
                 },
             };
 
@@ -424,7 +473,17 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
     }, [opened, report, logoUrl]);
 
     const handleOpenReport = (reportRoute: string) => {
-        router.push(reportRoute);
+        // Check if user is admin/superintendent and append schoolId parameter
+        const userRoleId = userCtx.userInfo?.roleId;
+        const isAdminOrSuperintendent = userRoleId === 2 || userRoleId === 3;
+
+        if (isAdminOrSuperintendent && report?.submittedBySchool) {
+            const separator = reportRoute.includes("?") ? "&" : "?";
+            const routeWithSchoolId = `${reportRoute}${separator}schoolId=${report.submittedBySchool}`;
+            router.push(routeWithSchoolId);
+        } else {
+            router.push(reportRoute);
+        }
         onClose();
     };
 
@@ -514,7 +573,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                         <div style={{ width: "80px", height: "80px" }}>
                             {/* DepEd Logo */}
                             <img
-                                src="/assets/logos/deped.svg"
+                                src="/assets/logos/deped.png"
                                 alt="Deped Logo"
                                 style={{
                                     width: "100%",
@@ -806,7 +865,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
 
                 // Convert to canvas
                 const canvas = await html2canvas(tempDiv, {
-                    background: "#ffffff",
+                    backgroundColor: "#ffffff",
                     useCORS: true,
                     logging: false,
                     allowTaint: false,
@@ -1040,7 +1099,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                                     </Table.Td>
                                     <Table.Td>
                                         <Text size="sm" c="dimmed">
-                                            30%
+                                            35%
                                         </Text>
                                     </Table.Td>
                                     <Table.Td>
@@ -1192,7 +1251,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                                     </Table.Td>
                                     <Table.Td>
                                         <Text size="sm" c="dimmed">
-                                            15%
+                                            10%
                                         </Text>
                                     </Table.Td>
                                     <Table.Td>
@@ -1369,11 +1428,13 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                             </Button>
                         </Group>
                         <Group>
-                            {onDelete && (
-                                <Button color="red" variant="outline" onClick={handleDeleteReport}>
-                                    Delete Report
-                                </Button>
-                            )}
+                            {onDelete &&
+                                report &&
+                                ["draft", "review", "rejected"].includes(report.reportStatus || "draft") && (
+                                    <Button color="red" variant="outline" onClick={handleDeleteReport}>
+                                        Delete Report
+                                    </Button>
+                                )}
                             <Button variant="default" onClick={onClose}>
                                 Close
                             </Button>

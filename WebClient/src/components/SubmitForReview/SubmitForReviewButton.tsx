@@ -4,7 +4,7 @@ import { Button } from "@mantine/core";
 import { IconSend } from "@tabler/icons-react";
 import { useState } from "react";
 import { useUser } from "@/lib/providers/user";
-import { SubmitForReviewModal } from "./SubmitForReviewModal";
+import { SubmitForReviewModal } from "../SplitButton/SubmitForReviewModal";
 
 interface SubmitForReviewButtonProps {
     reportType: "daily" | "payroll" | "liquidation" | "monthly";
@@ -26,7 +26,7 @@ export function SubmitForReviewButton({
     reportPeriod,
     onSuccess,
     disabled = false,
-    variant = "light",
+    variant = "filled",
     size = "sm",
     className = "",
 }: SubmitForReviewButtonProps) {

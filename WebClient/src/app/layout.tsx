@@ -1,11 +1,8 @@
-// NOTE: react-scan must be the top-most import
-import { ReactScan } from "@/components/dev/ReactScan";
-
-import { Program } from "@/lib/info";
-import { theme, defaultColorscheme, notificationLimit, notificationAutoClose } from "@/lib/theme";
+import { routing } from "@/i18n/routing";
+import { theme, defaultColorscheme } from "@/lib/theme";
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
-import { Notifications } from "@mantine/notifications";
-import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
 
 import "@mantine/core/styles.css";
 import "@mantine/charts/styles.css";
@@ -13,35 +10,35 @@ import "@mantine/dropzone/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/spotlight/styles.css";
 
-// Set page metadata
-export const metadata: Metadata = {
-    title: `${Program.name} | ${Program.description}`,
-    description: Program.description,
-};
-
-interface RootLayoutProps {
+interface LocaleLayoutProps {
     children: React.ReactNode;
+    params: Promise<{ locale: string }>;
+}
+
+export function generateStaticParams() {
+    return routing.locales.map((locale) => ({ locale }));
 }
 
 /**
- * RootLayout component serves as the main layout for the application.
- * @param {RootLayoutProps} props - The properties for the RootLayout component.
- * @return {JSX.Element} The rendered RootLayout component.
+ * LocaleLayout component handles locale-specific layout with i18n support.
+ * This layout wraps the existing layout to provide internationalization.
  */
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
+    // Note: locale is available from params but getMessages() automatically
+    // uses the current locale from the request context
+    await params; // Ensure params is awaited even though we don't use the destructured value
+
+    // Providing all messages to the client side is the easiest way to get started
+    const messages = await getMessages();
+
     return (
-        // Use mantineHtmlProps to handle the data-mantine-color-scheme attribute
-        // and suppress hydration warnings for the <html> element.
         <html lang="en" {...mantineHtmlProps}>
             <head>
-                <script suppressHydrationWarning />
                 <ColorSchemeScript />
             </head>
             <body>
-                <ReactScan />
                 <MantineProvider theme={theme} defaultColorScheme={defaultColorscheme}>
-                    {children}
-                    <Notifications limit={notificationLimit} autoClose={notificationAutoClose} />
+                    <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
                 </MantineProvider>
             </body>
         </html>

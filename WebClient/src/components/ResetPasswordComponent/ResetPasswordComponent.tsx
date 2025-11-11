@@ -3,7 +3,8 @@
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import { resetPasswordV1AuthEmailRecoveryResetPost } from "@/lib/api/csclient";
-import { Button, Container, Paper, PasswordInput, Progress, Text, TextInput } from "@mantine/core";
+import { parseAPIError } from "@/lib/utils/errorParser";
+import { Anchor, Button, Container, Paper, PasswordInput, Progress, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -52,24 +53,32 @@ function ResetPasswordContent(): React.ReactElement {
         customLogger.debug("Resetting password");
         buttonStateHandler.open();
         if (!values.new_password) {
+            const parsedError = parseAPIError(new Error("Password required"), "password_reset", "Password Required");
             notifications.show({
                 id: "reset-password-error",
-                title: "Password reset failed",
-                message: "Please enter a new password.",
+                title: parsedError.title,
+                message: parsedError.message,
                 color: "red",
                 icon: <IconX />,
+                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
             });
             buttonStateHandler.close();
             return;
         }
 
         if (!token) {
+            const parsedError = parseAPIError(
+                new Error("No reset token provided"),
+                "password_reset",
+                "Invalid Reset Link"
+            );
             notifications.show({
                 id: "reset-password-no-token",
-                title: "Password reset failed",
-                message: "No token provided. Please check the link you clicked.",
+                title: parsedError.title,
+                message: parsedError.message,
                 color: "red",
                 icon: <IconX />,
+                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
             });
             buttonStateHandler.close();
             return;
@@ -85,12 +94,14 @@ function ResetPasswordContent(): React.ReactElement {
 
             if (result.error) {
                 customLogger.error(`${result.response.status} ${result.response.statusText}`);
+                const parsedError = parseAPIError(result.error, "password_reset", "Password Reset Failed");
                 notifications.show({
                     id: "reset-password-failure",
-                    title: "Password reset failed",
-                    message: `Failed to reset password`,
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconX />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
                 buttonStateHandler.close();
                 return;
@@ -98,12 +109,18 @@ function ResetPasswordContent(): React.ReactElement {
 
             const response = result.data;
             if (response == null || response.message !== "Password reset successful.") {
+                const parsedError = parseAPIError(
+                    new Error(response?.message || "Unknown password reset error"),
+                    "password_reset",
+                    "Password Reset Failed"
+                );
                 notifications.show({
                     id: "reset-password-failure",
-                    title: "Password reset failed",
-                    message: response.message,
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconX />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
                 buttonStateHandler.close();
                 return;
@@ -122,24 +139,15 @@ function ResetPasswordContent(): React.ReactElement {
                 }, 5000);
             }
         } catch (error) {
-            if (error instanceof Error && error.message.includes("status code 400")) {
-                notifications.show({
-                    id: "reset-password-invalid-token",
-                    title: "Password reset failed",
-                    message: error.message,
-                    color: "red",
-                    icon: <IconX />,
-                });
-            } else {
-                customLogger.error("Error resetting password:", error);
-                notifications.show({
-                    id: "reset-password-error",
-                    title: "Password reset failed",
-                    message: `An error occurred while resetting your password: ${error}`,
-                    color: "red",
-                    icon: <IconX />,
-                });
-            }
+            const parsedError = parseAPIError(error, "password_reset", "Password Reset Failed");
+            notifications.show({
+                id: "reset-password-error",
+                title: parsedError.title,
+                message: parsedError.message,
+                color: "red",
+                icon: <IconX />,
+                autoClose: parsedError.isUserFriendly ? 5000 : 10000,
+            });
             buttonStateHandler.close();
             return;
         }
@@ -212,6 +220,9 @@ function ResetPasswordContent(): React.ReactElement {
                                 Enter your new password and click &quot;Reset Password&quot; to update your account
                                 information.
                             </Text>
+                            <Anchor size="xs" mt="md" c="dimmed" onClick={() => router.back()}>
+                                Go back to previous page
+                            </Anchor>
                         </form>
                     </Paper>
                 </Container>

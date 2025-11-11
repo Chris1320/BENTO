@@ -1416,6 +1416,30 @@ export type UserCreate = {
      * Password
      */
     password: string;
+    /**
+     * Email
+     */
+    email?: string | null;
+    /**
+     * Namefirst
+     */
+    nameFirst?: string | null;
+    /**
+     * Namemiddle
+     */
+    nameMiddle?: string | null;
+    /**
+     * Namelast
+     */
+    nameLast?: string | null;
+    /**
+     * Position
+     */
+    position?: string | null;
+    /**
+     * Schoolid
+     */
+    schoolId?: number | null;
 };
 
 /**
@@ -1587,14 +1611,6 @@ export type UserPublic = {
      * Oauthlinkedgoogleid
      */
     oauthLinkedGoogleId: string | null;
-    /**
-     * Oauthlinkedmicrosoftid
-     */
-    oauthLinkedMicrosoftId: string | null;
-    /**
-     * Oauthlinkedfacebookid
-     */
-    oauthLinkedFacebookId: string | null;
     /**
      * Forceupdateinfo
      */
@@ -1919,6 +1935,39 @@ export type ResetPasswordV1AuthEmailRecoveryResetPostResponses = {
 
 export type ResetPasswordV1AuthEmailRecoveryResetPostResponse = ResetPasswordV1AuthEmailRecoveryResetPostResponses[keyof ResetPasswordV1AuthEmailRecoveryResetPostResponses];
 
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    url: '/v1/auth/email/request/admin';
+};
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostError = RequestVerificationEmailAdminV1AuthEmailRequestAdminPostErrors[keyof RequestVerificationEmailAdminV1AuthEmailRequestAdminPostErrors];
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponses = {
+    /**
+     * Response Request Verification Email Admin V1 Auth Email Request Admin Post
+     * Successful Response
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponse = RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponses[keyof RequestVerificationEmailAdminV1AuthEmailRequestAdminPostResponses];
+
 export type GoogleOauthLoginV1AuthOauthGoogleLoginGetData = {
     body?: never;
     path?: never;
@@ -1927,6 +1976,20 @@ export type GoogleOauthLoginV1AuthOauthGoogleLoginGetData = {
 };
 
 export type GoogleOauthLoginV1AuthOauthGoogleLoginGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GoogleOauthLoginLinkV1AuthOauthGoogleLoginLinkGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/oauth/google/login/link';
+};
+
+export type GoogleOauthLoginLinkV1AuthOauthGoogleLoginLinkGetResponses = {
     /**
      * Successful Response
      */
@@ -1969,6 +2032,10 @@ export type OauthLinkGoogleV1AuthOauthGoogleLinkGetData = {
          * Code
          */
         code: string;
+        /**
+         * Redirect Uri
+         */
+        redirect_uri?: string | null;
     };
     url: '/v1/auth/oauth/google/link';
 };
@@ -2012,62 +2079,6 @@ export type OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponses = {
 };
 
 export type OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponse = OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponses[keyof OauthUnlinkGoogleV1AuthOauthGoogleUnlinkGetResponses];
-
-export type MicrosoftOauthLoginV1AuthOauthMicrosoftLoginGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/microsoft/login';
-};
-
-export type MicrosoftOauthLoginV1AuthOauthMicrosoftLoginGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type MicrosoftOauthCallbackV1AuthOauthMicrosoftCallbackGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/microsoft/callback';
-};
-
-export type MicrosoftOauthCallbackV1AuthOauthMicrosoftCallbackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type FacebookOauthLoginV1AuthOauthFacebookLoginGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/facebook/login';
-};
-
-export type FacebookOauthLoginV1AuthOauthFacebookLoginGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type FacebookOauthCallbackV1AuthOauthFacebookCallbackGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/oauth/facebook/callback';
-};
-
-export type FacebookOauthCallbackV1AuthOauthFacebookCallbackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
 
 export type GenerateMfaOtpV1AuthMfaOtpGeneratePostData = {
     body?: never;

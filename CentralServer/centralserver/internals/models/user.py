@@ -143,16 +143,6 @@ class User(SQLModel, table=True):
         unique=True,
         description="The Google ID linked to the user's OAuth account.",
     )
-    oauthLinkedMicrosoftId: str | None = Field(
-        default=None,
-        unique=True,
-        description="The Microsoft ID linked to the user's OAuth account.",
-    )
-    oauthLinkedFacebookId: str | None = Field(
-        default=None,
-        unique=True,
-        description="The Facebook ID linked to the user's OAuth account.",
-    )
 
     dateCreated: datetime.datetime = Field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc),
@@ -196,8 +186,6 @@ class UserPublic(SQLModel):
     finishedTutorials: str
     otpVerified: bool
     oauthLinkedGoogleId: str | None
-    oauthLinkedMicrosoftId: str | None
-    oauthLinkedFacebookId: str | None
     forceUpdateInfo: bool
     emailVerified: bool
     dateCreated: datetime.datetime
@@ -259,6 +247,12 @@ class UserCreate(SQLModel):
     username: str
     roleId: int
     password: str
+    email: EmailStr | None = None
+    nameFirst: str | None = None
+    nameMiddle: str | None = None
+    nameLast: str | None = None
+    position: str | None = None
+    schoolId: int | None = None
 
 
 class UserInvite(SQLModel):

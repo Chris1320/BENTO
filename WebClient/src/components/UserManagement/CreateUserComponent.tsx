@@ -1,21 +1,21 @@
 "use client";
 
-import { Role, School, UserPublic, UserUpdate, createNewUserV1AuthCreatePost } from "@/lib/api/csclient";
+import { Role, School, UserPublic, createNewUserV1AuthCreatePost } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
+import { parseAPIError } from "@/lib/utils/errorParser";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { Button, Modal, PasswordInput, Select, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconUserCheck, IconUserExclamation } from "@tabler/icons-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 
 interface CreateUserComponentProps {
     modalOpen: boolean;
     setModalOpen: (open: boolean) => void;
     availableSchools: School[];
     availableRoles: Role[];
-    UpdateUserInfo: (userInfo: UserUpdate) => Promise<UserPublic>;
     onUserCreate?: (newUser: UserPublic) => void;
 }
 
@@ -24,7 +24,6 @@ export function CreateUserComponent({
     setModalOpen,
     availableSchools,
     availableRoles,
-    UpdateUserInfo,
     onUserCreate,
 }: CreateUserComponentProps) {
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
@@ -68,10 +67,35 @@ export function CreateUserComponent({
         [availableRoles]
     );
 
+    // Clear school assignment when role changes to an incompatible one
+    useEffect(() => {
+        if (form.values.role && form.values.assignedSchool) {
+            const roleId = Number(form.values.role);
+            if (roleId !== 4 && roleId !== 5) {
+                form.setFieldValue("assignedSchool", null);
+            }
+        }
+    }, [form.values.role, form.values.assignedSchool, form]);
+
     // Memoize handler functions
     const handleCreateUser = useCallback(
         async (values: typeof form.values) => {
             buttonStateHandler.open();
+
+            // Check if user with this role can be assigned to a school
+            if (values.assignedSchool && values.role && Number(values.role) !== 4 && Number(values.role) !== 5) {
+                notifications.show({
+                    id: "invalid-role-school-assignment",
+                    title: "Invalid Role for School Assignment",
+                    message:
+                        "Only principals and canteen managers can be assigned to schools. Please change the role or remove the school assignment.",
+                    color: "red",
+                    icon: <IconUserExclamation />,
+                });
+                buttonStateHandler.close();
+                return;
+            }
+
             try {
                 const result = await createNewUserV1AuthCreatePost({
                     headers: { Authorization: GetAccessTokenHeader() },
@@ -79,23 +103,20 @@ export function CreateUserComponent({
                         username: values.username,
                         roleId: Number(values.role),
                         password: values.password,
+                        email: values.email || null,
+                        nameFirst: values.firstName || null,
+                        nameMiddle: values.middleName || null,
+                        nameLast: values.lastName || null,
+                        position: values.position || null,
+                        schoolId: values.assignedSchool ? Number(values.assignedSchool) : null,
                     },
                 });
                 if (result.error) {
-                    throw new Error(`Failed to create user: ${result.response.status} ${result.response.statusText}`);
+                    // Let the error parser handle the detailed error message instead of creating a generic one
+                    throw result;
                 }
-                const new_user = result.data;
-                const updatedUser = await UpdateUserInfo({
-                    id: new_user.id,
-                    username: values.username,
-                    email: values.email || null,
-                    nameFirst: values.firstName,
-                    nameMiddle: values.middleName,
-                    nameLast: values.lastName,
-                    position: values.position || null,
-                    schoolId: values.assignedSchool ? Number(values.assignedSchool) : null,
-                    roleId: Number(values.role),
-                });
+                const newUser = result.data;
+
                 notifications.show({
                     id: "create-user-success",
                     title: "Success",
@@ -105,21 +126,25 @@ export function CreateUserComponent({
                 });
                 setModalOpen(false);
                 form.reset();
-                if (onUserCreate) onUserCreate(updatedUser);
+                if (onUserCreate) onUserCreate(newUser);
             } catch (err) {
                 customLogger.error(err instanceof Error ? err.message : "Failed to create user");
+
+                const parsedError = parseAPIError(err, "createUser", "Failed to Create User");
+
                 notifications.show({
                     id: "create-user-error",
-                    title: "Error",
-                    message: err instanceof Error ? `Failed to create user: ${err.message}` : "Failed to create user",
+                    title: parsedError.title,
+                    message: parsedError.message,
                     color: "red",
                     icon: <IconUserExclamation />,
+                    autoClose: parsedError.isUserFriendly ? 5000 : 10000,
                 });
             } finally {
                 buttonStateHandler.close();
             }
         },
-        [buttonStateHandler, form, setModalOpen, UpdateUserInfo, onUserCreate]
+        [buttonStateHandler, form, setModalOpen, onUserCreate]
     );
 
     return (
@@ -137,6 +162,14 @@ export function CreateUserComponent({
                         label="Assigned School"
                         placeholder="School"
                         data={schoolOptions}
+                        disabled={
+                            form.values.role ? Number(form.values.role) !== 4 && Number(form.values.role) !== 5 : false
+                        }
+                        description={
+                            form.values.role && Number(form.values.role) !== 4 && Number(form.values.role) !== 5
+                                ? "Only principals and canteen managers can be assigned to schools"
+                                : undefined
+                        }
                         {...form.getInputProps("assignedSchool")}
                     />
                     <Select

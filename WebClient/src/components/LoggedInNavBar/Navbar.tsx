@@ -1,12 +1,11 @@
 "use client";
 
-import { ActionIcon, Avatar, Code, Group, Image, Indicator, NavLink, Text, Title, Tooltip } from "@mantine/core";
+import { ActionIcon, Avatar, Group, Indicator, NavLink, Text, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
     IconBuilding,
     IconDashboard,
     IconGraph,
-    IconHelp,
     IconLogout,
     IconNotification,
     IconRefresh,
@@ -14,18 +13,19 @@ import {
     IconSettings,
     IconUser,
 } from "@tabler/icons-react";
-import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { getNotificationQuantityV1NotificationsQuantityGet } from "@/lib/api/csclient";
-import { Program, roles } from "@/lib/info";
+import { roles } from "@/lib/info";
 import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
 import { JSX, useEffect, useState } from "react";
 
-import classes from "./Navbar.module.css";
 import { customLogger } from "@/lib/api/customLogger";
+import { useNotificationWebSocket } from "@/lib/hooks/useNotificationWebSocket";
 import { useUserSyncControls } from "@/lib/hooks/useUserSyncControls";
+import classes from "./Navbar.module.css";
 
 export const Navbar: React.FC = () => {
     const [links, setLinks] = useState<JSX.Element[]>([]);
@@ -36,6 +36,23 @@ export const Navbar: React.FC = () => {
     const pathname = usePathname();
     const { logout } = useAuth();
     const { triggerRefresh, isRefreshing } = useUserSyncControls();
+
+    // WebSocket integration for real-time notification count updates
+    useNotificationWebSocket({
+        onNewNotification: () => {
+            customLogger.debug("New notification received, updating count");
+            setNotificationsQuantity((prev) => prev + 1);
+        },
+        onNotificationArchived: () => {
+            customLogger.debug("Notification archived, updating count");
+            fetchNotificationsQuantity(); // Refresh to get accurate count
+        },
+        onNotificationUnarchived: () => {
+            customLogger.debug("Notification unarchived, updating count");
+            fetchNotificationsQuantity(); // Refresh to get accurate count
+        },
+        enabled: true,
+    });
 
     const fetchNotificationsQuantity = async () => {
         try {
@@ -177,24 +194,9 @@ export const Navbar: React.FC = () => {
         });
     }, [notificationsQuantity, pathname, userCtx.userPermissions, userCtx.userInfo?.roleId]);
 
-    customLogger.debug("Returning Navbar");
     return (
         <nav className={classes.navbar}>
             <div className={classes.navbarMain}>
-                <Group className={classes.header} justify="space-between">
-                    <Group>
-                        <Image
-                            src="/assets/logos/BENTO.svg"
-                            alt="BENTO Logo"
-                            radius="md"
-                            h={70}
-                            w="auto"
-                            fit="contain"
-                        />
-                        <Title>{Program.name}</Title>
-                        <Code fw={700}>{Program.version}</Code>
-                    </Group>
-                </Group>
                 <div>{links}</div>
             </div>
             <div className={classes.footer}>
@@ -254,7 +256,7 @@ export const Navbar: React.FC = () => {
                 </Group>
             </div>
             <div className={classes.footer}>
-                <NavLink
+                {/* <NavLink
                     href="#"
                     label="Documentation"
                     leftSection={<IconHelp className={classes.linkIcon} stroke={1.5} />}
@@ -263,7 +265,7 @@ export const Navbar: React.FC = () => {
                         customLogger.info("User accessed documentation");
                         router.push("/documentation");
                     }}
-                />
+                /> */}
                 <NavLink
                     href="#"
                     label="Logout"

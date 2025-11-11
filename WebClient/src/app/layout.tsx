@@ -1,6 +1,14 @@
 import { routing } from "@/i18n/routing";
+import { theme, defaultColorscheme } from "@/lib/theme";
+import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
+
+import "@mantine/core/styles.css";
+import "@mantine/charts/styles.css";
+import "@mantine/dropzone/styles.css";
+import "@mantine/notifications/styles.css";
+import "@mantine/spotlight/styles.css";
 
 interface LocaleLayoutProps {
     children: React.ReactNode;
@@ -23,5 +31,16 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     // Providing all messages to the client side is the easiest way to get started
     const messages = await getMessages();
 
-    return <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>;
+    return (
+        <html lang="en" {...mantineHtmlProps}>
+            <head>
+                <ColorSchemeScript />
+            </head>
+            <body>
+                <MantineProvider theme={theme} defaultColorScheme={defaultColorscheme}>
+                    <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+                </MantineProvider>
+            </body>
+        </html>
+    );
 }

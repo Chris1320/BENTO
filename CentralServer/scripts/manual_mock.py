@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import getpass
 import sys
@@ -405,4 +406,19 @@ async def main(endpoint: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main("http://localhost:8081/api/")))
+    endpoint = "http://localhost:8081/api/"
+    parser = argparse.ArgumentParser(
+        description="Manually populate the database with sample schools and users."
+    )
+    parser.add_argument(
+        "-e",
+        "--endpoint",
+        type=str,
+        help="The endpoint to populate the database with sample data.",
+        default=endpoint,
+    )
+    args = parser.parse_args()
+    if args.endpoint:
+        endpoint = args.endpoint
+
+    sys.exit(asyncio.run(main(endpoint)))
